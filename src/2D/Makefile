@@ -14,7 +14,10 @@ include ${HYP_RULES_FILE}
 vpath %.o $(HYP_OBJDIR)
 
 
-FF90_OBJECTS = 2D_code.o\
+FF90_OBJECTS =	2D_code.o\
+		writePlot3d_2d.o\
+		writeCGNS_2d.o\
+		releaseMemory.o\
 
 all:
 	$(PMAKE)  src

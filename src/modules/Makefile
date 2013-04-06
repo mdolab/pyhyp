@@ -16,7 +16,8 @@ vpath %.o $(HYP_OBJDIR)
 # Note: precision MUST be compiled first.
 FF90_OBJECTS_1 = precision.o\
 
-FF90_OBJECTS_2 = hypInput.o\
+FF90_OBJECTS_2 =	hypInput.o\
+			hypData.o\
 
 default: all
 
