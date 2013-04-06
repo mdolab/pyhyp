@@ -9,6 +9,7 @@
 
 SUBDIR_SRC    = src/modules\
 		src/2D\
+		src/utils\
 
 default:
 	@echo "Usage: make <arch>"

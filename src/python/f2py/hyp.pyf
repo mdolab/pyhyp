@@ -1,0 +1,44 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module hyp ! in 
+    interface  ! in :hyp
+        module hypinput ! in :hyp:hypInput.f90
+            use precision
+            real(kind=realtype) :: epse
+            real(kind=realtype) :: epsi
+            real(kind=realtype) :: s0
+            integer(kind=inttype) :: n
+            integer(kind=inttype) :: volsmoothiter
+            real(kind=realtype) :: gridratio
+            real(kind=realtype) :: theta
+            real(kind=realtype) :: volcoef
+        end module hypinput
+
+        subroutine releasememory
+        end subroutine releasememory
+
+        subroutine run2d(xin,nx) ! in :test:2D_code.F90
+            use hypdata
+            use hypinput
+            real(kind=realtype) dimension(2,nx) :: xin
+            integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
+        end subroutine run2d
+
+        subroutine writecgns_2d(filename) ! in :test:writeCGNS_2d.F90
+            use precision
+            use hypinput
+            character*(*) :: filename
+        end subroutine writecgns_2d
+
+        subroutine writeplot3d_2d(filename) ! in :test:writePlot3d_2d.F90
+            use hypdata
+            character*(*) :: filename
+        end subroutine writeplot3d_2d
+
+        
+    end interface 
+end python module hyp
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
