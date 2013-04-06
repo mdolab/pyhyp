@@ -10,6 +10,9 @@ module hypData
   ! Data for the 2D generator:
   real(kind=realType), dimension(:, :, :), allocatable, target :: grid2D
 
+  ! Data for both generators
+  real(kind=realType) :: scaleDist
+
   ! Petsc Varibles
   Mat A
   Vec rDelta
