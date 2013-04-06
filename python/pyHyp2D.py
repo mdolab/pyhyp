@@ -16,7 +16,7 @@ Developers:
 
 History
 -------
-	v. 1.0 - Initial Class Creation (GKK, 2010)
+	v. 1.0 - Initial Class Creation (GKffffK, 2010)
 
 """
 # =============================================================================
@@ -44,7 +44,7 @@ class pyHyp2D(object):
     This is the main class pyHyp. It is used as the user interface to pyHyp2D. 
     """
 
-    def __init__(self, fileName=None, X=None, comm=None, options=None, **kwargs):
+    def __init__(self, fileName=None, X=None, comm=None, options=None, flip=False, **kwargs):
         """
         Create the pyHyp object. 
 
@@ -106,8 +106,8 @@ class pyHyp2D(object):
                 # ....
                 # xn yn
 
-                f = open(filename, 'r')
-                N = int(f.readLine())
+                f = open(fileName, 'r')
+                N = int(f.readline())
                 x = []
                 y = []
                 for i in xrange(N):
@@ -120,34 +120,35 @@ class pyHyp2D(object):
                 f.close()
 
                 # Convert the lists to an array
-                x = numpy.array(x)
-                y = numpy.array(y)
-
-                # Now check if the first and the last point are within
-                # tolerance of each other:
-                if geo_utils.e_dist([x[0],y[0]],x[-1],y[-1]) < 1e-6:
-                    # Curve is closed, we're ok
-                    pass
-                else:
-                    # Curve is not close, add first point at end and let
-                    # user know we are closing the curve
-                    x = numpy.append(x,x[0])
-                    y = numpy.append(y,y[0])
-                    print '*'*80
-                    print 'Warning: Curve was not closed! Closing curve with a linear\
- segment. This may or not be what is desired!'
-                    print '*'*80
-                # end if
-                X = numpy.array([x,y])
-            else:
-                # X must be given:
-                N = len(X)
+                X = numpy.array([x,y]).T
+                
             # end if
+
+            # Now check if the first and the last point are within
+            # tolerance of each other:
+            if geo_utils.e_dist(X[0],X[-1]) < 1e-6:
+                # Curve is closed, we're ok. Internally, we work
+                # with the unclosed curve and explictly deal with
+                # the  0th and Nth points 
+                X = X[0:-1,:]
+            else:
+                # Curve is not closed, print warning
+                print '*'*80
+                print 'Warning: Curve was not closed! Closing curve with a linear\
+ segment. This may or not be what is desired!'
+                print '*'*80
+            # end if
+
+            if flip: # Reverse direction
+                X[:,0] = X[:,0][::-1]
+                X[:,1] = X[:,1][::-1]
         # end if
 
         # Now broadcase the required info to the other procs:
         self.X = self.comm.bcast(X, root=0)
         self.N = len(self.X)
+
+
 
         # Defalut options for mesh warping
         self.options_default = {
@@ -169,7 +170,7 @@ class pyHyp2D(object):
             'theta': 1.0,
 
             # volCoef: The volume smoothing coefficinet
-            'volCoef': 0.5,
+            'volCoef': 0.16,
 
             # volSmoothIter: The number of point-jacobi volume
             # smoothing iterations
@@ -188,6 +189,7 @@ class pyHyp2D(object):
         """
         Run given using the options given
         """
+
         self.hyp.run2d(self.X.T)
         self.gridGenerated = True
 
