@@ -61,7 +61,6 @@ all:
 
 	mv hyp.so ../../../python
 # Clean up temporary files
-	-rm *.pyf
 	-rm *.o
 	-rm *.f90 *.c
 	-rm .f2py_f2cmap
