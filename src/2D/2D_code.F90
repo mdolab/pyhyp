@@ -13,7 +13,7 @@ subroutine run2D(Xin, nx)
   integer(kind=intType) :: i, j, l, idim
   real(kind=realType), pointer, dimension(:, :) :: X0, X1
   real(kind=realType) :: Area0(nx), Area1(nx), ABar, deltaS
-  real(kind=realType) :: A0(2, 2, nx), B0(2, 2, nx) 
+  real(kind=realType) :: A0(2, 2, nx), B0(2, 2, nx), sMax
 
   ! First thing we will do is allocate the final grid array:
   if (allocated(grid2D)) then
@@ -29,6 +29,10 @@ subroutine run2D(Xin, nx)
      end do
   end do
 
+  ! Compute an approximate estimate of the distance to farfield by
+  ! taking s0 and computing
+  sMax = s0*gridRatio**(N-1)
+
   ! Compute the original Areas, based on initial s0 value
   X0 => grid2D(:, :, 1)
   call computeAreas(X0, Area0, nx, ABar, s0)
@@ -40,6 +44,9 @@ subroutine run2D(Xin, nx)
   marchLoop: do l=2, N
      print *,'----------- Step: ', l
 
+     ! Compute the scaled distance of this layer
+     scaleDist = s0*gridRatio**(l-2)/sMax
+
      ! Set pointers to the two levels we are currently working with
      X0 => grid2D(:, :, l-1)
      X1 => grid2D(:, :, l  )
@@ -47,7 +54,6 @@ subroutine run2D(Xin, nx)
      ! Compute the length increment in the marching direction. This is
      ! put in a separate function to allow for potential callbacks to
      ! user supplied functions if necessary
-     
      call computeStretch(l, deltaS)
 
      ! Compute the nodal areas on the X0 layer as well as the average
@@ -61,7 +67,7 @@ subroutine run2D(Xin, nx)
      call computeMetrics2D(X0, Area0, Area1, A0, B0, nx)
 
      ! Assemble and solve
-     call assembleAndSolve(X0, X1, Area1, A0, B0, nx)
+     call assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
 
      ! Shuffle the area's backwards
      Area0 = Area1
@@ -158,6 +164,9 @@ subroutine areaSmooth(Area0, nx, ABar, l)
      ! Copy Area0 back to Atmp
      Atmp = Area0
   end do
+
+  ! Next we 
+
 end subroutine areaSmooth
 
 subroutine computeMetrics2D(X0, Area0, Area1, A0, B0, nx)
@@ -241,7 +250,7 @@ subroutine computeStretch(l, deltaS)
 
 end subroutine computeStretch
 
-subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx)
+subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
   
   use hypInput
   use hypData
@@ -257,11 +266,13 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx)
   ! Working parameters
   integer(kind=intType) :: i, j, l, idim, ierr, idp1, idm1
   real(kind=realType) :: eye(2, 2), BInv(2,2), BInvA(2,2), deltaR(2)
-
+  real(kind=realType) :: De(2), Sl
   ! Define a 2x2 'I' matrix
   eye = zero
   eye(1,1) = one
   eye(2,2) = one
+  call MatZeroEntries(A, ierr)
+  call VecZeroEntries(RHS, ierr)
 
   ! Next we assemble A which is quite straight forward
   do i=1, nx
@@ -279,10 +290,13 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx)
         idm1 = i - 1
      end if
      
-     ! Compute the inverse of B
+     ! Compute the inverse of B and its multiplcation with A
      call two_by_two_inverse(B0(:, :, i), Binv)
-     
      BinvA = matmul(Binv, A0(:, :, i))
+     
+     ! -----------------
+     ! Left Hand Side:
+     ! -----------------
 
      ! Point to the left
      call MatSetValuesBlocked(A, 1, i-1, 1, idm1-1, -(1+theta)*half*BinvA - epsI*eye, INSERT_VALUES, ierr)
@@ -292,16 +306,28 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx)
      call MatSetValuesBlocked(A, 1, i-1, 1, i-1, eye + two*epsI*eye, INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
-
      ! Point to the right
      call MatSetValuesBlocked(A, 1, i-1, 1, idp1-1, (1+theta)*half*BinvA - epsI*eye,  INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
-     ! Finally assemble the RHS
+     ! -----------------
+     ! Right Hand Side:
+     ! -----------------
+
+     ! Assemble the the Binv comonent of the RHS
      call VecSetValuesBlocked(RHS, 1, i-1, matmul(Binv,(/zero, Area1(i)/)), INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-  end do
+     ! Finally we need to do the explcit smoothing
 
+     De = epsE*(X0(:,idm1) - two*X0(:,i) + X0(:, idp1))
+     Sl = sqrt((dble(l)-1)/(N-1))
+     Sl = ((dble(l)-2)/(N-1))**1.5
+     !Sl = sqrt(scaleDist)
+     call VecSetValuesBlocked(RHS, 1, i-1, De*Sl, ADD_VALUES, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+     
+  end do
+  print *,'l,sl:',l,sl
   ! Assemble the matrix and vector
   call MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY, ierr)
   call EChk(ierr, __FILE__, __LINE__)
@@ -315,24 +341,15 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx)
   call VecAssemblyEnd(RHS, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  ! Create the KSP Object
-  call KSPCreate(petsc_comm_world, kspObj, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
-
-  call KSPSetFromOptions(kspObj, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
-
+  ! Set the operator so PETSc knows to refactor
   call KSPSetOperators(kspObj, A, A, SAME_NONZERO_PATTERN, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
-
-  call KSPSetTolerances(kspObj, 1e-14, 1e-40, 1e100, 100, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Now solve the system
   call KSPSolve(kspObj, RHS, rDelta, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  ! Take the solution and copy into X1, the next layer
+  ! Take the solution in deltaR and add to X0 to get X1
   do i=1,nx
      call VecGetValues(rDelta, 2, (/2*(i-1), 2*(i-1)+1/), deltaR, ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -373,7 +390,7 @@ subroutine create2DPetscVars(nx)
   
   ! Working Variables
   integer(kind=intType) :: onProc(nx*2), offProc(nx*2), ierr
-  
+
   ! Lets to things in the proper way, create the Mat first
   onProc = 3
   offProc = 1
@@ -393,7 +410,20 @@ subroutine create2DPetscVars(nx)
   ! Then use getVecs to get the vectors we want
   call MatGetVecs(A, rDelta, RHS, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
+  ! Create the KSP Object
+  call KSPCreate(petsc_comm_world, kspObj, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call KSPSetFromOptions(kspObj, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call KSPSetOperators(kspObj, A, A, SAME_NONZERO_PATTERN, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call KSPSetTolerances(kspObj, 1e-14, 1e-16, 1e5, 50, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
 end subroutine create2DPetscVars
 
 subroutine destroy2DPetscVars
