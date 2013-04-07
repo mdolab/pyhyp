@@ -124,26 +124,27 @@ subroutine computeAreas(X, nodalArea, nx, ABar, deltaS)
   
 end subroutine computeAreas
   
-subroutine areaSmooth(Area0, nx, ABar, l)
+subroutine areaSmooth(Area, nx, ABar, l)
 
   use hypInput
+  use hypData
 
   implicit none
 
   ! Perform averaging on the nodal areas
   
   ! Input/Output Parameters
-  real(kind=realType), intent(inout) :: Area0(nx)
+  real(kind=realType), intent(inout) :: Area(nx)
   real(kind=realType), intent(in) :: ABar
   integer(kind=intType), intent(in) :: nx
   integer(kind=intType), intent(in) :: l
 
   ! Working Parameters
   real(kind=realType) :: factor, Atmp(nx)
-  integer(kind=intType) :: i, iter, idp1, idm1
-
-  ! Do point jacobi smoothing iterations
-  Atmp = Area0
+  integer(kind=intType) :: i, idp1, idm1, ierr, iter
+  
+  ! Do a local point jacobi smoothing iterations
+  Atmp = Area
   do iter=1,volSmoothIter
      do i=1,nx
         if (i==1) then
@@ -156,16 +157,20 @@ subroutine areaSmooth(Area0, nx, ABar, l)
            idp1 = i + 1
            idm1 = i - 1
         end if
-        
-        Area0(i) = (one - volCoef) * Atmp(i) + &
+         
+        Area(i) = (one - volCoef) * Atmp(i) + &
              half*volCoef*(Atmp(idp1) + Atmp(idm1))
      end do
      
      ! Copy Area0 back to Atmp
-     Atmp = Area0
+     Atmp = Area
   end do
+  
+  ! Next we will do a global area smoothing. This uses Abar which is
+  ! the avarage area: (Vector notation below)
 
-  ! Next we 
+  factor = half * (one + ( one - volBlend)**(l-2))
+  Area = factor*Area + (one - factor)*Abar
 
 end subroutine areaSmooth
 
@@ -271,10 +276,10 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
   eye = zero
   eye(1,1) = one
   eye(2,2) = one
-  call MatZeroEntries(A, ierr)
-  call VecZeroEntries(RHS, ierr)
+  call MatZeroEntries(hypMat, ierr)
+  call VecZeroEntries(hypRHS, ierr)
 
-  ! Next we assemble A which is quite straight forward
+  ! Next we assemble hypMat which is quite straight forward
   do i=1, nx
 
      ! Get the indices (fortran ordering) depending on whcih point we
@@ -299,15 +304,15 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
      ! -----------------
 
      ! Point to the left
-     call MatSetValuesBlocked(A, 1, i-1, 1, idm1-1, -(1+theta)*half*BinvA - epsI*eye, INSERT_VALUES, ierr)
+     call MatSetValuesBlocked(hypMat, 1, i-1, 1, idm1-1, -(1+theta)*half*BinvA - epsI*eye, INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      ! Center Point
-     call MatSetValuesBlocked(A, 1, i-1, 1, i-1, eye + two*epsI*eye, INSERT_VALUES, ierr)
+     call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, eye + two*epsI*eye, INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      ! Point to the right
-     call MatSetValuesBlocked(A, 1, i-1, 1, idp1-1, (1+theta)*half*BinvA - epsI*eye,  INSERT_VALUES, ierr)
+     call MatSetValuesBlocked(hypMat, 1, i-1, 1, idp1-1, (1+theta)*half*BinvA - epsI*eye,  INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      ! -----------------
@@ -315,43 +320,43 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
      ! -----------------
 
      ! Assemble the the Binv comonent of the RHS
-     call VecSetValuesBlocked(RHS, 1, i-1, matmul(Binv,(/zero, Area1(i)/)), INSERT_VALUES, ierr)
+     call VecSetValuesBlocked(hypRHS, 1, i-1, matmul(Binv,(/zero, Area1(i)/)), INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     ! Finally we need to do the explcit smoothing
 
+     ! Finally we need to do the explcit smoothing
      De = epsE*(X0(:,idm1) - two*X0(:,i) + X0(:, idp1))
      Sl = sqrt((dble(l)-1)/(N-1))
      Sl = ((dble(l)-2)/(N-1))**1.5
      !Sl = sqrt(scaleDist)
-     call VecSetValuesBlocked(RHS, 1, i-1, De*Sl, ADD_VALUES, ierr)
+     call VecSetValuesBlocked(hypRHS, 1, i-1, De*Sl, ADD_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      
   end do
-  print *,'l,sl:',l,sl
+
   ! Assemble the matrix and vector
-  call MatAssemblyBegin(A, MAT_FINAL_ASSEMBLY, ierr)
+  call MatAssemblyBegin(hypMat, MAT_FINAL_ASSEMBLY, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call MatAssemblyEnd(A, MAT_FINAL_ASSEMBLY, ierr)
+  call MatAssemblyEnd(hypMat, MAT_FINAL_ASSEMBLY, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call VecAssemblyBegin(RHS, ierr)
+  call VecAssemblyBegin(hypRHS, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call VecAssemblyEnd(RHS, ierr)
+  call VecAssemblyEnd(hypRHS, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Set the operator so PETSc knows to refactor
-  call KSPSetOperators(kspObj, A, A, SAME_NONZERO_PATTERN, ierr)
+  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Now solve the system
-  call KSPSolve(kspObj, RHS, rDelta, ierr)
+  call KSPSolve(hypKSP, hypRHS, hypDelta, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Take the solution in deltaR and add to X0 to get X1
   do i=1,nx
-     call VecGetValues(rDelta, 2, (/2*(i-1), 2*(i-1)+1/), deltaR, ierr)
+     call VecGetValues(hypDelta, 2, (/2*(i-1), 2*(i-1)+1/), deltaR, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      X1(:, i) = X0(:, i) + deltaR
   end do
@@ -391,38 +396,73 @@ subroutine create2DPetscVars(nx)
   ! Working Variables
   integer(kind=intType) :: onProc(nx*2), offProc(nx*2), ierr
 
+  ! ----------------------------------------------------------
+  !          Linearized Hyperbolic System Variables
+  ! ----------------------------------------------------------
+
   ! Lets to things in the proper way, create the Mat first
   onProc = 3
-  offProc = 1
+  offProc = 0
 
   call MatCreateMPIAIJ(PETSC_COMM_WORLD,  &
        nx*2, nx*2, PETSC_DETERMINE, PETSC_DETERMINE, &
-       0, onProc, 0, offProc, A, ierr)
+       0, onProc, 0, offProc, hypMat, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call MatSetBlockSize(A, 2, ierr)
+  ! Make it a bocked matrix of size 2
+  call MatSetBlockSize(hypMat, 2, ierr)
   
   ! This must be set to allow passing in blocks in native fortran
   ! ordering
-  call MatSetOption(A, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
+  call MatSetOption(hypMat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Then use getVecs to get the vectors we want
-  call MatGetVecs(A, rDelta, RHS, ierr)
+  call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Create the KSP Object
-  call KSPCreate(petsc_comm_world, kspObj, ierr)
+  call KSPCreate(petsc_comm_world, hypKSP, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPSetFromOptions(kspObj, ierr)
+  call KSPSetFromOptions(hypKSP, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPSetOperators(kspObj, A, A, SAME_NONZERO_PATTERN, ierr)
+  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPSetTolerances(kspObj, 1e-14, 1e-16, 1e5, 50, ierr)
+  call KSPSetTolerances(hypKSP, 1e-14, 1e-16, 1e5, 50, ierr)
   call EChk(ierr, __FILE__, __LINE__)
+
+  ! ! ----------------------------------------------------------
+  ! !          Smoothing System Variables
+  ! ! ----------------------------------------------------------
+
+  ! ! These are larger than necesasry but that is ok
+  ! onProc = 3
+  ! offProc = 0
+
+  ! call MatCreateMPIAIJ(PETSC_COMM_WORLD,  &
+  !      nx, nx, PETSC_DETERMINE, PETSC_DETERMINE, &
+  !      0, onProc, 0, offProc, smoothMat, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
+
+  ! ! Then use getVecs to get the vectors we want
+  ! call MatGetVecs(smoothMat, smoothRHS, smoothDelta, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
+
+  ! ! Create the KSP Object
+  ! call KSPCreate(petsc_comm_world, smoothKSP, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
+
+  ! call KSPSetFromOptions(smoothKSP, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
+
+  ! call KSPSetOperators(smoothKSP, smoothMat, smoothMat, SAME_NONZERO_PATTERN, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
+
+  ! call KSPSetTolerances(smoothKSP, 1e-14, 1e-16, 1e5, 50, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine create2DPetscVars
 
@@ -434,17 +474,117 @@ subroutine destroy2DPetscVars
   
   integer(kind=intType) :: ierr
 
-  ! Now delete the objects we had create
-  call KSPDestroy(kspObj, ierr)
+  ! Destroy hyp system objects
+  call KSPDestroy(hypKSP, ierr)
   call EChk(ierr, __FILE__, __LINE__)
   
-  call MatDestroy(A, ierr)
+  call MatDestroy(hypMat, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call VecDestroy(rhs, ierr)
+  call VecDestroy(hypRHS, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call VecDestroy(rDelta, ierr)
+  call VecDestroy(hypDelta, ierr)
   call EChk(ierr, __FILE__, __LINE__)
+
+  ! ! Destroy smoothing system objects
+  ! call KSPDestroy(smoothKSP, ierr)
+
+  ! call MatDestroy(smoothMat, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
+
+  ! call VecDestroy(smoothRHS, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
+
+  ! call VecDestroy(smoothDelta, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine destroy2DPetscVars
+
+
+ ! ! We are going to do this smoothing properly by solving the linear
+ !  ! system. The equation we will be solving is:
+ !  !
+ !  ! AA = (1 - volCoef)*Area(i) + half*volCoef*(Area(i-1) + Area(i+1))
+ !  !
+ !  ! Where AA is the smoothed area. 
+
+ !  if (.not. smoothingAssembled) then
+ !     call MatZeroEntries(smoothMat, ierr)
+ !     call VecZeroEntries(smoothRHS, ierr)
+
+ !     ! Next we assemble smoothMat which is quite straight forward
+ !     do i=1, nx
+        
+ !        ! Get the indices (fortran ordering) depending on whcih point we
+ !        ! have
+ !        if (i==1) then
+ !           idp1 = 2
+ !           idm1 = nx
+ !        else if(i==nx) then
+ !           idp1 = 1
+ !           idm1 = nx-1
+ !        else
+ !           idp1 = i + 1
+ !           idm1 = i - 1
+ !        end if
+
+ !        ! -----------------
+ !        ! Left Hand Side:
+ !        ! -----------------
+
+ !        ! Point to the left
+ !        call MatSetValues(smoothMat, 1, i-1, 1, idm1-1, one, INSERT_VALUES, ierr)
+ !        call EChk(ierr, __FILE__, __LINE__)
+
+ !        ! Center Point
+ !        call MatSetValues(smoothMat, 1, i-1, 1, i-1, -two, INSERT_VALUES, ierr)
+ !        call EChk(ierr, __FILE__, __LINE__)
+
+ !        ! Point to the right
+ !        call MatSetValues(smoothMat, 1, i-1, 1, idp1-1, one, INSERT_VALUES, ierr)
+ !        call EChk(ierr, __FILE__, __LINE__)
+ !     end do
+
+ !     ! Assemble the matrix and vector
+ !     call MatAssemblyBegin(smoothMat, MAT_FINAL_ASSEMBLY, ierr)
+ !     call EChk(ierr, __FILE__, __LINE__)
+
+ !     call MatAssemblyEnd(smoothMat, MAT_FINAL_ASSEMBLY, ierr)
+ !     call EChk(ierr, __FILE__, __LINE__)
+
+ !     call MatView(smoothMat, PETSC_VIEWER_STDOUT_WORLD, ierr)
+ !     ! Set the operators
+ !     call KSPSetOperators(smoothKSP, smoothMat, smoothMat, SAME_NONZERO_PATTERN, ierr)
+ !     call EChk(ierr, __FILE__, __LINE__)
+     
+ !     ! Flag as assembled
+ !     smoothingAssembled = .True.
+ !  end if
+
+ !  ! Now assemle the RHS:
+ !  do i=1,nx
+ !     print *,'before:',i, Area(i)
+ !     call vecSetValues(smoothRHS, 1, i-1, Area(i), INSERT_VALUES, ierr)
+ !     call EChk(ierr, __FILE__, __LINE__)
+ !  end do
+
+ !  call VecAssemblyBegin(smoothRHS, ierr)
+ !  call EChk(ierr, __FILE__, __LINE__)
+  
+ !  call VecAssemblyEnd(smoothRHS, ierr)
+ !  call EChk(ierr, __FILE__, __LINE__)
+
+ !  ! Now solve the system
+ !  call KSPSolve(smoothKSP, smoothRHS, smoothDelta, ierr)
+ !  call EChk(ierr, __FILE__, __LINE__)
+  
+ !  ! The solution is in smoothDelta which isn't actually a delta, but
+ !  ! the smoothed areas:
+
+ !  ! Extract the solution
+ !  do i=1,nx
+ !     call vecGetValues(smoothDelta, 1, i-1, Area(i), ierr)
+ !     call EChk(ierr, __FILE__, __LINE__)
+ !     print *,'after:',i,Area(i)
+ !  end do

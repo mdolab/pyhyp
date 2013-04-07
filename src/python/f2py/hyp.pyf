@@ -13,6 +13,7 @@ python module hyp ! in
             real(kind=realtype) :: gridratio
             real(kind=realtype) :: theta
             real(kind=realtype) :: volcoef
+            real(kind=realtype) :: volblend
         end module hypinput
 
         subroutine releasememory

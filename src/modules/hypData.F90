@@ -13,10 +13,17 @@ module hypData
   ! Data for both generators
   real(kind=realType) :: scaleDist
 
-  ! Petsc Varibles
-  Mat A
-  Vec rDelta
-  Vec RHS
-  KSP kspObj
+  ! Petsc Varibles for solving linearized hyperbolic system 
+  Mat hypMat
+  Vec hypDelta
+  Vec hypRHS
+  KSP hypKSP
+
+ ! ! Petsc Varibles for solving the smoothing problem
+ !  Mat smoothMat
+ !  Vec smoothDelta
+ !  Vec smoothRHS
+ !  KSP smoothKSP
+ !  logical :: smoothingAssembled
 
 end module hypData

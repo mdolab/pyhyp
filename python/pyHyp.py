@@ -1,10 +1,10 @@
 #!/usr/bin/python
 from __future__ import division
 """
-pyHyp
+pyHyp2D
 
-The pyHyp module is used for generating hyperbolic grids given a set
-of structured quad surface patches. 
+The pyHyp2D module is used to generate a hyperbolic grid around a
+closed curve
 
 Copyright (c) 2013 by G. Kenway
 All rights reserved. Not to be used for commercial purposes.
@@ -16,7 +16,7 @@ Developers:
 
 History
 -------
-	v. 1.0 - Initial Class Creation (GKK, 2010)
+	v. 1.0 - Initial Class Creation (GKK, 2013)
 
 """
 # =============================================================================
@@ -32,7 +32,7 @@ import numpy
 # =============================================================================
 # Extension modules
 # =============================================================================
-from mdo_import_helper import import_modules, MPI, mpiPrint, MExt
+from mdo_import_helper import import_modules, MPI, mpiPrint
 exec(import_modules('geo_utils','pyGeo'))
 
 # =============================================================================
@@ -41,16 +41,20 @@ exec(import_modules('geo_utils','pyGeo'))
 
 class pyHyp(object):
     """
-    This is the main class pyHyp. It is used as the user interface to pyHyp. 
+    This is the main class pyHyp. It is used as the user interface to pyHyp2D. 
     """
 
-    def __init__(self, fileName, comm=None, Options=None, **kwargs):
+    def __init__(self, dimension, fileName=None, X=None, comm=None, options=None, flip=False, **kwargs):
         """
         Create the pyHyp object. 
 
-        Input Arguments:
-            fileName, str: 2D surface plot3D file name surface to use as 
-                the base of the mesh
+        Required Input Argument:
+            dimension, str: One of '2d' or '3d'. Specify the dimension of the problem
+
+        Input Arguments: ONE of:
+            fileName, str: file containing xy points 
+            X, numpy array, size (N, 2): Numpy array containing N x-y points
+
         Optional Arguments:
             comm, MPI_INTRA_COMM: MPI communication (as obtained 
                 from mpi4py) on which to create the pyHyp object. This 
@@ -64,6 +68,43 @@ class pyHyp(object):
 
              """
 
+        # Defalut options for hyperbolc generation
+        self.options_default = {
+            # Number of layers:
+            'N': 10, 
+
+            # Initial off-wall spacing
+            's0':0.01,
+            
+            # Grid Spacing Ratio
+            'gridRatio':1.15,
+
+            # epsE: The explict smoothing coefficient
+            'epsE': 0.5,
+
+            # epsI: The implicit smoothing coefficient
+            'epsI': 1.0,
+
+            # theta: The barth implicit smoothing coefficient
+            'theta': 1.0,
+
+            # volCoef: The volume smoothing coefficinet for
+            # pointJacobi iterations
+            'volCoef': 1.0,
+
+            # volBlend: The volume blending coefficient to force
+            # uniform sizs in farfield
+            'volBlend': 0.2,
+
+            # volSmoothIter: The number of point-jacobi volume
+            # smoothing iterations
+            'volSmoothIter': 10,
+            }
+
+        # Import and set the hyp module
+        import hyp
+        self.hyp = hyp
+
         # Set the possible MPI Intracomm
         if comm is None:
             self.comm = MPI.COMM_WORLD
@@ -71,69 +112,220 @@ class pyHyp(object):
             self.comm = comm
         # end if
 
-        if Options is not None:
-            self.options = Options
+        # Set the dimension:
+        if not dimension.lower() in ['2d', '3d']:
+            mpiPrint('Error: \'dimension\' must be one of \'2d\' or \'3d\'', 
+                     comm=self.comm)
+        else:
+            self.twoD = False
+            if dimension.lower() == '2d':
+                self.twoD = True
+            # end if
+        # end if
+
+        # Use supplied options
+        if options is not None:
+            self.options = options
         else:
             self.options = {}
         # end if
+
+        # Depending on the dimensionality, we initialize the problem
+        # separately. 
+        if self.twoD:
+            self._init2D(fileName, X, flip)
+        else:
+            self._init3D(fileName)
+        # end if
+
+        # Setup the options
+        self._checkOptions()
+        self._setOptions()
+        self.gridGenerated = False
+        mpiPrint('Problem sucessfully setup!')
+
+        return
+
+    def _init2D(self, fileName, X, flip):
+
+        # Check to see how the user has passed in the data:
+        if fileName is None and X is None:
+            mpiPrint('Error: Either fileName or X must be passed on initialization!')
+            return
+
+        if fileName is not None and X is not None:
+            mpiPrint('Error: BOTH fileName or X have been passed on initialization!')
+            mpiPrint('Error: Only ONE of these are required.')
+            return            
 
         # Take the file name and try loading it using the pyGeo
         # architecture. Only do this on one proc; we will MPI-bcast
         # the information back to everyone else when it is necessary.
         if self.comm.rank == 0:
-            geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
-                                  file_type='ascii', order='f')
 
-            # This isn't prety or efficient but does produce the
-            # globally reduced list we need and it is greedily
-            # reordered. For ~100,000 surface points this takes on the
-            # order of a couple of seconds so we're not going to worry
-            # too much about efficiency here.
-            nodeTol = kwargs.pop('nodeTol',1e-6)
-            edgeTol = kwargs.pop('edgeTol',1e-6)
-            geo_obj._calcConnectivity(nodeTol, edgeTol)
-            sizes = []
-            for isurf in xrange(geo_obj.nSurf):
-                sizes.append([geo_obj.surfs[isurf].Nu, geo_obj.surfs[isurf].Nv])
-            geo_obj.topo.calcGlobalNumbering(sizes)
+            if fileName is not None:
+                # Load the curve from a file using the the following format:
+                # <number of points>
+                # x1 y1
+                # x2 y2 
+                # ....
+                # xn yn
 
-            # Now we need to check that the surface is closed, In the
-            # future it will support symmetry boundary conditions, but not yet
+                f = open(fileName, 'r')
+                N = int(f.readline())
+                x = []
+                y = []
+                for i in xrange(N):
+                    aux = f.readline().split()
+                    x.append(float(aux[0]))
+                    y.append(float(aux[1]))
+                # end for
 
-            # Next we need to produced an unstructured-like data
-            # structure that points to the neighbours for each
-            # node. We will use node-halo information such that
-            # regular corners (has 2 neighbours in each of the i and j
-            # directions) will be treated exactly the same as an
-            # interior node. Extraordinary node, those that have 3, 5
-            # or more verticies will be flagged and will be treated
-            # specially in the hyperbolic marchign algorithm using a
-            # lapalacian operator. 
-            
+                # Done with the file so close
+                f.close()
 
-        # Defalut options for mesh warping
-        self.options_default = {
-            # Number of layers:
-            'N': 10, 
+                # Convert the lists to an array
+                X = numpy.array([x,y]).T
+                
+            # end if
 
-            # Offwall-spacing 
-            'spacing':'constant',
+            # Now check if the first and the last point are within
+            # tolerance of each other:
+            if geo_utils.e_dist(X[0],X[-1]) < 1e-6:
+                # Curve is closed, we're ok. Internally, we work
+                # with the unclosed curve and explictly deal with
+                # the  0th and Nth points 
+                X = X[0:-1,:]
+            else:
+                # Curve is not closed, print warning
+                print '*'*80
+                print 'Warning: Curve was not closed! Closing curve with a linear\
+ segment. This may or not be what is desired!'
+                print '*'*80
+            # end if
 
-            # Volume Smooth Factor
-            'volSmooth':0.25,
+            if flip: # Reverse direction
+                X[:,0] = X[:,0][::-1]
+                X[:,1] = X[:,1][::-1]
+        # end if
 
-            }
-
-        self._checkOptions(self.options)
+        # Now broadcast the required info to the other procs:
+        self.X = self.comm.bcast(X, root=0)
+        self.N = len(self.X)
 
         return
 
+    def _init3d(self, fileName, flip):
+
+        geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
+                              file_type='ascii', order='f')
+        
+        # This isn't prety or efficient but does produce the
+        # globally reduced list we need and it is greedily
+        # reordered. For ~100,000 surface points this takes on the
+        # order of a couple of seconds so we're not going to worry
+        # too much about efficiency here.
+        nodeTol = kwargs.pop('nodeTol',1e-6)
+        edgeTol = kwargs.pop('edgeTol',1e-6)
+        geo_obj._calcConnectivity(nodeTol, edgeTol)
+        sizes = []
+        for isurf in xrange(geo_obj.nSurf):
+            sizes.append([geo_obj.surfs[isurf].Nu, geo_obj.surfs[isurf].Nv])
+        geo_obj.topo.calcGlobalNumbering(sizes)
+
+        # Now we need to check that the surface is closed, In the
+        # future it will support symmetry boundary conditions, but not yet
+
+        # Next we need to produced an unstructured-like data
+        # structure that points to the neighbours for each
+        # node. We will use node-halo information such that
+        # regular corners (has 2 neighbours in each of the i and j
+        # directions) will be treated exactly the same as an
+        # interior node. Extraordinary node, those that have 3, 5
+        # or more verticies will be flagged and will be treated
+        # specially in the hyperbolic marchign algorithm using a
+        # lapalacian operator. 
+        
+        return
+
+    def run(self):
+        """
+        Run given using the options given
+        """
+        if self.twoD:
+            self.hyp.run2d(self.X.T)
+            self.gridGenerated = True
+        else:
+            self.hyp.run3d()
+        # end if
+
+        return
+
+    def writePlot3D(self, fileName):
+        """After we have generated a grid, write it out to a plot3d
+        file for the user to look at"""
+        
+        if self.gridGenerated:
+            if self.twoD:
+                self.hyp.writeplot3d_2d(fileName)
+            else:
+                self.hyp.writeplot3d_3d(fileName)
+            # end if
+        else:
+            mpiPrint('Error! No grid has been generated! Run the run() \
+command before trying to write the grid!')
+        # end if
+
+        return
+
+    def writeCGNS(self, fileName):
+        """After we have generated a grid, write it out in a properly \
+formatted 1-Cell wide CGNS file suitable for running in SUmb."""
+
+        if self.gridGenerated:
+            if self.twoD:
+                self.hyp.writecgns_2d(fileName)
+            else:
+                self.hyp.writecgns_3d(fileName)
+            # end if
+        else:
+            mpiPrint('Error! No grid has been generated! Run the run() \
+command before trying to write the grid!')
+        # end if
+
+        return
       
-    def _checkOptions(self, solver_options):
+    def _setOptions(self):
+        """Internal function to set the options in pyHyp"""
+        self.hyp.hypinput.n         = self.options['N']
+        self.hyp.hypinput.s0        = self.options['s0']
+        self.hyp.hypinput.gridratio = self.options['gridRatio']
+        self.hyp.hypinput.epse      = self.options['epsE']
+        self.hyp.hypinput.epsi      = self.options['epsI']
+        self.hyp.hypinput.theta     = self.options['theta']
+        self.hyp.hypinput.volcoef   = self.options['volCoef']
+        self.hyp.hypinput.volblend  = self.options['volBlend']
+        self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
+
+        return
+
+    def _checkOptions(self):
         """
         Check the solver options against the default ones
-        and add opt
-        ion iff it is NOT in solver_options
+        and add option iff it is NOT in solver_options
         """
+        for key in self.options_default.keys():
+            if not(key in self.options.keys()):
+                self.options[key] = self.options_default[key]
+            # end if
+        # end for
 
-        return solver_options
+        return
+
+    def __del__(self):
+        """
+        Clean up fortran allocated values if necessary
+        """
+        self.hyp.releasememory()
+
+        return

@@ -39,14 +39,17 @@ exec(import_modules('geo_utils','pyGeo'))
 # MultiBlockMesh class
 # =============================================================================
 
-class pyHyp2D(object):
+class pyHyp(object):
     """
     This is the main class pyHyp. It is used as the user interface to pyHyp2D. 
     """
 
-    def __init__(self, fileName=None, X=None, comm=None, options=None, flip=False, **kwargs):
+    def __init__(self, dimension, fileName=None, X=None, comm=None, options=None, flip=False, **kwargs):
         """
         Create the pyHyp object. 
+
+        Required Input Argument:
+            dimension, str: One of '2d' or '3d'. Specify the dimension of the problem
 
         Input Arguments: ONE of:
             fileName, str: file containing xy points 
@@ -65,11 +68,58 @@ class pyHyp2D(object):
 
              """
 
+        # Defalut options for hyperbolc generation
+        self.options_default = {
+            # Number of layers:
+            'N': 10, 
+
+            # Initial off-wall spacing
+            's0':0.01,
+            
+            # Grid Spacing Ratio
+            'gridRatio':1.15,
+            # epsE: The explict smoothing coefficient
+            'epsE': 0.5,
+
+            # epsI: The implicit smoothing coefficient
+            'epsI': 1.0,
+
+            # theta: The barth implicit smoothing coefficient
+            'theta': 1.0,
+
+            # volCoef: The volume smoothing coefficinet for
+            # pointJacobi iterations
+            'volCoef': 1.0,
+
+            # volBlend: The volume blending coefficient to force
+            # uniform sizs in farfield
+            'volBlend': 0.2,
+
+            # volSmoothIter: The number of point-jacobi volume
+            # smoothing iterations
+            'volSmoothIter': 10,
+            }
+
+        # Import and set the hyp module
+        import hyp
+        self.hyp = hyp
+
         # Set the possible MPI Intracomm
         if comm is None:
             self.comm = MPI.COMM_WORLD
         else:
             self.comm = comm
+        # end if
+
+        # Set the dimension:
+        if not dimension.lower() in ['2d', '3d']:
+            mpiPrint('Error: \'dimension\' must be one of \'2d\' or \'3d\'', 
+                     comm=self.comm)
+        else:
+            self.twoD = False
+            if dimension.lower() == '2d':
+                self.twoD = True
+            # end if
         # end if
 
         # Use supplied options
@@ -79,9 +129,21 @@ class pyHyp2D(object):
             self.options = {}
         # end if
 
-        # Import and set the hyp module
-        import hyp
-        self.hyp = hyp
+        if self.twoD:
+            self._init2D(fileName, X)
+        else:
+            self._init3D(fileName)
+        # end if
+
+        # Setup the options
+        self._checkOptions()
+        self._setOptions()
+        self.gridGenerated = False
+        mpiPrint('Problem sucessfully setup!')
+
+        return
+
+    def _init2D(self, fileName, X):
 
         # Check to see how the user has passed in the data:
         if fileName is None and X is None:
@@ -148,50 +210,51 @@ class pyHyp2D(object):
         self.X = self.comm.bcast(X, root=0)
         self.N = len(self.X)
 
+        return
 
+    def _init3d(self, fileName):
 
-        # Defalut options for mesh warping
-        self.options_default = {
-            # Number of layers:
-            'N': 10, 
+        geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
+                              file_type='ascii', order='f')
+        
+        # This isn't prety or efficient but does produce the
+        # globally reduced list we need and it is greedily
+        # reordered. For ~100,000 surface points this takes on the
+        # order of a couple of seconds so we're not going to worry
+        # too much about efficiency here.
+        nodeTol = kwargs.pop('nodeTol',1e-6)
+        edgeTol = kwargs.pop('edgeTol',1e-6)
+        geo_obj._calcConnectivity(nodeTol, edgeTol)
+        sizes = []
+        for isurf in xrange(geo_obj.nSurf):
+            sizes.append([geo_obj.surfs[isurf].Nu, geo_obj.surfs[isurf].Nv])
+        geo_obj.topo.calcGlobalNumbering(sizes)
 
-            # Initial off-wall spacing
-            's0':0.01,
-            
-            # Grid Spacing Ratio
-            'gridRatio':1.15,
-            # epsE: The explict smoothing coefficient
-            'epsE': 0.5,
+        # Now we need to check that the surface is closed, In the
+        # future it will support symmetry boundary conditions, but not yet
 
-            # epsI: The implicit smoothing coefficient
-            'epsI': 1.0,
-
-            # theta: The barth implicit smoothing coefficient
-            'theta': 1.0,
-
-            # volCoef: The volume smoothing coefficinet
-            'volCoef': 0.16,
-
-            # volSmoothIter: The number of point-jacobi volume
-            # smoothing iterations
-            'volSmoothIter': 10,
-            }
-
-        # Setup the options
-        self._checkOptions()
-        self._setOptions()
-        self.gridGenerated = False
-        mpiPrint('Problem sucessfully setup!')
-
+        # Next we need to produced an unstructured-like data
+        # structure that points to the neighbours for each
+        # node. We will use node-halo information such that
+        # regular corners (has 2 neighbours in each of the i and j
+        # directions) will be treated exactly the same as an
+        # interior node. Extraordinary node, those that have 3, 5
+        # or more verticies will be flagged and will be treated
+        # specially in the hyperbolic marchign algorithm using a
+        # lapalacian operator. 
+        
         return
 
     def run(self):
         """
         Run given using the options given
         """
-
-        self.hyp.run2d(self.X.T)
-        self.gridGenerated = True
+        if self.twoD:
+            self.hyp.run2d(self.X.T)
+            self.gridGenerated = True
+        else:
+            self.hyp.run3d()
+        # end if
 
         return
 
@@ -200,7 +263,11 @@ class pyHyp2D(object):
         file for the user to look at"""
         
         if self.gridGenerated:
-            self.hyp.writeplot3d_2d(fileName)
+            if self.twoD:
+                self.hyp.writeplot3d_2d(fileName)
+            else:
+                self.hyp.writeplot3d_3d(fileName)
+            # end if
         else:
             mpiPrint('Error! No grid has been generated! Run the run() \
 command before trying to write the grid!')
@@ -213,7 +280,11 @@ command before trying to write the grid!')
 formatted 1-Cell wide CGNS file suitable for running in SUmb."""
 
         if self.gridGenerated:
-            hyp.writecgns_2d(fileName)
+            if self.twoD:
+                self.hyp.writecgns_2d(fileName)
+            else:
+                self.hyp.writecgns_3d(fileName)
+            # end if
         else:
             mpiPrint('Error! No grid has been generated! Run the run() \
 command before trying to write the grid!')
@@ -230,6 +301,7 @@ command before trying to write the grid!')
         self.hyp.hypinput.epsi      = self.options['epsI']
         self.hyp.hypinput.theta     = self.options['theta']
         self.hyp.hypinput.volcoef   = self.options['volCoef']
+        self.hyp.hypinput.volblend  = self.options['volBlend']
         self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
 
         return
