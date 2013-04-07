@@ -11,7 +11,7 @@ subroutine run2D(Xin, nx)
 
   ! Working parameters
   integer(kind=intType) :: i, j, l, idim
-  real(kind=realType), pointer, dimension(:, :) :: X0, X1
+  real(kind=realType), pointer, dimension(:, :) :: X0, X1, Xm1
   real(kind=realType) :: Area0(nx), Area1(nx), ABar, deltaS
   real(kind=realType) :: A0(2, 2, nx), B0(2, 2, nx), sMax
 
@@ -40,6 +40,10 @@ subroutine run2D(Xin, nx)
   ! Create the petsc variables
   call create2DPetscVars(nx)
 
+  ! Set the Xm1 pointer, to first layer. It isn't actually used, just
+  ! good practice to point it somewhere as it is passed to a function.
+  Xm1 => grid2D(:, :, 1) 
+
   ! This is the master marching direction loop
   marchLoop: do l=2, N
      print *,'----------- Step: ', l
@@ -50,6 +54,9 @@ subroutine run2D(Xin, nx)
      ! Set pointers to the two levels we are currently working with
      X0 => grid2D(:, :, l-1)
      X1 => grid2D(:, :, l  )
+     if (l > 2) then
+        Xm1 => grid2D(:, :, l-2)
+     end if
 
      ! Compute the length increment in the marching direction. This is
      ! put in a separate function to allow for potential callbacks to
@@ -67,7 +74,7 @@ subroutine run2D(Xin, nx)
      call computeMetrics2D(X0, Area0, Area1, A0, B0, nx)
 
      ! Assemble and solve
-     call assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
+     call assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
 
      ! Shuffle the area's backwards
      Area0 = Area1
@@ -255,7 +262,7 @@ subroutine computeStretch(l, deltaS)
 
 end subroutine computeStretch
 
-subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
+subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
   
   use hypInput
   use hypData
@@ -263,7 +270,7 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
   implicit none
 
   ! Input Parameters
-  real(kind=realType), intent(in) :: X0(2, nx), Area1(nx)
+  real(kind=realType), intent(in) :: X0(2, nx), Area1(nx), Xm1(2, nx)
   real(kind=realType), intent(in) :: A0(2, 2, nx), B0(2, 2, nx)
   integer(kind=intType), intent(in) :: nx
   real(kind=realType), intent(out) :: X1(2, nx)
@@ -271,7 +278,8 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
   ! Working parameters
   integer(kind=intType) :: i, j, l, idim, ierr, idp1, idm1
   real(kind=realType) :: eye(2, 2), BInv(2,2), BInvA(2,2), deltaR(2)
-  real(kind=realType) :: De(2), Sl
+  real(kind=realType) :: De(2), Sl, Rzeta, azeta, tmp, dzeta, nzeta
+  real(kind=realType) :: exp, T, D, lambda1, lambda2
   ! Define a 2x2 'I' matrix
   eye = zero
   eye(1,1) = one
@@ -323,12 +331,40 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
      call VecSetValuesBlocked(hypRHS, 1, i-1, matmul(Binv,(/zero, Area1(i)/)), INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
-     ! Finally we need to do the explcit smoothing
-     De = epsE*(X0(:,idm1) - two*X0(:,i) + X0(:, idp1))
-     Sl = sqrt((dble(l)-1)/(N-1))
-     Sl = ((dble(l)-2)/(N-1))**1.5
-     !Sl = sqrt(scaleDist)
-     call VecSetValuesBlocked(hypRHS, 1, i-1, De*Sl, ADD_VALUES, ierr)
+     ! -------------------------------------------
+     !             Explicit Smoothing 
+     ! -------------------------------------------
+
+     ! Scaling Function (Equation 6.5)
+     exp = 1.0
+     Sl = ((dble(l)-2)/(N-1))**exp
+
+     ! Compute the grid distribution sensor (eq 6.7 Chen and Steger)
+     tmp = (dist(Xm1(:, idm1), Xm1(:, i)) + dist(Xm1(:, idp1), Xm1(:, i))) / &
+          (dist(X0(:, idm1), X0(:, i)) + dist(X0(:, idp1), X0(:, i)))
+     dzeta = max(tmp**(2/Sl), 0.1)
+
+     ! Compute the grid angle functions
+     azeta = one
+
+     ! Equation 6.4
+     Rzeta = Sl * dzeta * azeta
+
+     ! Matrix norm approximation
+     ! Compute the eigenvalues of Binv
+     T = BinvA(1,1) + BinvA(2,2)
+     D = BinvA(1,1)*BinvA(2,2) - BinvA(1,2)*BinvA(2,1)
+     lambda1 = half*(T + sqrt(T**2 - 4*D))
+     lambda2 = half*(T - sqrt(T**2 - 4*D))
+     Nzeta = sqrt(max(lambda1, lambda2))
+
+     ! Equation 6.1 and 6.2 in Chen and Steger
+     De = epsE*Rzeta*Nzeta * (X0(:,idm1) - two*X0(:,i) + X0(:, idp1)) 
+     if (l == 2) then
+        De = zero
+     end if
+
+     call VecSetValuesBlocked(hypRHS, 1, i-1, De, ADD_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      
   end do
@@ -361,6 +397,16 @@ subroutine assembleAndSolve(X0, X1, Area1, A0, B0, nx, l)
      X1(:, i) = X0(:, i) + deltaR
   end do
  
+  contains 
+
+    function dist(p1, p2)
+
+      real(kind=realType) :: p1(2), p2(2)
+      real(kind=realType) :: dist
+      dist = sqrt((p1(1)-p2(1))**2 + (p1(2)-p2(2))**2)
+
+    end function dist
+
 end subroutine assembleAndSolve
 
 subroutine two_by_two_inverse(A, Ainv)
