@@ -27,6 +27,9 @@ module hypInput
 
   ! volCoef: The volume smoothing coefficinet
   real(kind=realType) :: volCoef
+
+  ! volBlend: The volume blending coefficient
+  real(kind=realType) :: volBlend
   
   ! volSmoothIter: The number of point-jacobi volume smoothing
   ! iterations

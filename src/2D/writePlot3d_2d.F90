@@ -30,7 +30,7 @@ subroutine writePlot3d_2d(fileName)
 
   ! Write the zone sizes
   gridShp = shape(grid2D)
-  write(7,6) gridShp(2), gridShp(3), 1
+  write(7,6) gridShp(2)+1, gridShp(3), 1
 6 format(I5, I5, I5)
 
   do idim=1,2
@@ -38,12 +38,13 @@ subroutine writePlot3d_2d(fileName)
         do i=1,gridShp(2)
            write(7,7), grid2D(idim, i, j)
         end do
+        write(7,7), grid2D(idim, 1, j)
      end do
   end do
 
   ! Write out the z-coordinate which is just zero
   do j=1,gridShp(3)
-     do i=1,gridShp(2)
+     do i=1,gridShp(2)+1
         write(7,7), zero
      end do
   end do
