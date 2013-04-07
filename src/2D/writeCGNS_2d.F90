@@ -122,7 +122,7 @@ subroutine writeCGNS_2d(fileName)
   ! given surface, which we will set as BCWallViscous. The j-high is a
   ! FarField condtion. The k-low and k-high surfaces are mirror planes. 
 
-  ! Jlow
+  ! ---------- Jlow --------------
   pnts(:, 1) = (/1, 1, 1/)
   pnts(:, 2) = (/sizes(1), 1, sizes(3)/)
   
@@ -137,7 +137,7 @@ subroutine writeCGNS_2d(fileName)
   call cg_famname_write_f("wall", ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-  ! Jhigh
+  ! ---------- Jhigh --------------
   pnts(:, 1) = (/1, sizes(2), 1/)
   pnts(:, 2) = (/sizes(1), sizes(2), sizes(3)/)
   
@@ -152,7 +152,7 @@ subroutine writeCGNS_2d(fileName)
   call cg_famname_write_f("far", ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-  ! Klow
+  ! ---------- Klow --------------
   pnts(:, 1) = (/1, 1, 1/)
   pnts(:, 2) = (/sizes(1), sizes(2), 1/)
   
@@ -167,7 +167,7 @@ subroutine writeCGNS_2d(fileName)
   call cg_famname_write_f("sym", ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-  ! Khigh
+  ! ---------- Khigh --------------
   pnts(:, 1) = (/1, 1, sizes(3)/)
   pnts(:, 2) = (/sizes(1), sizes(2), sizes(3)/)
   
@@ -182,14 +182,13 @@ subroutine writeCGNS_2d(fileName)
   call cg_famname_write_f("sym", ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-
   ! That takes care of the boundary conditions. The last thing we have
   ! to deal with is the grid connectivity. This is a little bit
   ! tricker since we need to get the periodic block to block
   ! connection correct at the period boundary. This takes take of the
   ! "boundary" condition on the iLow and iHigh faces.
 
-  ! I Low
+  ! ---------- Ilow --------------
   pnts(:, 1) = (/1, 1, 1/)
   pnts(:, 2) = (/1, sizes(2), sizes(3)/)
 
@@ -204,7 +203,7 @@ subroutine writeCGNS_2d(fileName)
        transform, nCon, ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-  ! I High
+  ! ---------- Ihigh --------------
   pnts(:, 1) = (/sizes(1), 1, 1/)
   pnts(:, 2) = (/sizes(1), sizes(2), sizes(3)/)
 
