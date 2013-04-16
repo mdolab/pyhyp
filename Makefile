@@ -9,6 +9,7 @@
 
 SUBDIR_SRC    = src/modules\
 		src/2D\
+		src/3D\
 		src/utils\
 
 default:

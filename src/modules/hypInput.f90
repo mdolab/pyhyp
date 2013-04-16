@@ -8,7 +8,7 @@ module hypInput
 
   ! Parameters that affect both 2D and 3D generation:
   ! N: The number of points in the extrusion direction 
-  integer(kind=intType) :: N
+  integer(kind=intType) :: N, nDebug
 
   ! s0: Initial offwall spacing
   real(kind=realType) :: s0

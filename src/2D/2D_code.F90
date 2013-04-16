@@ -35,6 +35,7 @@ subroutine run2D(Xin, nx)
 
   ! Compute the original Areas, based on initial s0 value
   X0 => grid2D(:, :, 1)
+  
   call computeAreas(X0, Area0, nx, ABar, s0)
 
   ! Create the petsc variables
@@ -71,7 +72,7 @@ subroutine run2D(Xin, nx)
      call AreaSmooth(Area1, nx, ABar, l)
 
      ! Compute the metrics
-     call computeMetrics2D(X0, Area0, Area1, A0, B0, nx)
+     call computeMetrics2D(X0, Area0, Area1, A0, B0, nx, l)
 
      ! Assemble and solve
      call assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
@@ -82,7 +83,7 @@ subroutine run2D(Xin, nx)
   end do marchLoop
 
   ! Destroy the PETSc variables
-  call destroy2DPetscVars
+  call destroyPetscVars
 
 end subroutine run2D
 
@@ -181,20 +182,22 @@ subroutine areaSmooth(Area, nx, ABar, l)
 
 end subroutine areaSmooth
 
-subroutine computeMetrics2D(X0, Area0, Area1, A0, B0, nx)
+subroutine computeMetrics2D(X0, Area0, Area1, A0, B0, nx, l)
 
   use precision
-
+  use hypInput
   implicit none
 
   ! Input Parameters
   real(kind=realType), intent(in) :: X0(2, nx), Area0(nx), Area1(nx)
   real(kind=realType), intent(out) :: A0(2, 2, nx), B0(2, 2, nx)
-  integer(kind=intType), intent(in) :: nx
+  integer(kind=intType), intent(in) :: nx, l
 
   ! Working Variables
   real(kind=realType) :: alpha, beta, gamma, lambda, ovrGamma, rip1(2), rim1(2)
-  real(kind=realType) :: rzeta(2), reta(2)
+  real(kind=realType) :: rzeta(2), reta(2), reta0(2), rplusj(2), rminusj(2)
+  real(kind=realType) :: rzetaprime(2), vl, ri(2), nrplusj(2), nrminusj(2)
+  real(kind=realType) :: retaprime(2), exp
   integer(kind=intType) :: i
 
   do i=1, nx
@@ -208,16 +211,41 @@ subroutine computeMetrics2D(X0, Area0, Area1, A0, B0, nx)
         rip1 = X0(:, i+1)
         rim1 = X0(:, i-1)
      end if
+     ri   = X0(:, i)
 
-     ! Compute centered difference with respect to zeta (eq 14)
+     ! Compute centered difference with respect to zeta. This is the
+     ! nominal calculation that we will use in the interior of the domain
      rzeta = half*(rip1 - rim1)
 
+     ! For the eta derivatives we will employ metric correction as
+     ! described by Chen and Stenger 
+
+     ! Compute the '0' quantities, that is the uncorrected form
      gamma = rzeta(1)**2 + rzeta(2)**2
      ovrGamma = one/gamma
 
-     ! Compute derivative wrt to eta (normal direction) (eq 18)
-     reta(1) = -rzeta(2)*Area0(i)/gamma
-     reta(2) =  rzeta(1)*Area0(i)/gamma
+     reta0(1) = -rzeta(2)*Area0(i)*ovrGamma
+     reta0(2) =  rzeta(1)*Area0(i)*ovrGamma
+
+     ! Now compute corrected zeta derivative
+     rplusj = rip1 - ri
+     rminusj = rim1 - ri
+
+     nrplusj = sqrt(rplusj(1)**2 + rplusj(2)**2)
+     nrminusj = sqrt(rminusj(1)**2 + rminusj(2)**2)
+     ! Equation 7.2a
+     rzetaprime = &
+          fourth*(nrplusj + nrminusj)*(rplusj/nrplusj - rminusj/nrminusj)
+
+     gamma = rzetaprime(1)**2 + rzetaprime(2)**2
+     ovrGamma = one/gamma
+
+     retaprime(1) = -rzetaprime(2)*Area0(i)*ovrGamma
+     retaprime(2) =  rzetaprime(1)*Area0(i)*ovrGamma
+
+     ! Now we can blend them (equation 7.3)
+     vl = two**(two - l)
+     reta = (one - vl)*reta0 + vl*retaprime
 
      ! Compute the two coefficient matrices
      A0(1, 1, i) = reta(1)
@@ -245,6 +273,8 @@ subroutine computeStretch(l, deltaS)
   
   ! Output Parameters
   real(kind=realType), intent(inout) :: deltaS
+  real(kind=realType) :: newRatio,r , aboveOne
+  integer(kind=intType) :: L_trans
 
   ! Since we don't have a complex stretching function yet, we will
   ! just use geometric progression which is usually close to what we
@@ -257,7 +287,19 @@ subroutine computeStretch(l, deltaS)
   else
      ! Otherwise, just multiply the current deltaS by the gridRatio
      ! parameter, also in HypInput
-     deltaS = deltaS*gridRatio
+     if  (L > 73) then
+        deltaS = deltaS*1.05
+
+     ! if (l > L_trans) then
+     !    r =  (dble(l)-L_trans)/(N-L_trans)
+     !    aboveOne = gridRatio - one
+     !    newRatio = gridRatio - aboveOne*r
+     !    print *,'newRatio:',newRatio
+     !    deltaS = deltaS*newRatio
+
+      else
+        deltaS = deltaS*gridRatio
+     end if
   end if
 
 end subroutine computeStretch
@@ -280,6 +322,8 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
   real(kind=realType) :: eye(2, 2), BInv(2,2), BInvA(2,2), deltaR(2)
   real(kind=realType) :: De(2), Sl, Rzeta, azeta, tmp, dzeta, nzeta
   real(kind=realType) :: exp, T, D, lambda1, lambda2
+  real(kind=realType) :: nVec(2), nHat(2), v1(2), rplusj(2), rminusj(2)
+  real(kind=realType) :: alpha, rplusjhat(2)
   ! Define a 2x2 'I' matrix
   eye = zero
   eye(1,1) = one
@@ -312,15 +356,18 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
      ! -----------------
 
      ! Point to the left
-     call MatSetValuesBlocked(hypMat, 1, i-1, 1, idm1-1, -(1+theta)*half*BinvA - epsI*eye, INSERT_VALUES, ierr)
+     call MatSetValuesBlocked(hypMat, 1, i-1, 1, idm1-1,&
+          -(one+theta)*half*BinvA - epsI*eye, INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      ! Center Point
-     call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, eye + two*epsI*eye, INSERT_VALUES, ierr)
+     call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
+          eye + two*epsI*eye, INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      ! Point to the right
-     call MatSetValuesBlocked(hypMat, 1, i-1, 1, idp1-1, (1+theta)*half*BinvA - epsI*eye,  INSERT_VALUES, ierr)
+     call MatSetValuesBlocked(hypMat, 1, i-1, 1, idp1-1, &
+          (one+theta)*half*BinvA - epsI*eye,  INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      ! -----------------
@@ -328,14 +375,17 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
      ! -----------------
 
      ! Assemble the the Binv comonent of the RHS
-     call VecSetValuesBlocked(hypRHS, 1, i-1, matmul(Binv,(/zero, Area1(i)/)), INSERT_VALUES, ierr)
+     call VecSetValuesBlocked(hypRHS, 1, i-1, &
+          matmul(Binv,(/zero, Area1(i)/)), INSERT_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
-     ! -------------------------------------------
+     ! ============================================
      !             Explicit Smoothing 
-     ! -------------------------------------------
+     ! ============================================
 
+     ! ------------------------------------
      ! Scaling Function (Equation 6.5)
+     ! ------------------------------------
      exp = 1.0
      Sl = ((dble(l)-2)/(N-1))**exp
 
@@ -344,12 +394,42 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
           (dist(X0(:, idm1), X0(:, i)) + dist(X0(:, idp1), X0(:, i)))
      dzeta = max(tmp**(2/Sl), 0.1)
 
-     ! Compute the grid angle functions
-     azeta = one
+     ! ------------------------------------
+     ! Compute the grid angle functions (Equation 6.9)
+     ! ------------------------------------
 
-     ! Equation 6.4
+     rplusj = X0(:, idp1) - X0(:, i)
+     rminusj = X0(:, idm1) -X0(:, i)
+
+     ! Since this is 2D we take the cross product with the direction
+     ! normal to the plane, ie (0, 0, -1).
+     v1 = rplusj- rminusj
+     nVec = (/-v1(2), v1(1)/)
+     
+     ! Normalize: (Equation 6.10)
+     nHat = nVec / sqrt(nVec(1)**2 + nVec(2)**2)
+
+     ! Compute alpha
+     rplusjhat = rplusj /sqrt(rplusj(1)**2 + rplusj(2)**2)
+
+     ! Equation 6.11
+     alpha = acos((nHat(1)*rplusjhat(1) + nHat(2)*rplusjhat(2)))
+
+     ! Equation 6.12
+     if (alpha >= zero .and. alpha <= half*pi) then
+        azeta = one/(one - cos(alpha)**2)
+     else
+        azeta = one
+     end if
+     
+     ! ------------------------------------
+     ! Combine into 'Rzeta' (Equation 6.4)
+     ! ------------------------------------
      Rzeta = Sl * dzeta * azeta
 
+     ! ------------------------------------
+     ! Matrix Norm approximation 
+     ! ------------------------------------
      ! Matrix norm approximation
      ! Compute the eigenvalues of Binv
      T = BinvA(1,1) + BinvA(2,2)
@@ -358,8 +438,11 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
      lambda2 = half*(T - sqrt(T**2 - 4*D))
      Nzeta = sqrt(max(lambda1, lambda2))
 
-     ! Equation 6.1 and 6.2 in Chen and Steger
+     ! ------------------------------------
+     ! Final explict dissipation (Equation 6.1 and 6.2)
+     ! ------------------------------------
      De = epsE*Rzeta*Nzeta * (X0(:,idm1) - two*X0(:,i) + X0(:, idp1)) 
+
      if (l == 2) then
         De = zero
      end if
@@ -367,6 +450,29 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
      call VecSetValuesBlocked(hypRHS, 1, i-1, De, ADD_VALUES, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      
+     ! if (alpha  > 245*pi/180) then 
+     !    ! *really* convex corner, do implicit averaging instead:
+        
+     !    print *,'Doing Averaging for pt:', i
+        
+     !    ! Point to the left
+     !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, idm1-1, &
+     !         -half*eye, INSERT_VALUES, ierr)
+
+     !    ! Center Point
+     !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
+     !         eye, INSERT_VALUES, ierr)
+     !    call EChk(ierr, __FILE__, __LINE__)
+
+     !    ! Point to the right
+     !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, idp1-1, &
+     !         -half*eye,  INSERT_VALUES, ierr)
+     !    call EChk(ierr, __FILE__, __LINE__)
+
+     !    ! Zero the RHS for this value:
+     !    call VecSetValuesBlocked(hypRHS, 1, i-1, (/zero, zero/), INSERT_VALUES, ierr)
+     !    call EChk(ierr, __FILE__, __LINE__)
+     ! end if
   end do
 
   ! Assemble the matrix and vector
@@ -383,9 +489,10 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Set the operator so PETSc knows to refactor
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
-
+  if (l < 75 .or. mod(l,10) == 0) then
+     call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+  end if
   ! Now solve the system
   call KSPSolve(hypKSP, hypRHS, hypDelta, ierr)
   call EChk(ierr, __FILE__, __LINE__)
@@ -477,42 +584,12 @@ subroutine create2DPetscVars(nx)
   call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPSetTolerances(hypKSP, 1e-14, 1e-16, 1e5, 50, ierr)
+  call KSPSetTolerances(hypKSP, 1e-12, 1e-16, 1e5, 50, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-
-  ! ! ----------------------------------------------------------
-  ! !          Smoothing System Variables
-  ! ! ----------------------------------------------------------
-
-  ! ! These are larger than necesasry but that is ok
-  ! onProc = 3
-  ! offProc = 0
-
-  ! call MatCreateMPIAIJ(PETSC_COMM_WORLD,  &
-  !      nx, nx, PETSC_DETERMINE, PETSC_DETERMINE, &
-  !      0, onProc, 0, offProc, smoothMat, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-  ! ! Then use getVecs to get the vectors we want
-  ! call MatGetVecs(smoothMat, smoothRHS, smoothDelta, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-  ! ! Create the KSP Object
-  ! call KSPCreate(petsc_comm_world, smoothKSP, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-  ! call KSPSetFromOptions(smoothKSP, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-  ! call KSPSetOperators(smoothKSP, smoothMat, smoothMat, SAME_NONZERO_PATTERN, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-  ! call KSPSetTolerances(smoothKSP, 1e-14, 1e-16, 1e5, 50, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine create2DPetscVars
 
-subroutine destroy2DPetscVars
+subroutine destroyPetscVars
 
   use hypData
 
@@ -533,19 +610,7 @@ subroutine destroy2DPetscVars
   call VecDestroy(hypDelta, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  ! ! Destroy smoothing system objects
-  ! call KSPDestroy(smoothKSP, ierr)
-
-  ! call MatDestroy(smoothMat, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-  ! call VecDestroy(smoothRHS, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-  ! call VecDestroy(smoothDelta, ierr)
-  ! call EChk(ierr, __FILE__, __LINE__)
-
-end subroutine destroy2DPetscVars
+end subroutine destroyPetscVars
 
 
  ! ! We are going to do this smoothing properly by solving the linear
