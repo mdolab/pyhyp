@@ -706,8 +706,10 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, A0, B0, C0, nx, l)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Set the operator so PETSc knows to refactor
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  if (mod(l,10) == 0) then
+     call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+  end if
 
   ! Now solve the system
   call KSPSolve(hypKSP, hypRHS, hypDelta, ierr)
