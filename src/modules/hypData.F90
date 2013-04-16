@@ -9,6 +9,7 @@ module hypData
 
   ! Data for the 2D generator:
   real(kind=realType), dimension(:, :, :), allocatable, target :: grid2D
+  real(kind=realType), dimension(:, :, :), allocatable, target :: grid3D
 
   ! Data for both generators
   real(kind=realType) :: scaleDist
@@ -19,11 +20,21 @@ module hypData
   Vec hypRHS
   KSP hypKSP
 
- ! ! Petsc Varibles for solving the smoothing problem
- !  Mat smoothMat
- !  Vec smoothDelta
- !  Vec smoothRHS
- !  KSP smoothKSP
- !  logical :: smoothingAssembled
+  type patchType
 
+     ! Patch Dimensions
+     ! il, jl: Use sumb/pyWarp labeling
+
+     integer(kind=intType) :: il, jl
+
+     ! l_index: Pointer of each node on the patch into the globally
+     ! reduced X array. 
+     integer(kind=intType), dimension(:, :), allocatable :: l_index
+     
+  end type patchType
+
+  ! The list of the patchs
+  integer(kind=intType) :: nPatch
+  type(patchType), dimension(:), allocatable :: patches
+  integer(kind=intType), dimension(:, :), allocatable :: nPtr
 end module hypData
