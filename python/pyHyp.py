@@ -326,7 +326,7 @@ linear segment. This may or not be what is desired!'
                 for i in xrange(1, sizes[iFace][0] -1):
                     iGlobal = topo.l_index[iFace][i,j]
                     if nPtr[iGlobal] == []: # Not set yet
-                        nPtr[iGlobal].extend([0,4])
+                        nPtr[iGlobal].append(4)
                         if iEdge == 0: # Right-> Up -> Left -> Down
                             nPtr[iGlobal].append(topo.l_index[iFace][i+1, j] + 1)
                             nPtr[iGlobal].append(topo.l_index[iFace][i, j+1] + 1)
@@ -365,7 +365,7 @@ linear segment. This may or not be what is desired!'
                 for j in xrange(1, sizes[iFace][1] -1):
                     iGlobal = topo.l_index[iFace][i,j]
                     if nPtr[iGlobal]  == []: # Not set yet
-                        nPtr[iGlobal].extend([0,4])
+                        nPtr[iGlobal].append(4)
                         if iEdge == 2:
                             nPtr[iGlobal].append(topo.l_index[iFace][i+1, j] + 1)
                             nPtr[iGlobal].append(topo.l_index[iFace][i, j+1] + 1)
@@ -387,7 +387,7 @@ linear segment. This may or not be what is desired!'
                     # No need to check if node is added, cannot be
                     # since interior face nodes are unique
                     iGlobal = topo.l_index[iFace][i,j]
-                    nPtr[iGlobal].extend([0,4])
+                    nPtr[iGlobal].append(4)
                     nPtr[iGlobal].append(topo.l_index[iFace][i+1, j  ] + 1)
                     nPtr[iGlobal].append(topo.l_index[iFace][i  , j+1] + 1)
                     nPtr[iGlobal].append(topo.l_index[iFace][i-1, j  ] + 1)
@@ -439,13 +439,13 @@ linear segment. This may or not be what is desired!'
                     gnn[topo.l_index[iFace][i+1, j]].append(topo.l_index[iFace][i+1, j+1])
                     gnn[topo.l_index[iFace][i+1, j+1]].append(topo.l_index[iFace][i+1, j])
 
-                    # And also do the diagonals - lower left <-> Upper right
-                    # gne[topo.l_index[iFace][i, j]].append(topo.l_index[iFace][i+1, j+1])
-                    # gne[topo.l_index[iFace][i+1, j+1]].append(topo.l_index[iFace][i, j])
+                    # # And also do the diagonals - lower left <-> Upper right
+                    gne[topo.l_index[iFace][i, j]].append(topo.l_index[iFace][i+1, j+1])
+                    gne[topo.l_index[iFace][i+1, j+1]].append(topo.l_index[iFace][i, j])
 
-                    # # And also do the diagonals - lower right <-> upper left
-                    # gne[topo.l_index[iFace][i+1, j]].append(topo.l_index[iFace][i, j+1])
-                    # gne[topo.l_index[iFace][i, j+1]].append(topo.l_index[iFace][i+1, j])
+                    # And also do the diagonals - lower right <-> upper left
+                    gne[topo.l_index[iFace][i+1, j]].append(topo.l_index[iFace][i, j+1])
+                    gne[topo.l_index[iFace][i, j+1]].append(topo.l_index[iFace][i+1, j])
                     
                     # Also get the norm and scatter to nodes
                     ll = self.X[topo.l_index[iFace][i,j]]
@@ -473,10 +473,8 @@ linear segment. This may or not be what is desired!'
                 nearestNeighbours = geo_utils.unique(gnn[i]) 
                 extraNeighbours = geo_utils.unique(gne[i]) 
                 if len(nearestNeighbours) == 4:
-                    nPtr[i].append(0)
                     nPtr[i].append(4)
                 else:
-                    nPtr[i].append(0)
                     nPtr[i].append(len(nearestNeighbours) + len(extraNeighbours))
                     nearestNeighbours.extend(extraNeighbours)
                 # end if
@@ -551,7 +549,7 @@ linear segment. This may or not be what is desired!'
         f.write("ZONE NODES=%d, ELEMENTS=%d, DATAPACKING=POINT, ZONETYPE=FEQUADRILATERAL\n"%(nNodes, nElem))
         for i in xrange(nNodes):
             # Compute the normal
-            if nPtrArray[i,0] <> 0:
+            if nPtrArray[i,0] == 4:
                 jp1 = nPtrArray[i,0]-1
                 jm1 = nPtrArray[i,1]-1
                 kp1 = nPtrArray[i,2]-1

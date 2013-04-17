@@ -36,7 +36,7 @@ subroutine writeCGNS_2d(fileName)
   ! Open the CGNS File:
   call cg_open_f(fileName, MODE_WRITE, cg, ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
-  print *,'writing:',fileName
+
   ! Write the single base
   cellDim = 3
   physDim = 3
