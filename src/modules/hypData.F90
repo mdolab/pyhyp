@@ -13,7 +13,8 @@ module hypData
 
   ! Data for both generators
   real(kind=realType) :: scaleDist
-
+  logical :: limitStep
+  logical :: factorNext
   ! Petsc Varibles for solving linearized hyperbolic system 
   Mat hypMat
   Vec hypDelta

@@ -106,15 +106,16 @@ subroutine computeAreas(X, nodalArea, nx, ABar, deltaS)
   
   ! Working Variables
   integer(kind=intType) :: i
-  real(kind=realType) :: halfA
+  real(kind=realType) :: halfA, cmax
 
   ! Zero nodalArea and ABar
   nodalArea = zero
   ABar = zero
-
+  cmax = zero
   ! Loop over the interior segments
   do i=1,nx-1
      halfA = deltaS*half*sqrt( (X(1,i+1)-X(1,i))**2 + (X(2,i+1)-X(2,i))**2 )
+     cmax = max(cmax, deltaS/sqrt( (X(1,i+1)-X(1,i))**2 + (X(2,i+1)-X(2,i))**2 ))
      nodalArea(i)   = nodalArea(i)   + halfA
      nodalArea(i+1) = nodalArea(i+1) + halfA
      ABar = ABar + halfA
@@ -129,7 +130,7 @@ subroutine computeAreas(X, nodalArea, nx, ABar, deltaS)
   ! Finally multiply ABar by two to account for the fact we've been
   ! adding half areas and divide by nx
   ABar = (ABar * 2) / nx
-  
+  print*,'cmax:',cmax
 end subroutine computeAreas
   
 subroutine areaSmooth(Area, nx, ABar, l)
@@ -262,47 +263,7 @@ subroutine computeMetrics2D(X0, Area0, Area1, A0, B0, nx, l)
 
 end subroutine computeMetrics2D
 
-subroutine computeStretch(l, deltaS)
 
-  use hypInput
-
-  implicit none
-
-  ! Input Parameters
-  integer(kind=intType), intent(in) :: l
-  
-  ! Output Parameters
-  real(kind=realType), intent(inout) :: deltaS
-  real(kind=realType) :: newRatio,r , aboveOne
-  integer(kind=intType) :: L_trans
-
-  ! Since we don't have a complex stretching function yet, we will
-  ! just use geometric progression which is usually close to what we
-  ! actually want in the marching direction anyway
-
-  if (l == 2) then
-     ! First step, set deltaS to the desired initial grid spacign
-     ! given in HypInput
-     deltaS = s0
-  else
-     ! Otherwise, just multiply the current deltaS by the gridRatio
-     ! parameter, also in HypInput
-     if  (L > 73) then
-        deltaS = deltaS*1.05
-
-     ! if (l > L_trans) then
-     !    r =  (dble(l)-L_trans)/(N-L_trans)
-     !    aboveOne = gridRatio - one
-     !    newRatio = gridRatio - aboveOne*r
-     !    print *,'newRatio:',newRatio
-     !    deltaS = deltaS*newRatio
-
-      else
-        deltaS = deltaS*gridRatio
-     end if
-  end if
-
-end subroutine computeStretch
 
 subroutine assembleAndSolve(X0, X1, Xm1, Area1, A0, B0, nx, l)
   
