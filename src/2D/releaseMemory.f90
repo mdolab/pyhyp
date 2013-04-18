@@ -11,8 +11,12 @@ subroutine releaseMemory
      deallocate(grid2D)
   end if
 
-  if (allocated(grid3D)) then
-     deallocate(grid3D)
+  ! if (allocated(grid3D)) then
+  !    deallocate(grid3D)
+  ! end if
+
+  if (allocated(pgrid3D)) then
+     deallocate(pgrid3D)
   end if
 
   if (allocated(patches)) then

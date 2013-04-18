@@ -32,19 +32,19 @@ subroutine writePlot3d_3d(fileName)
 
   ! Write the zone sizes
   do i=1,nPatch
-     write(7,6) patches(i)%il, patches(i)%jl, NDebug
+     write(7,6) patches(i)%il, patches(i)%jl, NMax
   end do
 6 format(I5, I5, I5)
 
   ! Loop over each patch and write
   do iPatch = 1, nPatch
      do idim=1,3
-        do k=1, NDebug
+        do k=1, NMax
            do j=1, patches(iPatch)%jl
               do i=1, patches(iPatch)%il
                  ! We will use l_index to get the correct pointer into grid3D
                  idGlobal = patches(iPatch)%l_index(i, j)
-                 write(7,7), grid3d(iDim, idGlobal, k)
+                 write(7,7), pGrid3d(iDim, idGlobal, k)
               end do
            end do
         end do

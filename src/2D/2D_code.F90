@@ -12,7 +12,7 @@ subroutine run2D(Xin, nx)
   ! Working parameters
   integer(kind=intType) :: i, j, l, idim
   real(kind=realType), pointer, dimension(:, :) :: X0, X1, Xm1
-  real(kind=realType) :: Area0(nx), Area1(nx), ABar, deltaS
+  real(kind=realType) :: Area0(nx), Area1(nx), ABar
   real(kind=realType) :: A0(2, 2, nx), B0(2, 2, nx), sMax
 
   ! First thing we will do is allocate the final grid array:
@@ -62,11 +62,11 @@ subroutine run2D(Xin, nx)
      ! Compute the length increment in the marching direction. This is
      ! put in a separate function to allow for potential callbacks to
      ! user supplied functions if necessary
-     call computeStretch(l, deltaS)
+     call computeStretch(l)
 
      ! Compute the nodal areas on the X0 layer as well as the average
      ! area ABar
-     call computeAreas(X0, Area1, nx, Abar, deltaS)
+     call computeAreas(X0, Area1, nx, Abar)
 
      ! Now perform the "Volume" smoothing operation.
      call AreaSmooth(Area1, nx, ABar, l)
@@ -87,10 +87,9 @@ subroutine run2D(Xin, nx)
 
 end subroutine run2D
 
-subroutine computeAreas(X, nodalArea, nx, ABar, deltaS)
+subroutine computeAreas(X, nodalArea, nx, ABar)
 
-  use precision
-
+  use hypData
   implicit none
 
   ! Compute the nodal areas of a 2D periodic curve X of length xn,
@@ -98,7 +97,7 @@ subroutine computeAreas(X, nodalArea, nx, ABar, deltaS)
   ! at the same time for efficiency
 
   ! Input Parameters
-  real(kind=realType), intent(in) :: X(2, nx), deltaS
+  real(kind=realType), intent(in) :: X(2, nx)
   integer(kind=intType), intent(in) :: nx
   
   ! Output Parameters

@@ -8,13 +8,18 @@ python module hyp ! in
             real(kind=realtype) :: epse
             real(kind=realtype) :: epsi
             real(kind=realtype) :: s0
+            real(kind=realtype) :: ps0
             integer(kind=inttype) :: n
-            integer(kind=inttype) :: ndebug
+            integer(kind=inttype) :: nmax
             integer(kind=inttype) :: volsmoothiter
             real(kind=realtype) :: gridratio
+            real(kind=realtype) :: pgridratio
             real(kind=realtype) :: theta
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
+            real(kind=realtype) :: kspreltol
+            integer(kind=inttype) :: kspmaxits, preconlag, kspsubspacesize
+            real(kind=realtype) :: rmin
         end module hypinput
 
         subroutine releasememory
@@ -60,6 +65,10 @@ python module hyp ! in
         subroutine writecgns_3d(filename) 
             character*(*) :: filename
         end subroutine writecgns_3d
+
+        subroutine writecgns_3dorig(filename) 
+          character*(*) :: filename
+        end subroutine writecgns_3dorig
 
         subroutine writeplot3d_3d(filename) 
             character*(*) :: filename
