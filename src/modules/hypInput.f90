@@ -6,33 +6,12 @@ module hypInput
   ! This module contains the input information for the hyperbolic grid
   ! generator
 
-  ! Parameters that affect both 2D and 3D generation:
-  ! N: The number of points in the extrusion direction 
-  integer(kind=intType) :: N, nDebug
-
-  ! s0: Initial offwall spacing
-  real(kind=realType) :: s0
-
-  ! Grid Spacing Ratio
-  real(kind=realType) :: gridRatio
-
-  ! epsE: The explict smoothing coefficient
-  real(kind=realType) :: epsE
-
-  ! epsI: The implicit smoothing coefficient
-  real(kind=realType) :: epsI
-
-  ! theta: The barth implicit smoothing coefficient
-  real(kind=realType) :: theta
-
-  ! volCoef: The volume smoothing coefficinet
-  real(kind=realType) :: volCoef
-
-  ! volBlend: The volume blending coefficient
-  real(kind=realType) :: volBlend
+  ! Input parameters. See pyHyp.py for what each parameter means
+  integer(kind=intType) :: N, nMax
+  real(kind=realType) :: s0, ps0
+  real(kind=realType) :: gridRatio, pGridRatio
+  real(kind=realType) :: epsE, epsI, theta, volCoef, volBlend
+  integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
+  real(kind=realType) :: kspRelTol,rMin
   
-  ! volSmoothIter: The number of point-jacobi volume smoothing
-  ! iterations
-  integer(kind=intType) :: volSmoothIter
-
 end module hypInput

@@ -9,12 +9,23 @@ module hypData
 
   ! Data for the 2D generator:
   real(kind=realType), dimension(:, :, :), allocatable, target :: grid2D
+
+  ! Data for the 3D generator:
+  real(kind=realType), dimension(:, :, :), allocatable, target :: pGrid3D
   real(kind=realType), dimension(:, :, :), allocatable, target :: grid3D
 
   ! Data for both generators
   real(kind=realType) :: scaleDist
   logical :: limitStep
   logical :: factorNext
+
+  ! Data used for convergence info:
+  real(kind=realType) :: timeStart, gridSensorMax, gridSensorMin, minQuality, deltaS, minR
+  integer(kind=intType) :: marchIter, kspIts
+  real(kind=realType) :: radius, radius0, Xavg(3)
+
+  integer(kind=intType) :: Nlayers
+
   ! Petsc Varibles for solving linearized hyperbolic system 
   Mat hypMat
   Vec hypDelta
