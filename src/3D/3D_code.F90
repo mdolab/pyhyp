@@ -110,6 +110,7 @@ subroutine run3D(Xin, nx, Xout)
   Volume1 = zero
   call computeVolumes(X0, Volume0, nx, VBar, cmax)
 
+
   ! Create the petsc variables
   call create3DPetscVars(nx)
 
@@ -118,10 +119,11 @@ subroutine run3D(Xin, nx, Xout)
   Xm1 => pGrid3D(:, :, 1) 
   limitStep = .True.
   factorNext = .True.
-
+  scaleDist = zero
   ! Determine starting CPU Time
   timeStart = mpi_wtime()
-
+  l_0 = -1
+  smoothIter = 0
   ! This is the master marching direction loop
   marchLoop: do marchIter=2, Nmax
      
@@ -150,11 +152,14 @@ subroutine run3D(Xin, nx, Xout)
            call computeVolumes(X0, Volume1, nx, Vbar, cmax)
         end if
      else
-        if (cmax > 8.0) then
+        if (cmax > four) then
            deltaS = deltas*.5
            call computeVolumes(X0, Volume1, nx, Vbar, cmax)
         end if
      end if
+
+     ! Increment our running counter on distance from wall
+     scaleDist = scaleDist + deltaS
 
      ! Now perform the "Volume" smoothing operation.
      call VolumeSmooth(Volume1, nx, VBar, l)
@@ -179,7 +184,7 @@ subroutine run3D(Xin, nx, Xout)
      call writeIteration
 
      ! Now check if we have gone far enough:
-     if (radius/radius0 > rmin) then
+     if (scaleDist/radius0 > rmin) then
         nLayers = l
         exit marchLoop
      end if
@@ -241,16 +246,60 @@ subroutine computeVolumes(X, nodalVolume, nx, VBar, cmax)
   real(kind=realType), intent(out) :: nodalVolume(nx), VBar
   
   ! Working Variables
-  integer(kind=intType) :: i, j, jp1, jm1, kp1, km1, nn, ipatch
+  integer(kind=intType) :: i, j, jp1, jm1, kp1, km1, nn, ipatch,nNeighbour,ii
   real(kind=realType) :: deltaV, ll(3), ul(3), lr(3), ur(3)
   real(kind=realType) :: v1(3), v2(3), s(3), areadS
-  real(kind=realType) :: c1,c2,c3,c4,cmax
-
+  real(kind=realType) :: c1,c2,c3,c4,cmax, lenV1, lenV2
+  real(kind=realType) :: volume(nx)
   ! Zero nodalVolume and VBar
   nodalVolume = zero
   VBar = zero
   cmax = zero
-  ! Loop over the patfaces:
+
+  ! ! Loop over the nodes
+  ! volume = zero
+  ! do i=1,nx
+  !    if (nPtr(1,i) == 4) then
+  !       jp1 = nPtr(2, i)
+  !       kp1 = nPtr(3, i)
+  !       jm1 = nPtr(4, i)
+  !       km1 = nPtr(5, i)
+
+
+  !       v1 = X(:,jp1)-X(:,jm1)
+  !       v2 = X(:,kp1)-X(:,km1)
+
+  !       s(1) = (v1(2)*v2(3) - v1(3)*v2(2))
+  !       s(2) = (v1(3)*v2(1) - v1(1)*v2(3))
+  !       s(3) = (v1(1)*v2(2) - v1(2)*v2(1))
+        
+  !       ! Get Length
+  !       lenV1 = sqrt(v1(1)**2 + v1(2)**2 + v1(3)**2)
+  !       lenV2 = sqrt(v2(1)**2 + v2(2)**2 + v2(3)**2)
+
+  !       volume(i) = fourth*deltaS*half*sqrt(s(1)*s(1) + s(2)*s(2) + s(3)*s(3))
+  !       vBar = vBar + volume(i)
+
+  !       c1 = two*deltaS/lenV1
+  !       c2 = two*deltaS/lenV2
+
+  !       cmax = max(cmax,c1,c2)
+  !    end if
+  ! end do
+
+  ! do i=1,nx
+  !    if (nPtr(1,i) .ne.4) then
+  !       nNeighbour = nPtr(1, i) 
+  !       volume(i) = zero
+  !       do ii = 1,nNeighbour
+  !          volume(i) = (one/nNeighbour)*volume(nPtr(1+ii,i))
+  !       end do
+  !       vBar = vBar + volume(i)
+  !    end if
+  ! end do
+  ! nodalVolume = volume
+
+! Loop over the patfaces:
   do iPatch=1,nPatch
      ! Loop over faces on patch
      do j=1,patches(iPatch)%jl-1
@@ -299,6 +348,7 @@ subroutine computeVolumes(X, nodalVolume, nx, VBar, cmax)
   end do
   VBar = VBar / nx
 
+
   contains 
 
     function dist(p1, p2)
@@ -325,11 +375,12 @@ subroutine volumeSmooth(Volume, nx, VBar, l)
   integer(kind=intType), intent(in) :: l
 
   ! Working Parameters
-  real(kind=realType) :: factor, Vtmp(nx), oneOvrNNeighbour
+  real(kind=realType) :: factor, Vtmp(nx), oneOvrNNeighbour, sl
   integer(kind=intType) :: i, ii, iter
 
   ! Do a Jacobai volume smooth
   Vtmp = Volume
+
   do iter=1,volSmoothIter
      do i=1,nx
 
@@ -348,13 +399,13 @@ subroutine volumeSmooth(Volume, nx, VBar, l)
   end do
   
   ! Now we do a global volume smooth
-
-  factor = half * (one + ( one - volBlend)**(l-2))
-  Volume = factor*Volume + (one - factor)*Vbar
-
+  factor = half * (one + ( one -volBlend)**(l-2))
+  volume = factor*Volume + (one - factor)*Vbar
+  
+ 
 end subroutine volumeSmooth
 
-subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
+subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx, l)
   
   use hypInput
   use hypData
@@ -363,19 +414,23 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
 
   ! Input Parameters
   real(kind=realType), intent(in) :: X0(3, nx), Volume1(nx), Xm1(3, nx)
-  integer(kind=intType), intent(in) :: nx
+  integer(kind=intType), intent(in) :: nx, l
   real(kind=realType), intent(out) :: X1(3, nx)
 
   ! Working parameters
+  real(kind=realType) :: Xtmp(3, nx)
   real(kind=realType) :: A0(3, 3, nx), B0(3, 3, nx), C0(3, 3, nx)
-  integer(kind=intType) :: j, l, idim, ierr
-  integer(kind=intType) :: i, jp1, jm1, kp1, km1, nAverage, ii, m, MM
+  integer(kind=intType) :: j, idim, ierr
+  integer(kind=intType) :: i, jp1, jm1, jm2, jm3, kp1, km1, km2, km3, nAverage, ii, m, MM,  iter, lmax
   real(kind=realType) :: eye(3, 3), CInv(3,3), CInvA(3,3), CInvB(3, 3)
-  real(kind=realType) :: De(3), Sl, tmp, a_ksi, a_eta
+  real(kind=realType) :: De(3), Sl, tmp, tmp1, tmp2,a_ksi, a_eta, sl2
   real(kind=realType) :: exp, Rksi, Reta, N_ksi, N_eta, deltaR(3)
   real(kind=realType) :: r0(3), rm(3), thetam, coef, d_ksi(nx), d_eta(nx),dmax
   real(kind=realType) :: r_ksi(3), r_eta(3), r_zeta(3), v1(3), v2(3), s(3), detC
-  real(kind=realType) :: deltaVovrDetC
+  real(kind=realType) :: deltaVovrDetC, oneOvrNNeighbour, factor, fact
+  real(kind=realType) :: rplusj(3), rminusj(3), rplusk(3), rminusk(3)
+  real(Kind=realType) :: rplusjhat(3), rpluskhat(3), nhat(3), alpha, beta
+  real(kind=realType) :: amax, ovrSum1, ovrSum2
   ! Define a 3x3 'I' matrix
   eye = zero
   eye(1,1) = one
@@ -395,11 +450,15 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
   ! is really quite important, but only near the boundary layer such
   ! that grid orthogonality is maintained. 
 
-  if (l < 50) then
-     sl = (2-l)/(50)
-  else
-     sl = one
-  end if
+  lmax = 500
+  sl = ((dble(l)-one)/(lmax-one))**.5
+
+  sl = (scaleDist/(radius0*rMin))**.15
+  print *,'sl:',sl
+  !sl = (scaleDist/100.0)
+  ! if (sl > one) then
+  !    sl = one
+  ! end if
 
 
   ! Precompute and store grid metrics and convergence sensors:
@@ -421,11 +480,12 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
         ! Compute the grid distribution sensor (eq 6.7 Chen and Steger)
         tmp = (dist(Xm1(:, jp1), Xm1(:, i)) + dist(Xm1(:, jm1), Xm1(:, i))) / &
              (dist(X0(:, jp1), X0(:, i)) + dist(X0(:, jm1), X0(:, i)))
-        d_ksi(i) = max(tmp, 0.1)
-        
+        d_ksi(i) = max(tmp**(two/sl), 0.1)
+
         tmp = (dist(Xm1(:, kp1), Xm1(:, i)) + dist(Xm1(:, km1), Xm1(:, i))) / &
              (dist(X0(:, kp1), X0(:, i)) + dist(X0(:, km1), X0(:, i)))
-        d_eta(i) = max(tmp, 0.1)
+        d_eta(i) = max(tmp**(two/sl), 0.1)
+
      else
         ! We have a node with 6 neighbours.
         ! Lets do this brute force:
@@ -433,12 +493,30 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
         r_eta = zero
         r0 = X0(:, i)
         MM = nPtr(1, i) 
+
+        tmp1 = zero
+        tmp2 = zero
+        ovrSum1 = zero
+        ovrSum2 = zero
         do m = 0, MM - 1
            thetam = 2*pi*m/MM
            rm = X0(:, nptr(2 + m, i))
            r_ksi = r_ksi + (two/MM) * (rm - r0) * cos(thetam)
            r_eta = r_eta + (two/MM) * (rm - r0) * sin(thetam)
+           
+           tmp1 = tmp1 + &
+                dist(Xm1(:, nptr(2+m, i)), Xm1(:, i)) / &
+                dist( X0(:, nptr(2+m, i)),  X0(:, i))*abs(cos(thetam))
+
+           tmp2 = tmp2 + & 
+                dist(Xm1(:, nptr(2+m, i)), Xm1(:, i)) / &
+                dist( X0(:, nptr(2+m, i)),  X0(:, i))*abs(sin(thetam))
+           ovrSum1 = ovrSum1 + abs(cos(thetam))
+           ovrSum2 = ovrSum2 + abs(sin(thetam))
         end do
+        
+        d_ksi(i) = max((tmp1/ovrSum1)**(two/sl), 0.1)
+        d_eta(i) = max((tmp2/ovrSum2)**(two/sl), 0.1)
      end if
 
      v1 = r_ksi
@@ -446,19 +524,19 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
      s(1) = (v1(2)*v2(3) - v1(3)*v2(2))
      s(2) = (v1(3)*v2(1) - v1(1)*v2(3))
      s(3) = (v1(1)*v2(2) - v1(2)*v2(1))
-
+     
      ! Equation 3.5 (Chen and Steger)
      detC = &
           (r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3))**2 + &
           (r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3))**2 + &
           (r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2))**2
-        
+     
      deltaVovrDetC = Volume1(i)/detC
      
      r_zeta(1) = deltaVovrDetC*(r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3))
      r_zeta(2) = deltaVovrDetC*(r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3))
      r_zeta(3) = deltaVovrDetC*(r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2))
-
+        
      ! Compute the two coefficient matrices
      A0(1, :, i) = r_zeta
      A0(2, :, i) = zero
@@ -477,33 +555,29 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
      C0(3, 1, i) = r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3)
      C0(3, 2, i) = r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3)
      C0(3, 3, i) = r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2)
+  
   end do
 
-  if (maxval(d_ksi) < .999 .and. maxval(d_eta) < .999) then
-     limitStep = .False.
-  else
-     limitStep =.true.
-  end if
+  ! ! Get grid divergence sensor from neighbours for extraordinary nodes
+  ! do i=1,nx
+  !    if (nptr(1, i) .ne. 4) then
 
-  ! Get grid divergence sensor from neighbours for extraordinary nodes
-  do i=1,nx
-     if (nptr(1, i) .ne. 4) then
+  !       nAverage = nPtr(1, i) 
+  !       ! Loop over neighbours
+  !       d_ksi(i) = zero
+  !       do ii = 1, nAverage
+  !          d_ksi(i) = d_ksi(i) + d_ksi(nPtr(1+ii, i)) + d_eta(nPtr(1+ii, i))
+  !       end do
 
-        nAverage = nPtr(1, i) 
-        ! Loop over neighbours
-        d_ksi(i) = zero
-        do ii = 1, nAverage
-           d_ksi(i) = d_ksi(i) + d_ksi(nPtr(1+ii, i)) + d_eta(nPtr(1+ii, i))
-        end do
-
-        d_ksi(i) = max(0.1, d_ksi(i) / (two * nAverage))
-        d_eta(i) = d_ksi(i)
-     end if
-  end do
+  !       d_ksi(i) = max(0.1, d_ksi(i) / (two * nAverage))
+  !       d_eta(i) = d_ksi(i)
+  !    end if
+  ! end do
   ! Record the maximum and minimum grid sensors
   gridSensorMax = max(maxval(d_ksi), maxval(d_eta))
   gridSensorMin = min(minval(d_ksi), minval(d_eta))
 
+  amax = zero
   ! Next we assemble hypMat which is quite straight forward
   do i=1, nx
 
@@ -526,29 +600,29 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
 
         ! Point to the left
         call MatSetValuesBlocked(hypMat, 1, i-1, 1, jm1-1, &
-             -(one+theta)*half*CinvA - epsI*eye, ADD_VALUES, ierr)
+             (-(one+theta)*half*CinvA - epsI*eye), ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        ! Center Point ! Changed two to 4
+        ! Center Point ! 
         call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
-             eye + four*epsI*eye, ADD_VALUES, ierr)
+             (eye + four*epsI*eye), ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Point to the right
         call MatSetValuesBlocked(hypMat, 1, i-1, 1, jp1-1, &
-             (one+theta)*half*CinvA - epsI*eye,  ADD_VALUES, ierr)
+             ((one+theta)*half*CinvA - epsI*eye),  ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         ! ----------------------------------------------------------
 
         ! Point to the bottom
         call MatSetValuesBlocked(hypMat, 1, i-1, 1, km1-1, &
-             -(one+theta)*half*CinvB - epsI*eye, ADD_VALUES, ierr)
+             (-(one+theta)*half*CinvB - epsI*eye), ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Point to the right
         call MatSetValuesBlocked(hypMat, 1, i-1, 1, kp1-1, &
-             (one+theta)*half*CinvB - epsI*eye,  ADD_VALUES, ierr)
+             ((one+theta)*half*CinvB - epsI*eye),  ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         ! -----------------
@@ -568,9 +642,45 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
         ! ------------------------------------
         ! Compute the grid angle functions (Equation 6.9)
         ! ------------------------------------
+        rplusj = X0(:, jp1) - X0(:, i)
+        rminusj = X0(:, jm1) -X0(:, i)
+
+        rplusk = X0(:, kp1) - X0(:, i)
+        rminusk = X0(:, km1) -X0(:, i)
+
+        v1 = rplusj - rminusj
+        v2 = rplusk - rminusk
+
+        ! Take cross product
+        nhat(1) = (v1(2)*v2(3) - v1(3)*v2(2))
+        nhat(2) = (v1(3)*v2(1) - v1(1)*v2(3))
+        nhat(3) = (v1(1)*v2(2) - v1(2)*v2(1))
+
+        ! And normalize
+        nhat = nhat /sqrt(nhat(1)**2 + nhat(2)**2 + nhat(3)**2)
+
+        ! Normalize rplusj 
+        rplusjhat = rplusj /sqrt(rplusj(1)**2 + rplusj(2)**2 + rplusj(3)**2)
+
+        alpha = acos(dot_product(nhat,rplusjhat))
+        if (alpha >= 0 .and. alpha < half*pi) then
+           a_ksi = one/(one-cos(alpha)**2)
+        else
+           a_ksi = one
+        end if
+        
+        ! Normalize rplusk 
+        rpluskhat = rplusk /sqrt(rplusk(1)**2 + rplusk(2)**2 + rplusk(3)**2)
+
+        beta = acos(dot_product(nhat,rplusjhat))
+        if (beta >= 0 .and. beta < half*pi) then
+           a_eta = one/(one-cos(beta)**2)
+        else
+           a_eta = one
+        end if
         a_ksi = one
         a_eta = one
-     
+        amax = max(amax, a_ksi, a_eta)
         ! ------------------------------------
         ! Combine into 'R_ksi' and 'R_eta' (Equation 6.4)
         ! ------------------------------------
@@ -588,6 +698,7 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
         ! ------------------------------------
         ! Final explict dissipation (Equation 6.1 and 6.2)
         ! ------------------------------------
+
         De = &
              epsE*Rksi*N_ksi * (X0(:, jm1) - two*X0(:, i) + X0(:, jp1)) + &
              epsE*Reta*N_eta * (X0(:, km1) - two*X0(:, i) + X0(:, kp1))
@@ -598,7 +709,7 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
 
         call VecSetValuesBlocked(hypRHS, 1, i-1, De, ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-     else
+     else if (nptr(1, i) .ne. 4) then
 
         ! Setting the matrix values are a little tricker here now. 
 
@@ -717,30 +828,34 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
         
         call VecSetValuesBlocked(hypRHS, 1, i-1, De, ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
-        !We have to do averaging at the corners
-        
-        ! ! ! ! Get the number of nodes to average:
-        ! nAverage = nPtr(1, i) 
 
-        ! ! ! Loop over neighbours
-        ! do ii = 1, nAverage
-        !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, nPtr(1+ii, i)-1, &
-        !         -one/nAverage*eye, ADD_VALUES, ierr)
-        ! end do
+     else
+        ! Two!
+        stop
+        
+       !  !  !We have to do averaging at the corners
+        
+       !  ! ! ! Get the number of nodes to average:
+       !  nAverage = nPtr(1, i) 
+        
+       !  ! ! Loop over neighbours
+       !  do ii = 1, nAverage
+       !     call MatSetValuesBlocked(hypMat, 1, i-1, 1, nPtr(1+ii, i)-1, &
+       !          -one/nAverage*eye, ADD_VALUES, ierr)
+       !  end do
 
        ! ! Center Point
-        ! call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
-        !      eye, ADD_VALUES, ierr)
-        ! call EChk(ierr, __FILE__, __LINE__)
+       !  call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
+       !       eye, ADD_VALUES, ierr)
+       !  call EChk(ierr, __FILE__, __LINE__)
 
-        ! Don't set a RHS value for this, it is zero. This is already
-        ! taken care of with the vecSet above
-
-
+       ! !  !Don't set a RHS value for this, it is zero. This is already
+       ! !  !taken care of with the vecSet above
      end if
-  end do
+
   
+  end do
+
   ! Assemble the matrix and vector
   call MatAssemblyBegin(hypMat, MAT_FINAL_ASSEMBLY, ierr)
   call EChk(ierr, __FILE__, __LINE__)
@@ -780,8 +895,11 @@ subroutine assembleAndSolve3D(X0, X1, Xm1, Volume1, nx)
           deltaR, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      X1(:, i) = X0(:, i) + deltaR
+     
   end do
  
+
+
   contains 
 
     function dist(p1, p2)
@@ -958,7 +1076,7 @@ subroutine writeIteration
 
   ! approximate minimim distance to body
   minR = zero
-  write(*,"(e12.5,e12.5,e12.5,1x)",advance="no") radius/radius0
+  write(*,"(e12.5,e12.5,e12.5,1x)",advance="no") scaleDist/radius0
   print "(1x)"
 
 end subroutine writeIteration
@@ -1083,7 +1201,8 @@ subroutine computeQualityLayer(X0, X1, nx)
            points(:,7) = X1(:,patches(iPatch)%l_index(i  ,j+1))
            points(:,8) = X1(:,patches(iPatch)%l_index(i+1,j+1))
            
-           call quality_hexa(points, Q)
+           !call quality_hexa(points, Q)
+           call volume_hexa(points, Q)
             minQuality = min(minQuality, Q)
 
         end do
@@ -1439,3 +1558,285 @@ subroutine FindBin(ss, s, nn, bin)
   end do
   
 end subroutine FindBin
+
+subroutine volume_hexa(points, volume)
+  use precision
+
+  implicit none
+
+  ! Input/Output
+  real(kind=realType), intent(in) :: points(3, 8)
+  real(kind=realType), intent(out) :: volume
+
+  ! Working
+  real(kind=realType) :: center(3), volpymrid, v1, v2, v3, v4, v5, v6
+  integer(kind=intType) ::  i, idim
+
+  ! Compute the center of the points
+  center = zero
+  do i=1, 8
+     do idim=1, 3
+        center(idim) = center(idim) + points(idim, i)
+     end do
+  end do
+  center = center / eight
+
+  ! Compute the volumes of the 6 sub pyramids. The
+  ! arguments of volpym must be such that for a (regular)
+  ! right handed hexahedron all volumes are positive.
+
+  v1 = volpymrid(center, points(:, 1), points(:, 2), points(:, 4), points(:, 3))
+  v2 = volpymrid(center, points(:, 7), points(:, 8), points(:, 6), points(:, 5))
+  v3 = volpymrid(center, points(:, 1), points(:, 3), points(:, 7), points(:, 5))
+  v4 = volpymrid(center, points(:, 4), points(:, 2), points(:, 6), points(:, 8)) 
+  v5 = volpymrid(center, points(:, 2), points(:, 1), points(:, 5), points(:, 6)) 
+  v6 = volpymrid(center, points(:, 3), points(:, 4), points(:, 8), points(:, 7))
+
+  volume = (v1+v2+v3+v4+v5+v6)/six
+
+end subroutine volume_hexa
+
+function volpymrid(p, a, b, c, d)
+
+  use precision
+  implicit none
+  real(kind=realType) :: p(3), a(3), b(3), c(3), d(3), volpymrid
+
+  ! 6*Volume of a pyrimid -> Counter clockwise ordering
+  volpymrid = (p(1) - fourth*(a(1) + b(1)  + c(1) + d(1))) *&
+       ((a(2) - c(2))*(b(3) - d(3)) - (a(3) - c(3))*(b(2) - d(2)))   + &
+       (p(2) - fourth*(a(2) + b(2)  + c(2) + d(2)))*&
+       ((a(3) - c(3))*(b(1) - d(1)) - (a(1) - c(1))*(b(3) - d(3)))   + &
+       (p(3) - fourth*(a(3) + b(3)  + c(3) + d(3)))* &
+       ((a(1) - c(1))*(b(2) - d(2)) - (a(2) - c(2))*(b(1) - d(1)))
+   
+end function volpymrid
+
+
+
+
+
+
+
+
+
+        ! ! We have to do these special nodes:
+        ! ! Loop over the number of nodes
+        ! fact = one/dble(nPtr(1,i))
+        ! do ii =1, nPtr(1, i)
+        !    jm1 = nPtr((ii-1)*6+2, i)
+        !    jm2 = nPtr((ii-1)*6+3, i)
+        !    jm3 = nPtr((ii-1)*6+4, i)
+        !    km1 = nPtr((ii-1)*6+5, i)
+        !    km2 = nPtr((ii-1)*6+6, i)
+        !    km3 = nPtr((ii-1)*6+7, i)
+           
+        !    ! Compute one sided difference wrt to ksi and eta
+        !    r_ksi = -X0(:, i) + X0(:, jm1) 
+        !    r_eta = -X0(:, i) + X0(:, km1) 
+      
+        !    ! r_ksi = (-three/two)*X0(:, i) + two*X0(:, jm1) - half*X0(:, jm2)
+        !    ! r_eta = (-three/two)*X0(:, i) + two*X0(:, km1) - half*X0(:, km2)
+      
+ 
+        !   ! 3.5 (Chen and Steger)
+        !    detC = &
+        !         (r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3))**2 + &
+        !         (r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3))**2 + &
+        !         (r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2))**2
+           
+        !    deltaVovrDetC = Volume1(i)/detC
+           
+        !    r_zeta(1) = deltaVovrDetC*(r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3))
+        !    r_zeta(2) = deltaVovrDetC*(r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3))
+        !    r_zeta(3) = deltaVovrDetC*(r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2))
+        
+        !    ! Compute the two coefficient matrices
+        !    A0(1, :, i) = r_zeta
+        !    A0(2, :, i) = zero
+        !    A0(3, 1, i) = r_eta(2)*r_zeta(3) - r_zeta(2)*r_eta(3)
+        !    A0(3, 2, i) = r_zeta(1)*r_eta(3) - r_eta(1)*r_zeta(3)
+        !    A0(3, 3, i) = r_eta(1)*r_zeta(2) - r_zeta(1)*r_eta(2)
+     
+        !    B0(1, :, i) = zero
+        !    B0(2, :, i) = r_zeta
+        !    B0(3, 1, i) = r_zeta(2)*r_ksi(3) - r_ksi(2)*r_zeta(3)
+        !    B0(3, 2, i) = r_ksi(1)*r_zeta(3) - r_zeta(1)*r_ksi(3)
+        !    B0(3, 3, i) = r_zeta(1)*r_ksi(2) - r_ksi(1)*r_zeta(2)
+           
+        !    C0(1, :, i) = r_ksi
+        !    C0(2, :, i) = r_eta
+        !    C0(3, 1, i) = r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3)
+        !    C0(3, 2, i) = r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3)
+        !    C0(3, 3, i) = r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2)
+
+        !    call three_by_three_inverse(C0(:, :, i), Cinv)
+        !    CinvA = matmul(Cinv, A0(:, :, i))
+        !    CinvB = matmul(Cinv, B0(:, :, i))
+
+        !    ! Now set the matrix
+        !    ! -----------------
+        !    ! Left Hand Side:
+        !    ! -----------------
+
+        !    ! ! Center Cell
+        !    ! call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
+        !    !      fact*(eye + (one+theta)*cInvA*(-three/two) + &
+        !    !                  (one+theta)*cInvB*(-three/two) + & 
+        !    !                  two*epsI*eye), ADD_VALUES, ierr)
+        !    ! call EChk(ierr, __FILE__, __LINE__)
+           
+        !    ! ! jm1
+        !    ! call MatSetValuesBlocked(hypMat, 1, i-1, 1, jm1-1, &
+        !    !      fact*((one+theta)*cInvA*two - & 
+        !    !      two*epsI*eye), ADD_VALUES, ierr)
+        !    ! call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! ! jm2
+        !    ! call MatSetValuesBlocked(hypMat, 1, i-1, 1, jm2-1, &
+        !    !      fact*((one+theta)*cInvA*(-half) + &
+        !    !      epsI*eye), ADD_VALUES, ierr)
+        !    ! call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! ! km1
+        !    ! call MatSetValuesBlocked(hypMat, 1, i-1, 1, km1-1, &
+        !    !      fact*((one+theta)*cInvB*two - &
+        !    !      two*epsI*eye), ADD_VALUES, ierr)
+        !    ! call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! ! jm2
+        !    ! call MatSetValuesBlocked(hypMat, 1, i-1, 1, km2-1, &
+        !    !      fact*((one+theta)*cInvB*(-half) + &
+        !    !      epsI*eye), ADD_VALUES, ierr)
+        !    ! call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! Center Cell
+        !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
+        !         fact*(eye + (one+theta)*cInvA*(-one) + &
+        !                     (one+theta)*cInvB*(-one) - & 
+        !                     two*epsI*eye), ADD_VALUES, ierr)
+        !    call EChk(ierr, __FILE__, __LINE__)
+           
+        !    ! jm1
+        !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, jm1-1, &
+        !         fact*((one+theta)*cInvA*one + & 
+        !         two*epsI*eye), ADD_VALUES, ierr)
+        !    call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! jm2
+        !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, jm2-1, &
+        !         -fact*(epsI*eye), ADD_VALUES, ierr)
+        !    call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! km1
+        !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, km1-1, &
+        !         fact*((one+theta)*cInvB*one + &
+        !         two*epsI*eye), ADD_VALUES, ierr)
+        !    call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! jm2
+        !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, km2-1, &
+        !         -fact*(epsI*eye), ADD_VALUES, ierr)
+        !    call EChk(ierr, __FILE__, __LINE__)
+
+
+
+        !    ! -----------------
+        !    ! Right Hand Side:
+        !    ! -----------------
+           
+        !    ! Assemble the the Cinv comonent of the RHS
+        !    call VecSetValuesBlocked(hypRHS, 1, i-1, &
+        !         matmul(Cinv,(/zero, zero, Volume1(i)/))*fact, ADD_VALUES, ierr)
+        !    call EChk(ierr, __FILE__, __LINE__)
+
+        !    ! ============================================
+        !    !             Explicit Smoothing 
+        !    ! ============================================
+        !    a_ksi = one
+        !    a_eta = one
+
+        !    ! ------------------------------------
+        !    ! Combine into 'R_ksi' and 'R_eta' (Equation 6.4)
+        !    ! ------------------------------------
+        !    ! Compute centered difference with respect to ksi and eta. This is the
+        !    ! nominal calculation that we will use in the interior of the domain
+
+        !    ! Compute the grid distribution sensor (eq 6.7 Chen and Steger)
+        !    ! tmp = dist(Xm1(:, i), Xm1(:, jm1))/ dist(X0(:, i), X0(:, jm1))
+        !    ! d_ksi(i) = max(tmp**(two/sl), 0.1)
+
+        !    ! tmp = dist(Xm1(:, i), Xm1(:, km1))/ dist(X0(:, i), X0(:, km1))
+        !    ! d_eta(i) = max(tmp**(two/sl), 0.1)
+
+        !    Rksi = Sl * d_ksi(i) * a_ksi
+        !    Reta = Sl * d_eta(i) * a_eta
+
+        !    ! ------------------------------------
+        !    ! Matrix Norm approximation  (Equation 6.3)
+        !    ! ------------------------------------
+        !    N_ksi = sqrt((A0(1, 1, i)**2 + A0(1, 2, i)**2 + A0(1, 3, i)**2)/ &
+        !         (C0(1 ,1 ,i)**2 + C0(1, 2, i)**2 + C0(1, 3, i)**2))
+        !    N_eta = sqrt((A0(1, 1, i)**2 + A0(1, 2, i)**2 + A0(1, 3, i)**2)/ &
+        !         (C0(2 ,1 ,i)**2 + C0(2, 2, i)**2 + C0(2, 3, i)**2))
+
+        !    ! ------------------------------------
+        !    ! Final explict dissipation (Equation 6.1 and 6.2)
+        !    ! ------------------------------------
+           
+        !    De = &
+        !         epsE*Rksi*N_ksi * (X0(:, i) - two*X0(:, jm1) + one*X0(:, jm2)) + &
+        !         epsE*Reta*N_eta * (X0(:, i) - two*X0(:, km1) + one*X0(:, km2))
+           
+        !     ! De = epsE*Rksi*N_ksi * (two*X0(:, i) - five*X0(:, jm1) + four*X0(:, jm2) - X0(:, jm3)) + &
+        !     !      epsE*Reta*N_eta * (two*X0(:, i) - five*X0(:, km1) + four*X0(:, km2) - X0(:, km3))
+           
+        !    if (l == 2) then
+        !       De = zero
+        !    end if
+
+        !    call VecSetValuesBlocked(hypRHS, 1, i-1, fact*De, ADD_VALUES, ierr)
+        !    call EChk(ierr, __FILE__, __LINE__)
+
+
+   ! ! Laplacian blending
+     ! nAverage = nPtr(1, i) 
+
+     ! ! ! Loop over neighbours
+     ! do ii = 1, nAverage
+     !    call MatSetValuesBlocked(hypMat, 1, i-1, 1, nPtr(1+ii, i)-1, &
+     !         -one/nAverage*eye*(one-fact), ADD_VALUES, ierr)
+     ! end do
+        
+     ! ! Center Point
+     ! call MatSetValuesBlocked(hypMat, 1, i-1, 1, i-1, &
+     !      eye*(one-fact), ADD_VALUES, ierr)
+     ! call EChk(ierr, __FILE__, __LINE__)
+
+      
+
+
+  ! if (scaleDist > 4.0) then
+  !    print *,'laplacian smoothing'
+  !    ! Do laplacian smoothing
+  !    Xtmp = X1
+  !    if (smoothIter < 5) then
+  !       smoothIter = smoothIter + 1
+  !    end if
+  !    ! ALso ramp the factor
+  !    factor = (smoothIter-1)*0.25/4.0
+  !    do iter=1,smoothIter
+  !       do i=1,nx
+  !          X1(:,i) = zero
+  !          oneOvrNNeighbour = one/nPtr(1,i)
+  !          do ii=1,nPtr(1,i)
+  !             ! Average around the neighbours
+  !             X1(:,i) = X1(:,i) + oneOvrNNeighbour*& 
+  !                  ((one - factor) * Xtmp(:,i) + &
+  !                  factor*Xtmp(:,nPtr(1+ii,i)))
+  !          end do
+  !       end do
+  !       ! Copy X1 backto Xtmp
+  !       Xtmp = X1
+  !    end do
+  ! end if

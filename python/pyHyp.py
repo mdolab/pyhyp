@@ -107,22 +107,22 @@ class pyHyp(object):
             'epsE': 0.5,
 
             # epsI: The implicit smoothing coefficient
-            'epsI': 1.0,
+            'epsI': 1.5,
 
             # theta: The barth implicit smoothing coefficient
             'theta': 1.0,
 
             # volCoef: The volume smoothing coefficinet for
             # pointJacobi iterations
-            'volCoef': 1.0,
+            'volCoef': .4,
 
             # volBlend: The volume blending coefficient to force
             # uniform sizs in farfield
-            'volBlend': 0.002,
+            'volBlend': 0.0005,
 
             # volSmoothIter: The number of point-jacobi volume
             # smoothing iterations
-            'volSmoothIter': 10,
+            'volSmoothIter': 3,
 
             # ---------------------------
             #   Solution Parameters
@@ -310,7 +310,6 @@ linear segment. This may or not be what is desired!'
             # end for
             f.close()
             fileName = 'tmp.fmt'
-            print 'done'
         # end for
    
         geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
@@ -380,10 +379,14 @@ linear segment. This may or not be what is desired!'
             nFaceNeighbours = len(nodeToElem[iNode])
 
             # Regular nodes get 4 neightbours, others get double
-            if nFaceNeighbours == 4: 
-                nPtr[iNode].append(nFaceNeighbours)
-            else: 
+            if nFaceNeighbours == 2:
+                print 'Can\'t do geometries with nodes of valance 2!'
+                sys.exit(0)
                 nPtr[iNode].append(nFaceNeighbours*2)
+            elif nFaceNeighbours == 3:
+                nPtr[iNode].append(nFaceNeighbours*2)
+            else:
+                nPtr[iNode].append(nFaceNeighbours)
             # end if
 
             # Get the face where this node is node 0
@@ -401,7 +404,7 @@ linear segment. This may or not be what is desired!'
                 nPtr[iNode].append(nodeToAdd)
 
                 # Add the diagonal if not regular node
-                if nFaceNeighbours <> 4:
+                if nFaceNeighbours == 3:
                     nPtr[iNode].append(self.conn[nextElemID][numpy.mod(nodeID+1,4)])
                 # end if
                 
@@ -428,6 +431,69 @@ linear segment. This may or not be what is desired!'
             # end if
         # end for
 
+        # # Special treatment for the extraordinary nodes
+        # corners = {}
+        # for iFace in xrange(topo.nFace):
+        #     # Index by corner into 'corners' and add teh two pointer
+        #     # in the i and j directory AWAY from the node
+        #     # Bottom left
+        #     curNode = topo.l_index[iFace][0,0]
+        #     if curNode not in corners:
+        #         corners[curNode] = []
+        #     corners[curNode].extend([topo.l_index[iFace][1,0],
+        #                              topo.l_index[iFace][2,0], 
+        #                              topo.l_index[iFace][3,0],
+        #                              topo.l_index[iFace][0,1], 
+        #                              topo.l_index[iFace][0,2],
+        #                              topo.l_index[iFace][0,3]])
+        #     # Bottom right
+        #     curNode = topo.l_index[iFace][-1,0]
+        #     if curNode not in corners:
+        #         corners[curNode] = []
+        #     corners[curNode].extend( [topo.l_index[iFace][-1,1], 
+        #                               topo.l_index[iFace][-1,2], 
+        #                               topo.l_index[iFace][-1,3],
+        #                               topo.l_index[iFace][-2,0], 
+        #                               topo.l_index[iFace][-3,0],
+        #                               topo.l_index[iFace][-4,0]])
+        #     # Top Left
+        #     curNode = topo.l_index[iFace][0,-1]
+        #     if curNode not in corners:
+        #         corners[curNode] = []
+        #     corners[curNode].extend([topo.l_index[iFace][0,-2], 
+        #                              topo.l_index[iFace][0,-3],
+        #                              topo.l_index[iFace][0,-4],
+        #                              topo.l_index[iFace][1,-1], 
+        #                              topo.l_index[iFace][2,-1],
+        #                              topo.l_index[iFace][3,-1]])
+                                     
+        #     # Top Right
+        #     curNode = topo.l_index[iFace][-1,-1]
+        #     if curNode not in corners:
+        #         corners[curNode] = []
+        #     corners[curNode].extend([topo.l_index[iFace][-2,-1], 
+        #                              topo.l_index[iFace][-3,-1],
+        #                              topo.l_index[iFace][-4,-1],
+        #                              topo.l_index[iFace][-1,-2], 
+        #                              topo.l_index[iFace][-1,-3],
+        #                              topo.l_index[iFace][-1,-4]])
+
+            
+        # # Now check all the special corners we just added for ones
+        # # that have valance of 4. Pop those out of the lift
+        # for corner in corners.keys():
+        #     if nPtr[corner][0] == 4:
+        #         # Get rid of it
+        #         del corners[corner]
+        #     # endif
+        # # end ofr
+
+        # # Finally we have to put this information back into nPtr
+        # for corner in corners.keys():
+        #     tmp = [nPtr[corner][0]]
+        #     tmp.extend(corners[corner])
+        #     nPtr[corner] = tmp
+   
         # Next, assemble the global X vector:
         self.X = numpy.zeros((topo.nGlobal, 3))
         for iFace in xrange(topo.nFace):
@@ -530,7 +596,7 @@ command before trying to write the grid!')
 
         nNodes = self.topo.nGlobal
         nElem = len(self.conn)
-        f = open('fe_mesh.dat','w')
+        f = open(fileName, 'w')
         f.write("FE Data\n")
         f.write('VARIABLES = \"X\", \"Y\", \"z\" \n')
         f.write("ZONE NODES=%d, ELEMENTS=%d, DATAPACKING=POINT, ZONETYPE=FEQUADRILATERAL\n"%(nNodes, nElem))
@@ -538,8 +604,9 @@ command before trying to write the grid!')
             # Compute the normal
             f.write('%f %f %f\n'%(self.X[i,0], self.X[i,1], self.X[i,2]))
         # end for
-        for i in xrange(len(conn)):
-            f.write('%d %d %d %d\n'%(conn[i][0]+1, conn[i][1]+1, conn[i][2]+1, conn[i][3]+1))
+        for i in xrange(len(self.conn)):
+            f.write('%d %d %d %d\n'%(self.conn[i][0]+1, self.conn[i][1]+1, 
+                                     self.conn[i][2]+1, self.conn[i][3]+1))
         # end for
         
         # Close file

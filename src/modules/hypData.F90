@@ -21,10 +21,10 @@ module hypData
 
   ! Data used for convergence info:
   real(kind=realType) :: timeStart, gridSensorMax, gridSensorMin, minQuality, deltaS, minR
-  integer(kind=intType) :: marchIter, kspIts
+  integer(kind=intType) :: marchIter, kspIts, l_0
   real(kind=realType) :: radius, radius0, Xavg(3)
 
-  integer(kind=intType) :: Nlayers
+  integer(kind=intType) :: Nlayers,  smoothIter
 
   ! Petsc Varibles for solving linearized hyperbolic system 
   Mat hypMat
