@@ -19,6 +19,7 @@ python module hyp ! in
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
             real(kind=realtype) :: kspreltol
+            logical :: writemirror
             integer(kind=inttype) :: kspmaxits, preconlag, kspsubspacesize
             real(kind=realtype) :: rmin
         end module hypinput
