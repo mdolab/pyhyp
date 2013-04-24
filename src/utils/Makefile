@@ -15,6 +15,7 @@ vpath %.o $(HYP_OBJDIR)
 
 
 FF90_OBJECTS =	EChk.o\
+		releaseMemory.o\
 
 all:
 	$(PMAKE)  src

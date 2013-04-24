@@ -12,9 +12,10 @@ python module hyp ! in
             integer(kind=inttype) :: n
             integer(kind=inttype) :: nmax
             integer(kind=inttype) :: volsmoothiter
-            real(kind=realtype) :: gridratio
             real(kind=realtype) :: pgridratio
             real(kind=realtype) :: theta
+            real(kind=realtype) :: cmax
+            real(kind=realtype) :: slexp
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
             real(kind=realtype) :: kspreltol

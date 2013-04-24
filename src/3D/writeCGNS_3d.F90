@@ -31,6 +31,7 @@ subroutine writeCGNS_3D(fileName)
   character*256 :: zoneName
   integer(kind=intType) :: sizes(9), zone, ii, i, j, k, nx, transform(3)
   integer(kind=intType) :: pnts(3,2), pnts_donor(3,2), BCOut, nCon
+  integer(kind=intType) :: nPatchToWrite
   real(kind=realType), dimension(:,:,:), allocatable :: coordArray
   character*12, dimension(3) :: coorNames
   integer(kind=intType) :: iPatch, idim, idglobal
@@ -43,8 +44,13 @@ subroutine writeCGNS_3D(fileName)
   physDim = 3
   call cg_base_write_f(cg,"Base#1", Celldim, Physdim, base, ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
+  if (writeMirror) then
+     nPatchToWrite = nPatch
+  else
+     nPatchToWrite = nPatch/2
+  end if
 
-  do iPatch=1, nPatch/2
+  do iPatch=1, nPatchToWrite
      ! Write the single zone
 999  FORMAT('domain.',I5.5)
      write(zonename,999) iPatch ! Domains are typically ordered form 1
@@ -154,6 +160,7 @@ subroutine writeCGNS_3DOrig(fileName)
   character*256 :: zoneName
   integer(kind=intType) :: sizes(9), zone, ii, i, j, k, nx, transform(3)
   integer(kind=intType) :: pnts(3,2), pnts_donor(3,2), BCOut, nCon
+  integer(kind=intType) :: nPatchToWrite
   real(kind=realType), dimension(:,:,:), allocatable :: coordArray
   character*12, dimension(3) :: coorNames
   integer(kind=intType) :: iPatch, idim, idglobal
@@ -167,7 +174,13 @@ subroutine writeCGNS_3DOrig(fileName)
   call cg_base_write_f(cg,"Base#1", Celldim, Physdim, base, ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-  do iPatch=1, nPatch/2
+  if (writeMirror) then
+     nPatchToWrite = nPatch
+  else
+     nPatchToWrite = nPatch/2
+  end if
+
+  do iPatch=1, npatchToWrite
      ! Write the single zone
 999  FORMAT('domain.',I5.5)
      write(zonename,999) iPatch ! Domains are typically ordered form 1

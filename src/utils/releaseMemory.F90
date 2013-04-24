@@ -30,3 +30,27 @@ subroutine releaseMemory
      deallocate(patches)
   end if
 end subroutine releaseMemory
+
+
+subroutine destroyPetscVars
+
+  use hypData
+
+  implicit none
+  
+  integer(kind=intType) :: ierr
+
+  ! Destroy hyp system objects
+  call KSPDestroy(hypKSP, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  call MatDestroy(hypMat, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call VecDestroy(hypRHS, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call VecDestroy(hypDelta, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+end subroutine destroyPetscVars
