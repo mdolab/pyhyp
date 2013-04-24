@@ -272,6 +272,7 @@ linear segment. This may or not be what is desired!'
         if 'zMirror' in kwargs and kwargs['zMirror']:
             self.zMirror=True
 
+        delFile = False
         if self.xMirror or self.yMirror or self.zMirror:
 
             # We need to first read the file, mirror it, and write it
@@ -338,11 +339,13 @@ linear segment. This may or not be what is desired!'
             # end for
             f.close()
             fileName = 'tmp.fmt'
+            delFile=True
         # end for
    
         geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
                               file_type='ascii', order='f')
-        
+        if delFile:
+            os.remove(fileName)
         # This isn't prety or efficient but does produce the
         # globally reduced list we need and it is greedily
         # reordered. For ~100,000 surface points this takes on the
@@ -668,6 +671,8 @@ command before trying to write the grid!')
             self.hyp.hypinput.writemirror = False
         else:
             self.hyp.hypinput.writemirror = True
+            print 'true:'
+
         # end if
         return
 
