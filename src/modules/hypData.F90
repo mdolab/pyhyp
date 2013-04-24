@@ -14,15 +14,16 @@ module hypData
   real(kind=realType), dimension(:, :, :), allocatable, target :: pGrid3D
   real(kind=realType), dimension(:, :, :), allocatable, target :: grid3D
 
+  real(kind=realType), dimension(:, :), pointer :: X0, X1, Xm1
+
   ! Data for both generators
   real(kind=realType) :: scaleDist
-  logical :: limitStep
   logical :: factorNext
 
   ! Data used for convergence info:
   real(kind=realType) :: timeStart, gridSensorMax, gridSensorMin, minQuality, deltaS, minR
   integer(kind=intType) :: marchIter, kspIts, l_0
-  real(kind=realType) :: radius, radius0, Xavg(3)
+  real(kind=realType) :: radius, radius0, Xavg(3), cratio, sl
 
   integer(kind=intType) :: Nlayers,  smoothIter
 

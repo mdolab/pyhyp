@@ -1,4 +1,3 @@
-
 #!/usr/bin/python
 from __future__ import division
 """
@@ -82,12 +81,18 @@ class pyHyp(object):
             # Initial off-wall spacing
             's0':0.01,
             
-            # Grid Spacing Ratio
-            'gridRatio':1.15,
-
             # Rmin: Distance to march in multiples of initial radius
             'rMin': 50,
+            
+            #cMax': Maximum ratio of surface edge length to march
+            #direction. This needs to be limited for
+            #stability. Typical values are 3-8. Use lower values for
+            #more robustness
+            'cMax': 3,
 
+            #slExp: Exponent for Sl calc. Don't change this value
+            #unless you know what you are doing!
+            'slExp': .15,
             # ---------------------------
             #   Pseudo Grid Parameters
             # ---------------------------
@@ -257,7 +262,18 @@ linear segment. This may or not be what is desired!'
 
     def _init3d(self, fileName, flip, **kwargs):
 
-        if 'mirror' in kwargs and kwargs['mirror']:
+        self.xMirror = False
+        self.yMirror = False
+        self.zMirror = False
+        if 'xMirror' in kwargs and kwargs['xMirror']:
+            self.xMirror=True
+        if 'yMirror' in kwargs and kwargs['yMirror']:
+            self.yMirror=True
+        if 'zMirror' in kwargs and kwargs['zMirror']:
+            self.zMirror=True
+
+        if self.xMirror or self.yMirror or self.zMirror:
+
             # We need to first read the file, mirror it, and write it
             # back to a tmp file such that the nominal read below
             # works.
@@ -288,10 +304,22 @@ linear segment. This may or not be what is desired!'
             # Now mirror each zone, while flipping the i and j index
             for i in xrange(nSurf):
                 surfs.append(numpy.zeros([newSizes[i+nSurf,0], newSizes[i+nSurf,1],3]))
-                surfs[i+nSurf][:,:,0] = geo_utils.reverseRows(surfs[i][:,:,0])
-                surfs[i+nSurf][:,:,1] = geo_utils.reverseRows(surfs[i][:,:,1])
-                surfs[i+nSurf][:,:,2] = -geo_utils.reverseRows(surfs[i][:,:,2])
-                # end for
+                if self.xMirror:
+                    surfs[i+nSurf][:,:,0] = -geo_utils.reverseRows(surfs[i][:,:,0])
+                else:
+                    surfs[i+nSurf][:,:,0] = geo_utils.reverseRows(surfs[i][:,:,0])
+                # end if
+
+                if self.yMirror:
+                    surfs[i+nSurf][:,:,1] = -geo_utils.reverseRows(surfs[i][:,:,1])
+                else:
+                    surfs[i+nSurf][:,:,1] = geo_utils.reverseRows(surfs[i][:,:,1])
+                # end if
+                if self.zMirror:
+                    surfs[i+nSurf][:,:,2] = -geo_utils.reverseRows(surfs[i][:,:,2])
+                else:
+                    surfs[i+nSurf][:,:,2] = geo_utils.reverseRows(surfs[i][:,:,2])
+                # end if
             # end for
 
             # Dump back out
@@ -616,7 +644,6 @@ command before trying to write the grid!')
         """Internal function to set the options in pyHyp"""
         self.hyp.hypinput.n         = self.options['N']
         self.hyp.hypinput.s0        = self.options['s0']
-        self.hyp.hypinput.gridratio = self.options['gridRatio']
         self.hyp.hypinput.rmin      = self.options['rMin']
 
         self.hyp.hypinput.nmax      = self.options['NMax']
@@ -629,12 +656,19 @@ command before trying to write the grid!')
         self.hyp.hypinput.volcoef   = self.options['volCoef']
         self.hyp.hypinput.volblend  = self.options['volBlend']
         self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
-
+        self.hyp.hypinput.cmax      = self.options['cMax']
+        self.hyp.hypinput.slexp     = self.options['slExp']
         self.hyp.hypinput.kspreltol = self.options['kspRelTol']
         self.hyp.hypinput.kspmaxits = self.options['kspMaxIts']
         self.hyp.hypinput.preconlag = self.options['preConLag']
         self.hyp.hypinput.kspsubspacesize = self.options['kspSubspaceSize']
 
+        # Mirror is a special case. 
+        if self.xMirror or self.yMirror or self.zMirror:
+            self.hyp.hypinput.writemirror = False
+        else:
+            self.hyp.hypinput.writemirror = True
+        # end if
         return
 
     def _checkOptions(self):

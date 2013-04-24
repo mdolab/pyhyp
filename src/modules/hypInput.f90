@@ -9,9 +9,9 @@ module hypInput
   ! Input parameters. See pyHyp.py for what each parameter means
   integer(kind=intType) :: N, nMax
   real(kind=realType) :: s0, ps0
-  real(kind=realType) :: gridRatio, pGridRatio
+  real(kind=realType) :: pGridRatio, cMax, slexp
   real(kind=realType) :: epsE, epsI, theta, volCoef, volBlend
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
   real(kind=realType) :: kspRelTol,rMin
-  
+  logical :: writeMirror
 end module hypInput
