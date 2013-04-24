@@ -671,9 +671,8 @@ command before trying to write the grid!')
             self.hyp.hypinput.writemirror = False
         else:
             self.hyp.hypinput.writemirror = True
-            print 'true:'
-
         # end if
+
         return
 
     def _checkOptions(self):
