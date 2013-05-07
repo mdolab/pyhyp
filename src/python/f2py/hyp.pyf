@@ -28,10 +28,10 @@ python module hyp ! in
         end subroutine releasememory
 
         ! Run Commands
-        subroutine run2d(xin,nx) ! in :test:2D_code.F90
-          real(kind=realtype) dimension(2,nx) :: xin
-            integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
-        end subroutine run2d
+        ! subroutine run2d(xin,nx) ! in :test:2D_code.F90
+        !   real(kind=realtype) dimension(2,nx) :: xin
+        !     integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
+        ! end subroutine run2d
         subroutine init3d(sizes,nn,nptr_in,lmax,nglobal) ! in :test:3D_code.F90
             use hypdata
             use hypinput
@@ -42,17 +42,16 @@ python module hyp ! in
             integer(kind=inttype), optional,intent(in),check(shape(nptr_in,1)==nglobal),depend(nptr_in) :: nglobal=shape(nptr_in,1)
         end subroutine init3d
 
-        subroutine setlindex(ind_in,nx,ny,ipatch) ! in :test:3D_code.F90
-            integer(kind=inttype) dimension(nx,ny),intent(in) :: ind_in
-            integer(kind=inttype), optional,intent(in),check(shape(ind_in,0)==nx),depend(ind_in) :: nx=shape(ind_in,0)
-            integer(kind=inttype), optional,intent(in),check(shape(ind_in,1)==ny),depend(ind_in) :: ny=shape(ind_in,1)
+        subroutine setlindex(ind_in,nnx,nny,ipatch) ! in :test:3D_code.F90
+            integer(kind=inttype) dimension(nnx,nny),intent(in) :: ind_in
+            integer(kind=inttype), optional,intent(in),check(shape(ind_in,0)==nnx),depend(ind_in) :: nnx=shape(ind_in,0)
+            integer(kind=inttype), optional,intent(in),check(shape(ind_in,1)==nny),depend(ind_in) :: nny=shape(ind_in,1)
             integer(kind=inttype) intent(in) :: ipatch
         end subroutine setlindex
 
-        subroutine run3d(xin,nx,xout) ! in :test:3D_code.F90
-          real(kind=realtype) dimension(3,nx) :: xin
-          integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
-          real(kind=realtype) intent(out), dimension(3,nx) :: xout
+        subroutine run3d(xin,nnodes) ! in :test:3D_code.F90
+          real(kind=realtype) dimension(3,nnodes) :: xin
+          integer(kind=inttype), optional,check(shape(xin,1)==nnodes),depend(xin) :: nnodes=shape(xin,1)
         end subroutine run3d
 
         ! Grid output functions
@@ -68,9 +67,9 @@ python module hyp ! in
             character*(*) :: filename
         end subroutine writecgns_3d
 
-        subroutine writecgns_3dorig(filename) 
-          character*(*) :: filename
-        end subroutine writecgns_3dorig
+        ! subroutine writecgns_3dorig(filename) 
+        !   character*(*) :: filename
+        ! end subroutine writecgns_3dorig
 
         subroutine writeplot3d_3d(filename) 
             character*(*) :: filename

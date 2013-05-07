@@ -21,7 +21,8 @@ subroutine writePlot3d_3d(fileName)
   character*(*) :: fileName
 
   ! Working variables
-  integer(kind=intType) :: i, j, k, idim, iPatch, idGlobal
+  integer(kind=intType) :: i, j, k, idim, iPatch, idGlobal, ierr
+  real(kind=realType), dimension(:), pointer :: xx
 
   ! Open the output file
   open(unit=7, file=fileName)
@@ -37,16 +38,22 @@ subroutine writePlot3d_3d(fileName)
 6 format(I5, I5, I5)
 
   ! Loop over each patch and write
+  call VecView(X(1), PETSC_VIEWER_STDOUT_WORLD, ierr)
   do iPatch = 1, nPatch
      do idim=1,3
         do k=1, NMax
+           call VecGetArrayF90(X(k), xx, ierr)
+           call EChk(ierr, __FILE__, __LINE__)
+           
            do j=1, patches(iPatch)%jl
               do i=1, patches(iPatch)%il
                  ! We will use l_index to get the correct pointer into grid3D
                  idGlobal = patches(iPatch)%l_index(i, j)
-                 write(7,7), pGrid3d(iDim, idGlobal, k)
+                 write(7,7), xx(3*(idGlobal-1)+iDim)
               end do
            end do
+           call VecRestoreArrayF90(X(k), xx, ierr)
+           call EChk(ierr, __FILE__, __LINE__)
         end do
      end do
   end do

@@ -568,13 +568,12 @@ linear segment. This may or not be what is desired!'
         """
         if self.twoD:
             self.hyp.run2d(self.X.T)
-            Xnew = None
         else:
-            Xnew = self.hyp.run3d(self.X.T).T
+            self.hyp.run3d(self.X.T)
         # end if
         self.gridGenerated = True
 
-        return Xnew
+        return 
 
     def writePlot3D(self, fileName):
         """After we have generated a grid, write it out to a plot3d
