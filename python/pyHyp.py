@@ -83,26 +83,12 @@ class pyHyp(object):
             
             # Rmin: Distance to march in multiples of initial radius
             'rMin': 50,
-            
-            #cMax': Maximum ratio of surface edge length to march
-            #direction. This needs to be limited for
-            #stability. Typical values are 3-8. Use lower values for
-            #more robustness
-            'cMax': 3,
 
+            'gridRatio': 1.125,
+            
             #slExp: Exponent for Sl calc. Don't change this value
             #unless you know what you are doing!
             'slExp': .15,
-            # ---------------------------
-            #   Pseudo Grid Parameters
-            # ---------------------------
-            'pN': 1000,
-
-            # Initial off-wall spacing
-            'ps0':0.01,
-            
-            # Grid Spacing Ratio
-            'pGridRatio':1.15,
 
             # ---------------------------
             #   Smoothing parameters
@@ -647,18 +633,11 @@ command before trying to write the grid!')
         self.hyp.hypinput.n         = self.options['N']
         self.hyp.hypinput.s0        = self.options['s0']
         self.hyp.hypinput.rmin      = self.options['rMin']
-
-        self.hyp.hypinput.nmax      = self.options['NMax']
-        self.hyp.hypinput.ps0        = self.options['ps0']
-        self.hyp.hypinput.pgridratio = self.options['pGridRatio']
-
+        self.hyp.hypinput.gridratio = self.options['gridRatio']
         self.hyp.hypinput.epse      = self.options['epsE']
-        self.hyp.hypinput.epsi      = self.options['epsI']
-        self.hyp.hypinput.theta     = self.options['theta']
         self.hyp.hypinput.volcoef   = self.options['volCoef']
         self.hyp.hypinput.volblend  = self.options['volBlend']
         self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
-        self.hyp.hypinput.cmax      = self.options['cMax']
         self.hyp.hypinput.slexp     = self.options['slExp']
         self.hyp.hypinput.kspreltol = self.options['kspRelTol']
         self.hyp.hypinput.kspmaxits = self.options['kspMaxIts']

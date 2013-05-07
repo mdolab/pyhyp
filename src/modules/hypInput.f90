@@ -7,10 +7,11 @@ module hypInput
   ! generator
 
   ! Input parameters. See pyHyp.py for what each parameter means
-  integer(kind=intType) :: N, nMax
-  real(kind=realType) :: s0, ps0
-  real(kind=realType) :: pGridRatio, cMax, slexp
-  real(kind=realType) :: epsE, epsI, theta, volCoef, volBlend
+  integer(kind=intType) :: N
+  real(kind=realType) :: s0
+  real(kind=realType) :: gridRatio
+  real(kind=realType) :: slexp
+  real(kind=realType) :: epsE, volCoef, volBlend
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
   real(kind=realType) :: kspRelTol,rMin
   logical :: writeMirror

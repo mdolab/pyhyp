@@ -6,15 +6,9 @@ python module hyp ! in
         module hypinput ! in :hyp:hypInput.f90
             use precision
             real(kind=realtype) :: epse
-            real(kind=realtype) :: epsi
             real(kind=realtype) :: s0
-            real(kind=realtype) :: ps0
             integer(kind=inttype) :: n
-            integer(kind=inttype) :: nmax
             integer(kind=inttype) :: volsmoothiter
-            real(kind=realtype) :: pgridratio
-            real(kind=realtype) :: theta
-            real(kind=realtype) :: cmax
             real(kind=realtype) :: slexp
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
@@ -22,6 +16,7 @@ python module hyp ! in
             logical :: writemirror
             integer(kind=inttype) :: kspmaxits, preconlag, kspsubspacesize
             real(kind=realtype) :: rmin
+            real(kind=realtype) :: gridratio
         end module hypinput
 
         subroutine releasememory
@@ -32,14 +27,14 @@ python module hyp ! in
         !   real(kind=realtype) dimension(2,nx) :: xin
         !     integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
         ! end subroutine run2d
-        subroutine init3d(sizes,nn,nptr_in,lmax,nglobal) ! in :test:3D_code.F90
+        subroutine init3d(sizes,nn,nptr_in,lmax,nnodes) ! in :test:3D_code.F90
             use hypdata
             use hypinput
             integer(kind=inttype) dimension(nn,2),intent(in) :: sizes
             integer(kind=inttype), optional,intent(in),check(shape(sizes,0)==nn),depend(sizes) :: nn=shape(sizes,0)
-            integer(kind=inttype) dimension(lmax,nglobal),intent(in) :: nptr_in
+            integer(kind=inttype) dimension(lmax,nnodes),intent(in) :: nptr_in
             integer(kind=inttype), optional,intent(in),check(shape(nptr_in,0)==lmax),depend(nptr_in) :: lmax=shape(nptr_in,0)
-            integer(kind=inttype), optional,intent(in),check(shape(nptr_in,1)==nglobal),depend(nptr_in) :: nglobal=shape(nptr_in,1)
+            integer(kind=inttype), optional,intent(in),check(shape(nptr_in,1)==nnodes),depend(nptr_in) :: nnodes=shape(nptr_in,1)
         end subroutine init3d
 
         subroutine setlindex(ind_in,nnx,nny,ipatch) ! in :test:3D_code.F90

@@ -15,6 +15,7 @@ subroutine EChk(ierr, file, line)
   if (ierr == 0) then
      return ! No error, return immediately
   else
+     print *,'ierr is:',ierr
      call MPI_Comm_rank(petsc_comm_world, myid, ierr)
      print *,'================================================================='
      write(*,900) "PETSc or MPI Error. Error Code ",ierr,". Detected on Proc ",myid

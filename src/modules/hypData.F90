@@ -14,6 +14,7 @@ module hypData
   real(kind=realType) :: scaleDist
   logical :: factorNext
   integer(kind=intType) :: nx
+  real(kind=realType), pointer :: xxm1(:), xx(:), xxp1(:)
 
   ! Data used for convergence info:
   real(kind=realType) :: timeStart, gridSensorMax, gridSensorMin, minQuality, deltaS, minR
@@ -23,13 +24,14 @@ module hypData
   integer(kind=intType) :: Nlayers,  smoothIter
 
   ! Petsc Varibles for solving linearized hyperbolic system 
-  Mat hypMat
+  Mat hypMat, hypMatFD, hypMatPC
   Vec hypDelta
   Vec hypRHS
   KSP hypKSP
+  PC hypPC
   SNES hypSNES
   Vec hypRes
-  Vec Volume, VolumeOld
+  Vec Volume
   PetscFortranAddr   ctx(1)
   Vec, dimension(:), allocatable :: X
   Vec normalVec

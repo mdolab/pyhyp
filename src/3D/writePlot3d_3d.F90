@@ -1,5 +1,4 @@
 subroutine writePlot3d_3d(fileName)
-
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -22,7 +21,6 @@ subroutine writePlot3d_3d(fileName)
 
   ! Working variables
   integer(kind=intType) :: i, j, k, idim, iPatch, idGlobal, ierr
-  real(kind=realType), dimension(:), pointer :: xx
 
   ! Open the output file
   open(unit=7, file=fileName)
@@ -33,7 +31,7 @@ subroutine writePlot3d_3d(fileName)
 
   ! Write the zone sizes
   do i=1,nPatch
-     write(7,6) patches(i)%il, patches(i)%jl, NMax
+     write(7,6) patches(i)%il, patches(i)%jl, N
   end do
 6 format(I5, I5, I5)
 
@@ -41,7 +39,7 @@ subroutine writePlot3d_3d(fileName)
   call VecView(X(1), PETSC_VIEWER_STDOUT_WORLD, ierr)
   do iPatch = 1, nPatch
      do idim=1,3
-        do k=1, NMax
+        do k=1, N
            call VecGetArrayF90(X(k), xx, ierr)
            call EChk(ierr, __FILE__, __LINE__)
            
