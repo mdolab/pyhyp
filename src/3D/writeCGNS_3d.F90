@@ -1,5 +1,4 @@
 subroutine writeCGNS_3D(fileName)
-
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -12,7 +11,7 @@ subroutine writeCGNS_3D(fileName)
   !
   !     Description of Arguments
   !     Input:
-  !     fileNmae - Character array: the name of the cgns file
+  !     fileName - Character array: the name of the cgns file
   !
   !     Ouput: None
 
@@ -33,7 +32,7 @@ subroutine writeCGNS_3D(fileName)
   integer(kind=intType) :: pnts(3,2), pnts_donor(3,2), BCOut, nCon
   integer(kind=intType) :: nPatchToWrite
   real(kind=realType), dimension(:,:,:), allocatable :: coordArray
-  real(kind=realType), dimension(:), pointer :: xx, vv
+  real(kind=realType), dimension(:), pointer ::  vv
   character*12, dimension(3) :: coorNames
   integer(kind=intType) :: iPatch, idim, idglobal
 
@@ -59,7 +58,7 @@ subroutine writeCGNS_3D(fileName)
      sizes(:) = 0_intType
      sizes(1) = patches(iPatch)%il
      sizes(2) = patches(iPatch)%jl
-     sizes(3) = Nmax
+     sizes(3) = N
      sizes(4) = sizes(1) - 1
      sizes(5) = sizes(2) - 1
      sizes(6) = sizes(3) - 1 
@@ -75,7 +74,7 @@ subroutine writeCGNS_3D(fileName)
 
      do idim=1,3
         ! Copy values and write:
-        do k=1,Nmax
+        do k=1,N
            call VecGetArrayF90(X(k), xx, ierr)
            call EChk(ierr, __FILE__, __LINE__)
 
