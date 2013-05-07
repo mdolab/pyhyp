@@ -1,4 +1,4 @@
-subroutine run2D(Xin, nx)
+subroutine run2D(Xin, nNodes)
   
   use hypInput
   use hypData
@@ -6,13 +6,13 @@ subroutine run2D(Xin, nx)
   implicit none
 
   ! Input Parameters
-  real(kind=realType) :: Xin(2, nx)
-  integer(kind=intType) :: nx
+  real(kind=realType) :: Xin(2, nnodes)
+  integer(kind=intType) :: nnodes
 
   ! Working parameters
-  integer(kind=intType) :: i, j, l, idim
-  real(kind=realType) :: Area0(nx), Area1(nx), ABar
-  real(kind=realType) :: A0(2, 2, nx), B0(2, 2, nx), sMax
+  ! integer(kind=intType) :: i, j, l, idim
+  ! real(kind=realType) :: Area0(nx), Area1(nx), ABar
+  ! real(kind=realType) :: A0(2, 2, nx), B0(2, 2, nx), sMax
 
   ! ! First thing we will do is allocate the final grid array:
   ! if (allocated(grid2D)) then
@@ -497,57 +497,57 @@ subroutine two_by_two_inverse(A, Ainv)
 
 end subroutine two_by_two_inverse
 
-subroutine create2DPetscVars(nx)
+! subroutine create2DPetscVars(nx)
 
-  use hypData
+!   use hypData
   
-  implicit none
+!   implicit none
   
-  ! Input Variables
-  integer(kind=intType) :: nx
+!   ! Input Variables
+!   integer(kind=intType) :: nx
   
-  ! Working Variables
-  integer(kind=intType) :: onProc(nx*2), offProc(nx*2), ierr
+!   ! Working Variables
+!   integer(kind=intType) :: onProc(nx*2), offProc(nx*2), ierr
 
-  ! ----------------------------------------------------------
-  !          Linearized Hyperbolic System Variables
-  ! ----------------------------------------------------------
+!   ! ----------------------------------------------------------
+!   !          Linearized Hyperbolic System Variables
+!   ! ----------------------------------------------------------
 
-  ! Lets to things in the proper way, create the Mat first
-  onProc = 3
-  offProc = 0
+!   ! Lets to things in the proper way, create the Mat first
+!   onProc = 3
+!   offProc = 0
 
-  call MatCreateMPIAIJ(PETSC_COMM_WORLD,  &
-       nx*2, nx*2, PETSC_DETERMINE, PETSC_DETERMINE, &
-       0, onProc, 0, offProc, hypMat, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+!   call MatCreateMPIAIJ(PETSC_COMM_WORLD,  &
+!        nx*2, nx*2, PETSC_DETERMINE, PETSC_DETERMINE, &
+!        0, onProc, 0, offProc, hypMat, ierr)
+!   call EChk(ierr, __FILE__, __LINE__)
 
-  ! Make it a bocked matrix of size 2
-  call MatSetBlockSize(hypMat, 2, ierr)
+!   ! Make it a bocked matrix of size 2
+!   call MatSetBlockSize(hypMat, 2, ierr)
   
-  ! This must be set to allow passing in blocks in native fortran
-  ! ordering
-  call MatSetOption(hypMat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+!   ! This must be set to allow passing in blocks in native fortran
+!   ! ordering
+!   call MatSetOption(hypMat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
+!   call EChk(ierr, __FILE__, __LINE__)
 
-  ! Then use getVecs to get the vectors we want
-  call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+!   ! Then use getVecs to get the vectors we want
+!   call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
+!   call EChk(ierr, __FILE__, __LINE__)
 
-  ! Create the KSP Object
-  call KSPCreate(petsc_comm_world, hypKSP, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+!   ! Create the KSP Object
+!   call KSPCreate(petsc_comm_world, hypKSP, ierr)
+!   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPSetFromOptions(hypKSP, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+!   call KSPSetFromOptions(hypKSP, ierr)
+!   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+!   call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+!   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPSetTolerances(hypKSP, 1e-12, 1e-16, 1e5, 50, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+!   call KSPSetTolerances(hypKSP, 1e-12, 1e-16, 1e5, 50, ierr)
+!   call EChk(ierr, __FILE__, __LINE__)
 
-end subroutine create2DPetscVars
+! end subroutine create2DPetscVars
 
 
  ! ! We are going to do this smoothing properly by solving the linear

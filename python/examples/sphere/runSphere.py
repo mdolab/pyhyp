@@ -10,14 +10,14 @@ options= {
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 65, 
+    'N': 100, 
     's0':1e-5,
     'rMin':25,
 
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    'NMax':1000,
+    'NMax':80,
     'ps0':1e-5,
     'pGridRatio':1.125,
     'cMax': 6,
@@ -41,9 +41,9 @@ options= {
     'kspSubspaceSize':50,
     }
 
-#hyp = pyHyp.pyHyp('3d',fileName='even_sphere.fmt', options=options)
+hyp = pyHyp.pyHyp('3d',fileName='even_sphere.fmt', options=options)
 #hyp = pyHyp.pyHyp('3d',fileName='uneven_sphere.fmt', options=options)
-hyp = pyHyp.pyHyp('3d',fileName='uneven_sphere_large.fmt', options=options)
+#hyp = pyHyp.pyHyp('3d',fileName='uneven_sphere_large.fmt', options=options)
 
 hyp.run()
 hyp.writeCGNS('sphere.cgns')

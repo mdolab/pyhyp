@@ -2,23 +2,18 @@ module hypData
   use precision
   implicit None
 
-#include "include/finclude/petsc.h"
-  
+#include "finclude/petsc.h"
+#include "finclude/petscvec.h90"
   ! This module contains the data and data structures required for
   ! running the hyperbolic grid generator
 
   ! Data for the 2D generator:
   real(kind=realType), dimension(:, :, :), allocatable, target :: grid2D
 
-  ! Data for the 3D generator:
-  real(kind=realType), dimension(:, :, :), allocatable, target :: pGrid3D
-  real(kind=realType), dimension(:, :, :), allocatable, target :: grid3D
-
-  real(kind=realType), dimension(:, :), pointer :: X0, X1, Xm1
-
   ! Data for both generators
   real(kind=realType) :: scaleDist
   logical :: factorNext
+  integer(kind=intType) :: nx
 
   ! Data used for convergence info:
   real(kind=realType) :: timeStart, gridSensorMax, gridSensorMin, minQuality, deltaS, minR
@@ -32,6 +27,13 @@ module hypData
   Vec hypDelta
   Vec hypRHS
   KSP hypKSP
+  SNES hypSNES
+  Vec hypRes
+  Vec Volume, VolumeOld
+  PetscFortranAddr   ctx(1)
+  Vec, dimension(:), allocatable :: X
+  Vec normalVec
+  Vec ovrNNeighbours
 
   type patchType
 
