@@ -515,8 +515,8 @@ subroutine calcResidual(assembleJac, secondOrder, saveMetrics)
   ! This routine must do everything required to evaluate the full
   ! non-linear residual
 
-  !sl = (scaleDist/(radius0*rMin))**.16!slExp
-  sl = sqrt((marchIter-one)/(N-one))
+  sl = (scaleDist/(radius0*rMin))**slExp
+  !sl = sqrt((marchIter-one)/(N-one))
   !sl = sqrt((marchIter + (dble(subIter)-1)/nSubIter)/(73-one))
   !sl = (scaleDist/(radius0*rMin))**.16
   !print *,'sl:',sl
