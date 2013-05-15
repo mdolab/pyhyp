@@ -10,24 +10,23 @@ options= {
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 32, 
-    's0':1e-2,
-    'rMin':25,
-    'gridRatio':1.2,
-
+    'N': 73, 
+    's0':1e-4,
+    'rMin':10,
+    
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------
-    'epsE': 0.5,
+    'epsE': 1.0,
     'volCoef': 0.16,
-    'volBlend': 0.001,
-    'volSmoothIter': 5,
+    'volBlend': 0.0005,
+    'volSmoothIter': 15,
 
     # ---------------------------
     #   Solution Parameters
     # ---------------------------
-    'kspRelTol': 1e-5,
-    'kspMaxIts': 500,
+    'kspRelTol': 1e-10,
+    'kspMaxIts': 1500,
     'preConLag': 5,
     'kspSubspaceSize':50,
     }

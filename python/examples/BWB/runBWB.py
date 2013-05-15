@@ -17,9 +17,8 @@ options= {
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    'NMax':1000,
     'ps0':5e-6,
-    'pGridRatio':1.125,
+    'pGridRatio':1.1,
     'cMax':6,
 
     # ---------------------------
@@ -29,8 +28,8 @@ options= {
     'epsI': 2.0,
     'theta': 3.0,
     'volCoef': .16,
-    'volBlend': 0.0005,
-    'volSmoothIter': 10,
+    'volBlend': 0.0001,
+    'volSmoothIter': 20,
 
     # ---------------------------
     #   Solution Parameters
