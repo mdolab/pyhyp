@@ -103,7 +103,7 @@ subroutine run3D(Xin, nNodes)
      call computeMinR(X(L), Radius)
 
      ! Check the quality of this layer
-     !call computeQualityLayer
+     call computeQualityLayer
 
      ! Possibly write header and write iteration info
      if (mod(marchIter, 50) == 0) then

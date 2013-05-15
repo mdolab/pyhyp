@@ -444,47 +444,59 @@ subroutine computeMinR(xVec, R)
 
 end subroutine computeMinR
 
-! subroutine computeQualityLayer
-!   !***DESCRIPTION
-!   !
-!   !     Written by Gaetan Kenway
-!   !
-!   !     Compute the minimum quality measure for the cells defined by
-!   !     two grid levels
-!   !
-!   use hypInput
-!   use hypData
-!   implicit none
+subroutine computeQualityLayer
+  !***DESCRIPTION
+  !
+  !     Written by Gaetan Kenway
+  !
+  !     Compute the minimum quality measure for the cells defined by
+  !     two grid levels
+  !
+  use hypInput
+  use hypData
+  implicit none
 
-!   ! Working
-!   integer(kind=intType) :: i, j, iPatch
-!   real(kind=realType) :: points(3,8), Q
+  ! Working
+  integer(kind=intType) :: i, j, iPatch, ierr
+  real(kind=realType) :: points(3,8), Q
 
-!   ! Since we are dealing with volumes, we need to loop over faces:
-!   minQuality = one
-!   do iPatch=1, nPatch
-!      do j=1,patches(iPatch)%jl-1
-!         do i=1,patches(iPatch)%il-1
-!            ! Assemble the 8 points we need for the volume - Note
-!            ! coodinate coordinate ordering!
-!            points(:,1) = X0(:,patches(iPatch)%l_index(i  ,j  ))
-!            points(:,2) = X0(:,patches(iPatch)%l_index(i+1,j  ))
-!            points(:,3) = X0(:,patches(iPatch)%l_index(i  ,j+1))
-!            points(:,4) = X0(:,patches(iPatch)%l_index(i+1,j+1))
+  ! Since we are dealing with volumes, we need to loop over faces:
+  minQuality = one
+  call VecGetArrayF90(X(marchIter), xxtmp, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
 
-!            points(:,5) = X1(:,patches(iPatch)%l_index(i  ,j  ))
-!            points(:,6) = X1(:,patches(iPatch)%l_index(i+1,j  ))
-!            points(:,7) = X1(:,patches(iPatch)%l_index(i  ,j+1))
-!            points(:,8) = X1(:,patches(iPatch)%l_index(i+1,j+1))
+  call VecGetArrayF90(X(marchIter-1), xxm1tmp, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
 
-!            call quality_hexa(points, Q)
-!            minQuality = min(minQuality, Q)
+  do iPatch=1, nPatch
+     do j=1,patches(iPatch)%jl-1
+        do i=1,patches(iPatch)%il-1
+           ! Assemble the 8 points we need for the volume - Note
+           ! coodinate coordinate ordering!
+           points(:,1) = xxm1tmp(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
+           points(:,2) = xxm1tmp(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
+           points(:,3) = xxm1tmp(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
+           points(:,4) = xxm1tmp(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
 
-!         end do
-!      end do
-!   end do
+           points(:,5) = xxtmp(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
+           points(:,6) = xxtmp(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
+           points(:,7) = xxtmp(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
+           points(:,8) = xxtmp(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
 
-! end subroutine computeQualityLayer
+           call quality_hexa(points, Q)
+           minQuality = min(minQuality, Q)
+
+        end do
+     end do
+  end do
+  call VecRestoreArrayF90(X(marchIter), xxtmp, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call VecRestoreArrayF90(X(marchIter-1), xxm1tmp, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+
+ end subroutine computeQualityLayer
 
 subroutine quality_hexa(points, quality)
   !***DESCRIPTION
