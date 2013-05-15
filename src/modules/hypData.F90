@@ -12,31 +12,28 @@ module hypData
 
   ! Data for both generators
   real(kind=realType) :: scaleDist
+  real(kind=realType) :: gridRatio
   logical :: factorNext
   integer(kind=intType) :: nx
-  real(kind=realType), pointer :: xxm1(:), xx(:), xxp1(:)
-
+  real(kind=realType), pointer, dimension(:) :: xxm2tmp, xxm1tmp, rrtmp, xxtmp, deltaTmp
+  real(kind=realType), dimension(:,:), allocatable :: xxm1, xxm2, xx, rr, pxxm1
+  real(kind=realType), dimension(:), allocatable :: volume
+  integer(kind=intType), dimension(:), allocatable :: inds
+  integer(kind=intType) :: nSubIterPrev
   ! Data used for convergence info:
   real(kind=realType) :: timeStart, gridSensorMax, gridSensorMin, minQuality, deltaS, minR
-  integer(kind=intType) :: marchIter, kspIts, l_0
-  real(kind=realType) :: radius, radius0, Xavg(3), cratio, sl
-
+  integer(kind=intType) :: marchIter, kspIts
+  real(kind=realType) :: radius, radius0, Xavg(3), cratio, sl, vBar
   integer(kind=intType) :: Nlayers,  smoothIter
-
+  integer(kind=intType) :: nSubIter, subIter
+  real(kind=realType) :: desiredS
   ! Petsc Varibles for solving linearized hyperbolic system 
   Mat hypMat, hypMatFD, hypMatPC
-  Vec hypDelta
-  Vec hypRHS
+  Vec hypDelta, hypRHS, hypRes
   KSP hypKSP
-  PC hypPC
   SNES hypSNES
-  Vec hypRes
-  Vec Volume
   PetscFortranAddr   ctx(1)
-  Vec, dimension(:), allocatable :: X
-  Vec normalVec
-  Vec ovrNNeighbours
-
+  Vec, dimension(:), allocatable :: X, X_ksi, X_eta, X_zeta, X_ksi_ksi, X_eta_eta, X_diss, Vhist
   type patchType
 
      ! Patch Dimensions

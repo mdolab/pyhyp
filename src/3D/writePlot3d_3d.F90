@@ -40,17 +40,17 @@ subroutine writePlot3d_3d(fileName)
   do iPatch = 1, nPatch
      do idim=1,3
         do k=1, N
-           call VecGetArrayF90(X(k), xx, ierr)
+           call VecGetArrayF90(X(k), xxtmp, ierr)
            call EChk(ierr, __FILE__, __LINE__)
            
            do j=1, patches(iPatch)%jl
               do i=1, patches(iPatch)%il
                  ! We will use l_index to get the correct pointer into grid3D
                  idGlobal = patches(iPatch)%l_index(i, j)
-                 write(7,7), xx(3*(idGlobal-1)+iDim)
+                 write(7,7), xxtmp(3*(idGlobal-1)+iDim)
               end do
            end do
-           call VecRestoreArrayF90(X(k), xx, ierr)
+           call VecRestoreArrayF90(X(k), xxtmp, ierr)
            call EChk(ierr, __FILE__, __LINE__)
         end do
      end do

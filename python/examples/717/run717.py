@@ -25,21 +25,19 @@ from petsc4py import PETSc
 ffd_file = 'mdo_tutorial_ffd.fmt'
 
 options= {
-    # ---------------------------
+   # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 65, 
-    's0':4e-6,
-    'gridRatio':1.20,
-    'rMin':25,
+    'N': 65,#145,#73, 
+    's0':5e-6, #5e-6
+    'rMin':23.2,
 
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    'NMax': 500,
-    'ps0':5e-6,
-    'pGridRatio':1.12,
-    'cMax': 6,
+    'ps0':5e-6, #5e-6,
+    'pGridRatio':1.1,
+    'cMax': 5,
 
     # ---------------------------
     #   Smoothing parameters
@@ -47,9 +45,9 @@ options= {
     'epsE': 1.0,
     'epsI': 2.0,
     'theta': 3.0,
-    'volCoef': .16,
+    'volCoef': .20,
     'volBlend': 0.0005,
-    'volSmoothIter': 10,
+    'volSmoothIter': 20,
 
     # ---------------------------
     #   Solution Parameters
@@ -104,8 +102,8 @@ for k in xrange(nSpan):
 c0 = pySpline.curve(X=ref,k=2)
 
 # Create the hyp object
-#hyp = pyHyp.pyHyp('3d',fileName='717_large.fmt', options=options, zMirror=True)
-hyp = pyHyp.pyHyp('3d',fileName='717_small.fmt', options=options, zMirror=True)
+hyp = pyHyp.pyHyp('3d',fileName='717_large.fmt', options=options, zMirror=True)
+#hyp = pyHyp.pyHyp('3d',fileName='717_small.fmt', options=options, zMirror=True)
 
 coords = hyp.X.copy()
 nx = len(hyp.X)

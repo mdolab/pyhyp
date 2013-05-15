@@ -83,12 +83,24 @@ class pyHyp(object):
             
             # Rmin: Distance to march in multiples of initial radius
             'rMin': 50,
-
-            'gridRatio': 1.125,
             
-            #slExp: Exponent for Sl calc. Don't change this value
-            #unless you know what you are doing!
-            'slExp': .15,
+            # Maximum permissible ratio of marching direction length
+            # to smallest in-plane edge
+            'cMax':6.0,
+
+            #nonLinear: True/False. Use nonlinear scheme
+            'nonLinear': False,
+
+            # ---------------------------
+            #   Pseudo Grid Parameters
+            # ---------------------------
+            'pN': 1000,
+
+            # Initial off-wall spacing
+            'ps0':0.01,
+            
+            # Grid Spacing Ratio
+            'pGridRatio':1.15,
 
             # ---------------------------
             #   Smoothing parameters
@@ -105,15 +117,15 @@ class pyHyp(object):
 
             # volCoef: The volume smoothing coefficinet for
             # pointJacobi iterations
-            'volCoef': .4,
+            'volCoef': .16,
 
             # volBlend: The volume blending coefficient to force
             # uniform sizs in farfield
-            'volBlend': 0.0005,
+            'volBlend': 0.0001,
 
             # volSmoothIter: The number of point-jacobi volume
             # smoothing iterations
-            'volSmoothIter': 3,
+            'volSmoothIter': 10,
 
             # ---------------------------
             #   Solution Parameters
@@ -128,6 +140,11 @@ class pyHyp(object):
             'preConLag': 10,
 
             'kspSubspaceSize':50,
+
+            # ---------------------------
+            #   Output Parameters
+            # ---------------------------
+            'writeMetrics': False,
             }
 
         # Import and set the hyp module
@@ -164,7 +181,7 @@ class pyHyp(object):
         if self.twoD:
             self._init2d(fileName, X, flip)
         else:
-            self._init3d(fileName, flip, **kwargs)
+            self._init3d(fileName, **kwargs)
         # end if
 
         # Setup the options
@@ -246,7 +263,7 @@ linear segment. This may or not be what is desired!'
 
         return
 
-    def _init3d(self, fileName, flip, **kwargs):
+    def _init3d(self, fileName, **kwargs):
 
         self.xMirror = False
         self.yMirror = False
@@ -264,26 +281,48 @@ linear segment. This may or not be what is desired!'
             # We need to first read the file, mirror it, and write it
             # back to a tmp file such that the nominal read below
             # works.
-            f = open(fileName, 'r')
-            binary = False
-            nSurf = geo_utils.readNValues(f, 1, 'int', binary)[0]
-            sizes   = geo_utils.readNValues(
-                f, nSurf*3, 'int', binary).reshape((nSurf, 3))
+
+            # Load in the file and determine the free edges, these
+            # will be symmetry edges (which turn into symmetry planes)
+            geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
+                                  file_type='ascii', order='f')
+
+            nodeTol = kwargs.pop('nodeTol',1e-6)
+            edgeTol = kwargs.pop('edgeTol',1e-6)
+            geo_obj._calcConnectivity(nodeTol, edgeTol)
+
+            sizes = []
+            nSurf = geo_obj.nSurf
+            for isurf in xrange(nSurf):
+                sizes.append([geo_obj.surfs[isurf].Nu, geo_obj.surfs[isurf].Nv])
+            geo_obj.topo.calcGlobalNumbering(sizes)
+            topo = geo_obj.topo
+
+            # Determine the edges that do not have a neighbour
+            edgeCount = numpy.zeros(topo.nEdge, 'intc')
+            for iFace in xrange(topo.nFace):
+                for iEdge in xrange(4):
+                    edgeCount[topo.edge_link[iFace][iEdge]] += 1
+                # end for
+            # end for
+                    
+            # Now make a list of the patchID, and edge number for
+            # later use
+            self.symEdges = [] 
+            for iFace in xrange(topo.nFace):
+                for iEdge in xrange(4):
+                    if edgeCount[topo.edge_link[iFace][iEdge]] == 1:
+                        self.symEdges.append([iFace,iEdge])
+                    # end if
+                # end for
+            # end for
 
             surfs = []
             for i in xrange(nSurf):
-                cur_size = sizes[i, 0]*sizes[i, 1]
-                surfs.append(numpy.zeros([sizes[i, 0], sizes[i, 1], 3]))
-                for idim in xrange(3):
-                    surfs[-1][:, :, idim] = geo_utils.readNValues(
-                        f, cur_size, 'float', binary).reshape(
-                        (sizes[i, 0], sizes[i, 1]), order='f')
-                # end for
-            # end for
-            f.close()
+                surfs.append(geo_obj.surfs[i].X)
 
-            # Generate new list of sizes
-            newSizes = numpy.zeros((nSurf*2, 3),'intc')
+            # Generate new list of sizes (double the length)
+            newSizes = numpy.zeros((nSurf*2, 2),'intc')
             for i in xrange(nSurf):
                 newSizes[i] = sizes[i]
                 newSizes[i+nSurf] = sizes[i]
@@ -313,7 +352,7 @@ linear segment. This may or not be what is desired!'
             f = open('tmp.fmt','w')
             f.write('%d\n'%(nSurf*2))
             for i in xrange(nSurf*2):
-                f.write('%d %d %d\n'%(newSizes[i][0], newSizes[i][1], newSizes[i][2]))
+                f.write('%d %d %d\n'%(newSizes[i][0], newSizes[i][1], 1))
             for ii in xrange(nSurf*2):
                 for idim in xrange(3):
                     for j in xrange(newSizes[ii][1]):
@@ -326,8 +365,10 @@ linear segment. This may or not be what is desired!'
             f.close()
             fileName = 'tmp.fmt'
             delFile=True
-        # end for
-   
+        else:
+            self.symEdges = None
+        # end if
+
         geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
                               file_type='ascii', order='f')
         if delFile:
@@ -448,69 +489,38 @@ linear segment. This may or not be what is desired!'
             # end if
         # end for
 
-        # # Special treatment for the extraordinary nodes
-        # corners = {}
-        # for iFace in xrange(topo.nFace):
-        #     # Index by corner into 'corners' and add teh two pointer
-        #     # in the i and j directory AWAY from the node
-        #     # Bottom left
-        #     curNode = topo.l_index[iFace][0,0]
-        #     if curNode not in corners:
-        #         corners[curNode] = []
-        #     corners[curNode].extend([topo.l_index[iFace][1,0],
-        #                              topo.l_index[iFace][2,0], 
-        #                              topo.l_index[iFace][3,0],
-        #                              topo.l_index[iFace][0,1], 
-        #                              topo.l_index[iFace][0,2],
-        #                              topo.l_index[iFace][0,3]])
-        #     # Bottom right
-        #     curNode = topo.l_index[iFace][-1,0]
-        #     if curNode not in corners:
-        #         corners[curNode] = []
-        #     corners[curNode].extend( [topo.l_index[iFace][-1,1], 
-        #                               topo.l_index[iFace][-1,2], 
-        #                               topo.l_index[iFace][-1,3],
-        #                               topo.l_index[iFace][-2,0], 
-        #                               topo.l_index[iFace][-3,0],
-        #                               topo.l_index[iFace][-4,0]])
-        #     # Top Left
-        #     curNode = topo.l_index[iFace][0,-1]
-        #     if curNode not in corners:
-        #         corners[curNode] = []
-        #     corners[curNode].extend([topo.l_index[iFace][0,-2], 
-        #                              topo.l_index[iFace][0,-3],
-        #                              topo.l_index[iFace][0,-4],
-        #                              topo.l_index[iFace][1,-1], 
-        #                              topo.l_index[iFace][2,-1],
-        #                              topo.l_index[iFace][3,-1]])
-                                     
-        #     # Top Right
-        #     curNode = topo.l_index[iFace][-1,-1]
-        #     if curNode not in corners:
-        #         corners[curNode] = []
-        #     corners[curNode].extend([topo.l_index[iFace][-2,-1], 
-        #                              topo.l_index[iFace][-3,-1],
-        #                              topo.l_index[iFace][-4,-1],
-        #                              topo.l_index[iFace][-1,-2], 
-        #                              topo.l_index[iFace][-1,-3],
-        #                              topo.l_index[iFace][-1,-4]])
+        # # Special treatment for all nodes ATTACHED to extraordinary
+        # # nodes. All these nodes themselves shoudl already have 4
+        # # neighbours, (one of which of course is the extraordinary
+        # # node). So we have to flag them with nneighbour = -4 to allow
+        # # the fortran code to detect these nodes
+     
+        # for i in xrange(len(nPtr)):
+        #     # Check if this node is extraordinary
+        #     if nPtr[i][0] > 6 and nPtr[i][0] > 0:
+        #         # Flag each of these nodes
+        #         for ii in xrange(len(nPtr[i][1:])):
+        #             neighbourNode = nPtr[i][ii+1]
+        #             # Check if this node has already been flagged:
+        #             if nPtr[neighbourNode][0] < 0:
+        #                 print 'Somehow this node was already flagged. This is probably  bad news'
+        #             nPtr[neighbourNode][0] *= -1
+                    
+        #             # Also flag the extraordinary node attached to
+        #             # neighbourNode so that we know which one to do
+        #             # something special with in the fortran code
+             
 
-            
-        # # Now check all the special corners we just added for ones
-        # # that have valance of 4. Pop those out of the lift
-        # for corner in corners.keys():
-        #     if nPtr[corner][0] == 4:
-        #         # Get rid of it
-        #         del corners[corner]
-        #     # endif
-        # # end ofr
+        #             for jj in xrange(-nPtr[neighbourNode][0]):
+        #                 if nPtr[neighbourNode][jj+1] == i:
+        #                     nPtr[neighbourNode][jj+1] *= -1
+        #                 # end if
+        #             # end for
 
-        # # Finally we have to put this information back into nPtr
-        # for corner in corners.keys():
-        #     tmp = [nPtr[corner][0]]
-        #     tmp.extend(corners[corner])
-        #     nPtr[corner] = tmp
-   
+        #         # end for
+        #     # end if
+        # # end for
+
         # Next, assemble the global X vector:
         self.X = numpy.zeros((topo.nGlobal, 3))
         for iFace in xrange(topo.nFace):
@@ -521,7 +531,7 @@ linear segment. This may or not be what is desired!'
             # end for
         # end for
 
-        # Save topology for future reference
+        # Save topology for future reference (writing out FE mesh)
         self.topo = topo
 
         # Figure out how big we need to make the array for fortran:
@@ -587,6 +597,18 @@ formatted 1-Cell wide CGNS file suitable for running in SUmb."""
                 self.hyp.writecgns_2d(fileName)
             else:
                 self.hyp.writecgns_3d(fileName)
+                # Possibly zero mirror plane for mirrored geometries
+                if self.symEdges:
+                    if self.xMirror:
+                        mirrorDim = 1
+                    elif self.yMirror:
+                        mirrorDim = 2
+                    else:
+                        mirrorDim = 3
+                    # end if
+                    self.hyp.zeromirrorplane(
+                        fileName, numpy.array(self.symEdges), mirrorDim)
+                # end if
             # end if
         else:
             mpiPrint('Error! No grid has been generated! Run the run() \
@@ -633,17 +655,22 @@ command before trying to write the grid!')
         self.hyp.hypinput.n         = self.options['N']
         self.hyp.hypinput.s0        = self.options['s0']
         self.hyp.hypinput.rmin      = self.options['rMin']
-        self.hyp.hypinput.gridratio = self.options['gridRatio']
+        self.hyp.hypinput.ps0        = self.options['ps0']
+        self.hyp.hypinput.pgridratio = self.options['pGridRatio']
+
         self.hyp.hypinput.epse      = self.options['epsE']
+        self.hyp.hypinput.epsi      = self.options['epsI']
+        self.hyp.hypinput.theta     = self.options['theta']
         self.hyp.hypinput.volcoef   = self.options['volCoef']
         self.hyp.hypinput.volblend  = self.options['volBlend']
+        self.hyp.hypinput.cmax      = self.options['cMax']
         self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
-        self.hyp.hypinput.slexp     = self.options['slExp']
         self.hyp.hypinput.kspreltol = self.options['kspRelTol']
         self.hyp.hypinput.kspmaxits = self.options['kspMaxIts']
         self.hyp.hypinput.preconlag = self.options['preConLag']
+        self.hyp.hypinput.nonlinear = self.options['nonLinear']
         self.hyp.hypinput.kspsubspacesize = self.options['kspSubspaceSize']
-
+        self.hyp.hypinput.writemetrics = self.options['writeMetrics']
         # Mirror is a special case. 
         if self.xMirror or self.yMirror or self.zMirror:
             self.hyp.hypinput.writemirror = False
