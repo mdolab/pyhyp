@@ -91,6 +91,10 @@ class pyHyp(object):
             #nonLinear: True/False. Use nonlinear scheme
             'nonLinear': False,
 
+            #slExp: Exponent for Sl calc. Don't change this value
+            #unless you know what you are doing!
+            'slExp': .15,
+
             # ---------------------------
             #   Pseudo Grid Parameters
             # ---------------------------
@@ -657,7 +661,7 @@ command before trying to write the grid!')
         self.hyp.hypinput.rmin      = self.options['rMin']
         self.hyp.hypinput.ps0        = self.options['ps0']
         self.hyp.hypinput.pgridratio = self.options['pGridRatio']
-
+        self.hyp.hypinput.slexp     = self.options['slExp']
         self.hyp.hypinput.epse      = self.options['epsE']
         self.hyp.hypinput.epsi      = self.options['epsI']
         self.hyp.hypinput.theta     = self.options['theta']
