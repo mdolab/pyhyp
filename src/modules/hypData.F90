@@ -16,7 +16,7 @@ module hypData
   logical :: factorNext
   integer(kind=intType) :: nx
   real(kind=realType), pointer, dimension(:) :: xxm2tmp, xxm1tmp, rrtmp, xxtmp, deltaTmp
-  real(kind=realType), dimension(:,:), allocatable :: xxm1, xxm2, xx, rr, pxxm1
+  real(kind=realType), dimension(:,:), allocatable :: xxm1, xxm2, xx, rr, pxxm1, xxInterp
   real(kind=realType), dimension(:), allocatable :: volume
   integer(kind=intType), dimension(:), allocatable :: inds
   integer(kind=intType) :: nSubIterPrev
