@@ -62,3 +62,11 @@ LINUX_INTEL_OPENMPI:
 	ln -sf config/config.LINUX_INTEL_OPENMPI.mk config.mk
 	make hyp
 	(cd src/python/f2py && make)
+
+LINUX_INTEL_OPENMPI_SCINET:
+	mkdir -p obj
+	mkdir -p mod
+	if [ ! -f "config/config.LINUX_INTEL_OPENMPI_SCINET.mk" ]; then cp "config/defaults/config.LINUX_INTEL_OPENMPI_SCINET.mk" ./config; fi
+	ln -sf config/config.LINUX_INTEL_OPENMPI_SCINET.mk config.mk
+	make hyp
+	(cd src/python/f2py && make)
