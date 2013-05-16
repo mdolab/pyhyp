@@ -289,6 +289,7 @@ subroutine initialGuess(Xnew)
   use hypData, only : nx, deltas, nPtr, X, xxm1, xx, xxm2, xxtmp, marchIter, inds
   use hypData, only : cRatio, hypKSP, hypMat, deltaTmp, hypRHS, hypDelta, scaleDist
   use hypData, only : kspIts, subiter, nsubiter, nsubiterprev, gridRatio, desiredS
+  use hypData, only : xxInterp
   use hypInput
   implicit none
 
@@ -299,8 +300,8 @@ subroutine initialGuess(Xnew)
   Vec :: Xnew
 
   ! Working Variables
-  integer(kind=intType) :: i, ierr, jp1, jm1, kp1, km1, m, mm, ii
-  real(kind=realType) :: fact
+  integer(kind=intType) :: i, ierr, jp1, jm1, kp1, km1, m, mm, ii, idim
+  real(kind=realType) :: fact, onemfact
   logical :: saveMetrics, keepGoing
 
   ! Desired s:
@@ -335,8 +336,6 @@ subroutine initialGuess(Xnew)
      ! Increment our running counter on approx distance from wall
      scaleDist = scaleDist + deltaS
      
-
- 
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual(.True., .False., saveMetrics)
      
@@ -358,7 +357,9 @@ subroutine initialGuess(Xnew)
 
      ! We have a delta use this to get updated value of xx
      do i=1,nx
-        xx(:,i) = xx(:,i) + deltaTmp(3*i-2:3*i)
+        do idim=1,3
+           xx(idim,i) = xx(idim,i) + deltaTmp(3*(i-1)+idim)
+        end do
      end do
 
      call VecRestoreArrayF90(hypDelta, deltaTmp, ierr)
@@ -369,16 +370,21 @@ subroutine initialGuess(Xnew)
      ! and xx and set. 
      if (scaleDist >= desiredS) then
         fact = (desiredS - (scaleDist - deltas))/(deltaS)
+        onemfact = one-fact
+        do i=1,nx
+           do idim=1,3
+              xxInterp(idim,i) = fact*xx(idim,i) + onemfact*xxm1(idim,i)
+           end do
+        end do
+
         ! Finally take our last solution in xx and dump into Xnew
-        call VecSetValues(Xnew, nx*3, inds, fact*xx + (one-fact)*xxm1, INSERT_VALUES, ierr)
+        call VecSetValues(Xnew, nx*3, inds, xxInterp, INSERT_VALUES, ierr)
         call EChk(ierr,__FILE__,__LINE__)
         keepGoing = .False.
      end if
 
      ! Change deltaS
      deltaS = deltaS * pGridRatio
-  
-
   end do
 
 end subroutine initialGuess
@@ -919,14 +925,14 @@ subroutine calcResidual(assembleJac, secondOrder, saveMetrics)
 end subroutine calcResidual
 
 subroutine create3DPetscVars
-
-  use hypInput
+ use hypInput
   use hypData
 
   implicit none
   
   ! Working Variables
-  integer(kind=intType) :: onProc(nx*3), offProc(nx*3), ierr, i, idim
+  integer(kind=intType) :: ierr, i, idim, bs
+  integer(kind=intType), dimension(:), allocatable :: onProc, offProc
   external formFunction, formJacobian
 
   ! ----------------------------------------------------------
@@ -934,13 +940,20 @@ subroutine create3DPetscVars
   ! ----------------------------------------------------------
 
   ! Lets to things in the proper way, create the Mat first
-  onProc = 35
-  offProc = 1
+  allocate(onProc(nx), offProc(nx), stat=ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  do i=1,nx
+     onProc(i) = 35
+     offProc(i) = 1
+  end do
 
   ! Create a blocked matrix
-  call MatCreateMPIBAIJ(PETSC_COMM_WORLD, 3, &
-       nx*3, nx*3, PETSC_DETERMINE, PETSC_DETERMINE, &
+  bs = 3
+  call MatCreateMPIBAIJ(PETSC_COMM_WORLD, bs, &
+       nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
        0, onProc, 0, offProc, hypMat, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  deallocate(onProc, offProc, stat=ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! This must be set to allow passing in blocks in native fortran
@@ -1035,7 +1048,7 @@ subroutine create3DPetscVars
 
   ! Finally allocate local fortran data arrays
   allocate(xx(3,nx),rr(3,nx), xxm1(3,nx), xxm2(3,nx), inds(3*nx), volume(nx))
-
+  allocate(xxInterp(3,nx))
   do i=1,3*nx
      inds(i) = i-1
   end do
