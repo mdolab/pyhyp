@@ -279,6 +279,15 @@ linear segment. This may or not be what is desired!'
         if 'zMirror' in kwargs and kwargs['zMirror']:
             self.zMirror=True
 
+        # Extract a tolerance for zeroing points near the mirror
+        # plane
+        if 'zeroMirrorTol' in kwargs:
+            tol = kwargs['zeroMirrorTol']
+        else:
+            tol = 1e-6
+        # end if
+            
+
         delFile = False
         if self.xMirror or self.yMirror or self.zMirror:
 
@@ -361,6 +370,17 @@ linear segment. This may or not be what is desired!'
                 for idim in xrange(3):
                     for j in xrange(newSizes[ii][1]):
                         for i in xrange(newSizes[ii][0]):
+                            absVal = abs(surfs[ii][i, j, idim]) 
+                            if absVal < tol:
+                                if self.xMirror and idim == 0:
+                                    surfs[ii][i, j, idim] = 0
+                                elif self.yMirror and idim == 1:
+                                    surfs[ii][i, j, idim] = 0
+                                elif self.zMirror and idim == 2:
+                                    surfs[ii][i, j, idim] = 0
+                                # end if 
+                            # end if
+
                             f.write('%20.13g\n'%(surfs[ii][i,j,idim]))
                         # end for
                     # end for
