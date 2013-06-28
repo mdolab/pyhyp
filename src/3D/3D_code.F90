@@ -949,9 +949,15 @@ subroutine create3DPetscVars
 
   ! Create a blocked matrix
   bs = 3
+#if PETSC_VERSION_MINOR < 3
   call MatCreateMPIBAIJ(PETSC_COMM_WORLD, bs, &
        nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
        0, onProc, 0, offProc, hypMat, ierr)
+#else
+  call MatCreateBAIJ(PETSC_COMM_WORLD, bs, &
+       nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
+       0, onProc, 0, offProc, hypMat, ierr)
+#endif
   call EChk(ierr, __FILE__, __LINE__)
   deallocate(onProc, offProc, stat=ierr)
   call EChk(ierr, __FILE__, __LINE__)
