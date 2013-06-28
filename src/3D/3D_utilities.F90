@@ -37,7 +37,7 @@ subroutine init3d(sizes, nn, nPtr_in, lmax, nNodes)
   nPatch = nn
 
   ! Allocate patch list of patch types
-  if (not(allocated(patches))) then
+  if (.not. allocated(patches)) then
      allocate(patches(nPatch))
   end if
 
@@ -48,7 +48,7 @@ subroutine init3d(sizes, nn, nPtr_in, lmax, nNodes)
   end do
 
   ! Allocate the global node pointer structure
-  if (not(allocated(nPtr))) then
+  if (.not. allocated(nPtr)) then
      allocate(nptr(lmax, nNodes))
   end if
 
@@ -88,7 +88,7 @@ subroutine setLindex(ind_in, nnx, nny, iPatch)
   ! Set the ind_in into the proper patch l_index. Note we will convert
   ! to fortran ordering here by adding a 1
 
-  if (not(allocated(patches(iPatch + 1)%l_index))) then
+  if (.not. allocated(patches(iPatch + 1)%l_index)) then
      allocate(patches(iPatch + 1)%l_index( &
           patches(iPatch + 1)%il, patches(iPatch + 1)%jl))
   end if
@@ -277,10 +277,11 @@ subroutine writeHeader
      write(*,"(a)",advance="no") "-"
   enddo
   print "(1x)"
-
-  write(*,"(a)",advance="no") "# Grid  |     CPU    | Sub  | KSP  |     Sl     | Grid       | Grid       |     Min    |   deltaS   |    cMax   |   min R   | "
+  write(*,"(a)",advance="no") "# Grid  |     CPU    | Sub  | KSP  |     Sl     |"
+  write(*,"(a)",advance="no") " Grid       | Grid       |     Min    |   deltaS   |    cMax   |   min R   | "
   print "(1x)"
-  write(*,"(a)",advance="no") "# Level |     Time   | Iter | Its  |            | Sensor Max | Sensor Min |  Quality   |            |           |           | "
+  write(*,"(a)",advance="no") "# Level |     Time   | Iter | Its  |            |"
+  write(*,"(a)",advance="no") " Sensor Max | Sensor Min |  Quality   |            |           |           | "
   print "(1x)"
 
   ! Write the Last line of '-'
@@ -308,7 +309,7 @@ subroutine writeIteration
   write(*,"(i8,1x)",advance="no") marchIter
 
   ! CPU time
-  write(*,"(e12.5,1x)",advance="no") mpi_wtime() - timeStart
+  write(*,"(e12.5,1x)",advance="no") dble(mpi_wtime()) - timeStart
 
   ! Sub Iteration
   write(*,"(i6,1x)",advance="no") nSubIter
