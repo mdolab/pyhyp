@@ -1,10 +1,13 @@
 import sys, os, time
-from mdo_import_helper import import_modules, MPI, mpiPrint
 sys.path.append('../../')
 import pyHyp
-import petsc4py
-petsc4py.init(sys.argv)
-from petsc4py import PETSc
+try:
+    import petsc4py
+    petsc4py.init(sys.argv)
+    from petsc4py import PETSc
+except:
+    pass
+# end try
 
 options= {
     # ---------------------------
@@ -43,4 +46,4 @@ options= {
 hyp = pyHyp.pyHyp('3d',fileName='bwb.fmt', options=options, zMirror=True)
 hyp.run()
 hyp.writeCGNS('bwb.cgns')
-#hyp.writeCGNSOrig('bwbOrig.cgns')
+

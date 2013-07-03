@@ -1,10 +1,13 @@
 import sys, os, time
-from mdo_import_helper import import_modules, MPI, mpiPrint
 sys.path.append('../../')
 import pyHyp
-import petsc4py
-petsc4py.init(sys.argv)
-from petsc4py import PETSc
+try:
+    import petsc4py
+    petsc4py.init(sys.argv)
+    from petsc4py import PETSc
+except:
+    pass
+# end try
 
 options= {
     # ---------------------------
@@ -13,6 +16,13 @@ options= {
     'N': 73, 
     's0':1e-4,
     'rMin':10,
+ 
+    # ---------------------------
+    #   Pseudo Grid Parameters
+    # ---------------------------
+    'ps0':1e-4,
+    'pGridRatio':1.1,
+    'cMax': 5,
     
     # ---------------------------
     #   Smoothing parameters
@@ -37,4 +47,4 @@ hyp = pyHyp.pyHyp('3d',fileName='uneven_sphere_large.fmt', options=options)
 
 hyp.run()
 hyp.writeCGNS('sphere.cgns')
-#hyp.writeCGNSOrig('sphereOrig.cgns')
+
