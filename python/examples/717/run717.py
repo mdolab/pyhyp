@@ -102,8 +102,8 @@ for k in xrange(nSpan):
 c0 = pySpline.curve(X=ref,k=2)
 
 # Create the hyp object
-hyp = pyHyp.pyHyp('3d',fileName='717_large.fmt', options=options, zMirror=True)
-#hyp = pyHyp.pyHyp('3d',fileName='717_small.fmt', options=options, zMirror=True)
+#hyp = pyHyp.pyHyp('3d',fileName='717_large.fmt', options=options, zMirror=True)
+hyp = pyHyp.pyHyp('3d',fileName='717_small.fmt', options=options, zMirror=True)
 
 coords = hyp.X.copy()
 nx = len(hyp.X)

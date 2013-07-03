@@ -1,5 +1,4 @@
 #!/usr/bin/python
-from __future__ import division
 """
 pyHyp2D
 
@@ -32,11 +31,36 @@ import numpy
 # =============================================================================
 # Extension modules
 # =============================================================================
-from mdo_import_helper import import_modules, MPI, mpiPrint
-exec(import_modules('geo_utils','pyGeo'))
+import helper_file as geo_utils
 
 # =============================================================================
-# MultiBlockMesh class
+# Global MPI Print Function
+# =============================================================================
+try:
+    from mpi4py import MPI
+    USE_MPI = True
+except:
+    USE_MPI = False
+
+def mpiPrint(print_string, NO_PRINT=False, comm=None):
+    if not NO_PRINT:
+        if USE_MPI:
+            if comm == None:
+                comm = MPI.COMM_WORLD
+            # end if
+            if comm.rank == 0:
+                print print_string
+            # end if
+        # end if
+        else:
+            print print_string
+        # end if
+    # end if
+
+    return
+
+# =============================================================================
+# pyHyp class
 # =============================================================================
 
 class pyHyp(object):
@@ -98,8 +122,6 @@ class pyHyp(object):
             # ---------------------------
             #   Pseudo Grid Parameters
             # ---------------------------
-            'pN': 1000,
-
             # Initial off-wall spacing
             'ps0':0.01,
             
@@ -157,7 +179,10 @@ class pyHyp(object):
 
         # Set the possible MPI Intracomm
         if comm is None:
-            self.comm = MPI.COMM_WORLD
+            try:
+                self.comm = MPI.COMM_WORLD
+            except:
+                self.comm = None
         else:
             self.comm = comm
         # end if
@@ -286,7 +311,6 @@ linear segment. This may or not be what is desired!'
         else:
             tol = 1e-6
         # end if
-            
 
         delFile = False
         if self.xMirror or self.yMirror or self.zMirror:
@@ -297,19 +321,8 @@ linear segment. This may or not be what is desired!'
 
             # Load in the file and determine the free edges, these
             # will be symmetry edges (which turn into symmetry planes)
-            geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
-                                  file_type='ascii', order='f')
-
-            nodeTol = kwargs.pop('nodeTol',1e-6)
-            edgeTol = kwargs.pop('edgeTol',1e-6)
-            geo_obj._calcConnectivity(nodeTol, edgeTol)
-
-            sizes = []
-            nSurf = geo_obj.nSurf
-            for isurf in xrange(nSurf):
-                sizes.append([geo_obj.surfs[isurf].Nu, geo_obj.surfs[isurf].Nv])
-            geo_obj.topo.calcGlobalNumbering(sizes)
-            topo = geo_obj.topo
+            surfs, sizes, topo = self._readPlot3D(fileName, **kwargs)
+            nSurf = len(surfs)
 
             # Determine the edges that do not have a neighbour
             edgeCount = numpy.zeros(topo.nEdge, 'intc')
@@ -329,10 +342,6 @@ linear segment. This may or not be what is desired!'
                     # end if
                 # end for
             # end for
-
-            surfs = []
-            for i in xrange(nSurf):
-                surfs.append(geo_obj.surfs[i].X)
 
             # Generate new list of sizes (double the length)
             newSizes = numpy.zeros((nSurf*2, 2),'intc')
@@ -393,23 +402,12 @@ linear segment. This may or not be what is desired!'
             self.symEdges = None
         # end if
 
-        geo_obj = pyGeo.pyGeo('plot3d', file_name=fileName,
-                              file_type='ascii', order='f')
+        surfs, sizes, topo = self._readPlot3D(fileName, **kwargs)
+        nSurf = len(surfs)
+
         if delFile:
             os.remove(fileName)
-        # This isn't prety or efficient but does produce the
-        # globally reduced list we need and it is greedily
-        # reordered. For ~100,000 surface points this takes on the
-        # order of a couple of seconds so we're not going to worry
-        # too much about efficiency here.
-        nodeTol = kwargs.pop('nodeTol',1e-6)
-        edgeTol = kwargs.pop('edgeTol',1e-6)
-        geo_obj._calcConnectivity(nodeTol, edgeTol)
-        sizes = []
-        for isurf in xrange(geo_obj.nSurf):
-            sizes.append([geo_obj.surfs[isurf].Nu, geo_obj.surfs[isurf].Nv])
-        geo_obj.topo.calcGlobalNumbering(sizes)
-        topo = geo_obj.topo
+
         # Now we need to check that the surface is closed, In the
         # future it will support symmetry boundary conditions, but not
         # yet. For a closed topology, every edge must be exactly
@@ -550,11 +548,11 @@ linear segment. This may or not be what is desired!'
         for iFace in xrange(topo.nFace):
             for j in xrange(topo.l_index[iFace].shape[1]):
                 for i in xrange(topo.l_index[iFace].shape[0]):
-                    self.X[topo.l_index[iFace][i,j]] = geo_obj.surfs[iFace].X[i,j]
+                    self.X[topo.l_index[iFace][i,j]] = surfs[iFace][i,j]
                 # end for
             # end for
         # end for
-
+     
         # Save topology for future reference (writing out FE mesh)
         self.topo = topo
 
@@ -724,3 +722,114 @@ command before trying to write the grid!')
         self.hyp.releasememory()
 
         return
+
+    def _readPlot3D(self, file_name, file_type='ascii', order='f', **kwargs):
+        '''Load a plot3D file and create the splines to go with each patch
+
+        file_name: Required string for file
+        file_type: 'ascii' or 'binary'
+        order: 'f' for fortran ordering (usual), 'c' for c ordering
+        '''
+        if file_type == 'ascii':
+            mpiPrint('Loading ascii plot3D file: %s ...'%(file_name))
+            binary = False
+            f = open(file_name, 'r')
+        else:
+            mpiPrint('Loading binary plot3D file: %s ...'%(file_name))
+            binary = True
+            f = open(file_name, 'rb')
+        # end if
+        if binary:
+            itype = geo_utils.readNValues(f, 1, 'int', binary)[0]
+            nSurf = geo_utils.readNValues(f, 1, 'int', binary)[0]
+            itype = geo_utils.readNValues(f, 1, 'int', binary)[0] # Need these
+            itype = geo_utils.readNValues(f, 1, 'int', binary)[0] # Need these
+            sizes   = geo_utils.readNValues(
+                f, nSurf*3, 'int', binary).reshape((nSurf, 3))
+            print sizes
+        else:
+            nSurf = geo_utils.readNValues(f, 1, 'int', binary)[0]
+            sizes   = geo_utils.readNValues(
+                f, nSurf*3, 'int', binary).reshape((nSurf, 3))
+        # end if
+
+        # ONE of Patch Sizes index must be one
+        nPts = 0
+        for i in xrange(nSurf):
+            if sizes[i, 0] == 1: # Compress back to indices 0 and 1
+                sizes[i, 0] = sizes[i, 1]
+                sizes[i, 1] = sizes[i, 2] 
+            elif sizes[i, 1] == 1:
+                sizes[i, 1] = sizes[i, 2]
+            elif sizes[i, 2] == 1:
+                pass
+            else:
+                mpiPrint('Error: One of the plot3d indices must be 1')
+            # end if
+            nPts += sizes[i, 0]*sizes[i, 1]
+        # end for
+        mpiPrint(' -> nSurf = %d'%(nSurf))
+        mpiPrint(' -> Surface Points: %d'%(nPts))
+
+        surfs = []
+        for i in xrange(nSurf):
+            cur_size = sizes[i, 0]*sizes[i, 1]
+            surfs.append(numpy.zeros([sizes[i, 0], sizes[i, 1], 3]))
+            for idim in xrange(3):
+                surfs[-1][:, :, idim] = geo_utils.readNValues(
+                    f, cur_size, 'float', binary).reshape(
+                    (sizes[i, 0], sizes[i, 1]), order=order)
+            # end for
+        # end for
+
+        f.close()
+
+        # Final list of patch sizes:
+        sizes = []
+        for iSurf in xrange(nSurf):
+            sizes.append([surfs[iSurf].shape[0], surfs[iSurf].shape[1]])
+        # end for
+
+        # Automatically determine the connectivity between the
+        # pataches by using the 4 corners and 4 midpoints of each edge
+        
+        # Calculate the 4 corners and 4 midpoints for each surface
+
+        coords = numpy.zeros((nSurf, 8, 3))
+      
+        for iSurf in xrange(nSurf):
+            coords[iSurf][0] = surfs[iSurf][0,0]
+            coords[iSurf][1] = surfs[iSurf][-1,0]
+            coords[iSurf][2] = surfs[iSurf][0,-1]
+            coords[iSurf][3] = surfs[iSurf][-1,-1]
+
+            ix = sizes[iSurf][0]
+            iy = sizes[iSurf][1]
+
+            # Now for the midpoint on each edge
+            if numpy.mod(ix, 2) == 1: # Its odd
+                mid = (ix-1)/2
+                coords[iSurf][4] = surfs[iSurf][mid, 0]
+                coords[iSurf][5] = surfs[iSurf][mid, -1]
+            else:
+                coords[iSurf][4] = 0.5*(surfs[iSurf][ix/2, 0] + surfs[iSurf][ix/2-1, 0])
+                coords[iSurf][5] = 0.5*(surfs[iSurf][ix/2,-1] + surfs[iSurf][ix/2-1,-1])
+            # end if
+
+            if numpy.mod(iy, 2) == 1: # Its odd
+                mid = (iy-1)/2
+                coords[iSurf][6] = surfs[iSurf][0, mid]
+                coords[iSurf][7] = surfs[iSurf][-1, mid]
+            else:
+                coords[iSurf][6] = 0.5*(surfs[iSurf][0 , iy/2] + surfs[iSurf][0 , iy/2-1])
+                coords[iSurf][7] = 0.5*(surfs[iSurf][-1, iy/2] + surfs[iSurf][-1, iy/2-1])
+            # end if
+        # end for
+
+        # Compute surface topology
+        topo = geo_utils.SurfaceTopology(coords=coords, **kwargs)
+      
+        # And the global numbering
+        topo.calcGlobalNumbering(sizes)
+
+        return surfs, sizes, topo

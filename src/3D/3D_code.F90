@@ -1014,6 +1014,10 @@ subroutine create3DPetscVars
      end if
   end do
 
+  ! This should come as a option, but we'll put it here for now.
+  call PetscOptionsSetValue("-pc_factor_levels","1", ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
   ! Create the KSP object
   call KSPCreate(petsc_comm_world, hypKSP, ierr)
   call EChk(ierr, __FILE__, __LINE__)
