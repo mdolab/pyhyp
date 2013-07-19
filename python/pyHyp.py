@@ -31,7 +31,6 @@ import numpy
 # =============================================================================
 # Extension modules
 # =============================================================================
-import helper_file as geo_utils
 
 # =============================================================================
 # Global MPI Print Function
@@ -268,7 +267,7 @@ initialization!')
 
             # Now check if the first and the last point are within
             # tolerance of each other:
-            if geo_utils.e_dist(X[0],X[-1]) < 1e-6:
+            if self.e_dist(X[0],X[-1]) < 1e-6:
                 # Curve is closed, we're ok. Internally, we work
                 # with the unclosed curve and explictly deal with
                 # the  0th and Nth points 
@@ -321,27 +320,11 @@ linear segment. This may or not be what is desired!'
 
             # Load in the file and determine the free edges, these
             # will be symmetry edges (which turn into symmetry planes)
-            surfs, sizes, topo = self._readPlot3D(fileName, **kwargs)
+            surfs, sizes, nodes, conn, l_index = \
+                self._readPlot3D(fileName, **kwargs)
             nSurf = len(surfs)
 
-            # Determine the edges that do not have a neighbour
-            edgeCount = numpy.zeros(topo.nEdge, 'intc')
-            for iFace in xrange(topo.nFace):
-                for iEdge in xrange(4):
-                    edgeCount[topo.edge_link[iFace][iEdge]] += 1
-                # end for
-            # end for
-                    
-            # Now make a list of the patchID, and edge number for
-            # later use
-            self.symEdges = [] 
-            for iFace in xrange(topo.nFace):
-                for iEdge in xrange(4):
-                    if edgeCount[topo.edge_link[iFace][iEdge]] == 1:
-                        self.symEdges.append([iFace,iEdge])
-                    # end if
-                # end for
-            # end for
+            self.symEdges = None
 
             # Generate new list of sizes (double the length)
             newSizes = numpy.zeros((nSurf*2, 2),'intc')
@@ -353,20 +336,20 @@ linear segment. This may or not be what is desired!'
             for i in xrange(nSurf):
                 surfs.append(numpy.zeros([newSizes[i+nSurf,0], newSizes[i+nSurf,1],3]))
                 if self.xMirror:
-                    surfs[i+nSurf][:,:,0] = -geo_utils.reverseRows(surfs[i][:,:,0])
+                    surfs[i+nSurf][:,:,0] = -self.reverseRows(surfs[i][:,:,0])
                 else:
-                    surfs[i+nSurf][:,:,0] = geo_utils.reverseRows(surfs[i][:,:,0])
+                    surfs[i+nSurf][:,:,0] = self.reverseRows(surfs[i][:,:,0])
                 # end if
 
                 if self.yMirror:
-                    surfs[i+nSurf][:,:,1] = -geo_utils.reverseRows(surfs[i][:,:,1])
+                    surfs[i+nSurf][:,:,1] = -self.reverseRows(surfs[i][:,:,1])
                 else:
-                    surfs[i+nSurf][:,:,1] = geo_utils.reverseRows(surfs[i][:,:,1])
+                    surfs[i+nSurf][:,:,1] = self.reverseRows(surfs[i][:,:,1])
                 # end if
                 if self.zMirror:
-                    surfs[i+nSurf][:,:,2] = -geo_utils.reverseRows(surfs[i][:,:,2])
+                    surfs[i+nSurf][:,:,2] = -self.reverseRows(surfs[i][:,:,2])
                 else:
-                    surfs[i+nSurf][:,:,2] = geo_utils.reverseRows(surfs[i][:,:,2])
+                    surfs[i+nSurf][:,:,2] = self.reverseRows(surfs[i][:,:,2])
                 # end if
             # end for
 
@@ -402,47 +385,20 @@ linear segment. This may or not be what is desired!'
             self.symEdges = None
         # end if
 
-        surfs, sizes, topo = self._readPlot3D(fileName, **kwargs)
+        surfs, sizes, nodes, conn, l_index = self._readPlot3D(fileName, **kwargs)
         nSurf = len(surfs)
+        self.conn = conn
+        self.X = nodes
+        nGlobal = len(nodes)
 
         if delFile:
             os.remove(fileName)
 
-        # Now we need to check that the surface is closed, In the
-        # future it will support symmetry boundary conditions, but not
-        # yet. For a closed topology, every edge must be exactly
-        # shared:
+        # We really should check if the surface is closed. This check
+        # is not implemented yet -- so user beware!
     
-        edgeCount = numpy.zeros(topo.nEdge, 'intc')
-        for iFace in xrange(topo.nFace):
-            for iEdge in xrange(4):
-                edgeCount[topo.edge_link[iFace][iEdge]] += 1
-            # end for
-        # end for
-
-        if numpy.all(edgeCount == 2): 
-            print 'We have a closed surface so we\'re good to go!'
-        else:
-            print 'Surface is not closed. Can\'t do this yet'
-            sys.exit(0)
-        # end if
-
         # Next we need to produced an unstructured-like data
         # structure
-
-        nGlobal = topo.nGlobal
-        # Connectivey of elements:  
-        self.conn = []
-        for iFace in xrange(topo.nFace):
-            for j in xrange(topo.l_index[iFace].shape[1]-1):
-                for i in xrange(topo.l_index[iFace].shape[0]-1):
-                    self.conn.append([topo.l_index[iFace][i  ,j  ],
-                                      topo.l_index[iFace][i+1,j  ],
-                                      topo.l_index[iFace][i+1,j+1],
-                                      topo.l_index[iFace][i  ,j+1]])
-                # end for
-            # end for
-        # end for
 
         # Now we can invert and get the elements surrounding the nodes:
         nodeToElem = [[] for i in xrange(nGlobal)]
@@ -511,51 +467,6 @@ linear segment. This may or not be what is desired!'
             # end if
         # end for
 
-        # # Special treatment for all nodes ATTACHED to extraordinary
-        # # nodes. All these nodes themselves shoudl already have 4
-        # # neighbours, (one of which of course is the extraordinary
-        # # node). So we have to flag them with nneighbour = -4 to allow
-        # # the fortran code to detect these nodes
-     
-        # for i in xrange(len(nPtr)):
-        #     # Check if this node is extraordinary
-        #     if nPtr[i][0] > 6 and nPtr[i][0] > 0:
-        #         # Flag each of these nodes
-        #         for ii in xrange(len(nPtr[i][1:])):
-        #             neighbourNode = nPtr[i][ii+1]
-        #             # Check if this node has already been flagged:
-        #             if nPtr[neighbourNode][0] < 0:
-        #                 print 'Somehow this node was already flagged. This is probably  bad news'
-        #             nPtr[neighbourNode][0] *= -1
-                    
-        #             # Also flag the extraordinary node attached to
-        #             # neighbourNode so that we know which one to do
-        #             # something special with in the fortran code
-             
-
-        #             for jj in xrange(-nPtr[neighbourNode][0]):
-        #                 if nPtr[neighbourNode][jj+1] == i:
-        #                     nPtr[neighbourNode][jj+1] *= -1
-        #                 # end if
-        #             # end for
-
-        #         # end for
-        #     # end if
-        # # end for
-
-        # Next, assemble the global X vector:
-        self.X = numpy.zeros((topo.nGlobal, 3))
-        for iFace in xrange(topo.nFace):
-            for j in xrange(topo.l_index[iFace].shape[1]):
-                for i in xrange(topo.l_index[iFace].shape[0]):
-                    self.X[topo.l_index[iFace][i,j]] = surfs[iFace][i,j]
-                # end for
-            # end for
-        # end for
-     
-        # Save topology for future reference (writing out FE mesh)
-        self.topo = topo
-
         # Figure out how big we need to make the array for fortran:
         lMax = 0
         for i in xrange(len(nPtr)):
@@ -575,8 +486,8 @@ linear segment. This may or not be what is desired!'
         # initialze the 3D generation
 
         self.hyp.init3d(sizes, nPtrArray.T)
-        for i in xrange(topo.nFace):
-            self.hyp.setlindex(topo.l_index[i], i)
+        for i in xrange(nSurf):
+            self.hyp.setlindex(l_index[i], i)
         # end for
         return
 
@@ -654,7 +565,7 @@ command before trying to write the grid!')
     def writeFEMesh(self, fileName):
         """ Ouput a tecplot FE mesh of the surface. Useful for debugging numberings"""
 
-        nNodes = self.topo.nGlobal
+        nNodes = len(self.X)
         nElem = len(self.conn)
         f = open(fileName, 'w')
         f.write("FE Data\n")
@@ -740,16 +651,16 @@ command before trying to write the grid!')
             f = open(file_name, 'rb')
         # end if
         if binary:
-            itype = geo_utils.readNValues(f, 1, 'int', binary)[0]
-            nSurf = geo_utils.readNValues(f, 1, 'int', binary)[0]
-            itype = geo_utils.readNValues(f, 1, 'int', binary)[0] # Need these
-            itype = geo_utils.readNValues(f, 1, 'int', binary)[0] # Need these
-            sizes   = geo_utils.readNValues(
+            itype = self.readNValues(f, 1, 'int', binary)[0]
+            nSurf = self.readNValues(f, 1, 'int', binary)[0]
+            itype = self.readNValues(f, 1, 'int', binary)[0] # Need these
+            itype = self.readNValues(f, 1, 'int', binary)[0] # Need these
+            sizes   = self.readNValues(
                 f, nSurf*3, 'int', binary).reshape((nSurf, 3))
             print sizes
         else:
-            nSurf = geo_utils.readNValues(f, 1, 'int', binary)[0]
-            sizes   = geo_utils.readNValues(
+            nSurf = self.readNValues(f, 1, 'int', binary)[0]
+            sizes   = self.readNValues(
                 f, nSurf*3, 'int', binary).reshape((nSurf, 3))
         # end if
 
@@ -776,7 +687,7 @@ command before trying to write the grid!')
             cur_size = sizes[i, 0]*sizes[i, 1]
             surfs.append(numpy.zeros([sizes[i, 0], sizes[i, 1], 3]))
             for idim in xrange(3):
-                surfs[-1][:, :, idim] = geo_utils.readNValues(
+                surfs[-1][:, :, idim] = self.readNValues(
                     f, cur_size, 'float', binary).reshape(
                     (sizes[i, 0], sizes[i, 1]), order=order)
             # end for
@@ -790,46 +701,86 @@ command before trying to write the grid!')
             sizes.append([surfs[iSurf].shape[0], surfs[iSurf].shape[1]])
         # end for
 
-        # Automatically determine the connectivity between the
-        # pataches by using the 4 corners and 4 midpoints of each edge
+        # Concatenate the points into a flat array:
+        pts = []
         
-        # Calculate the 4 corners and 4 midpoints for each surface
-
-        coords = numpy.zeros((nSurf, 8, 3))
-      
-        for iSurf in xrange(nSurf):
-            coords[iSurf][0] = surfs[iSurf][0,0]
-            coords[iSurf][1] = surfs[iSurf][-1,0]
-            coords[iSurf][2] = surfs[iSurf][0,-1]
-            coords[iSurf][3] = surfs[iSurf][-1,-1]
-
-            ix = sizes[iSurf][0]
-            iy = sizes[iSurf][1]
-
-            # Now for the midpoint on each edge
-            if numpy.mod(ix, 2) == 1: # Its odd
-                mid = (ix-1)/2
-                coords[iSurf][4] = surfs[iSurf][mid, 0]
-                coords[iSurf][5] = surfs[iSurf][mid, -1]
-            else:
-                coords[iSurf][4] = 0.5*(surfs[iSurf][ix/2, 0] + surfs[iSurf][ix/2-1, 0])
-                coords[iSurf][5] = 0.5*(surfs[iSurf][ix/2,-1] + surfs[iSurf][ix/2-1,-1])
-            # end if
-
-            if numpy.mod(iy, 2) == 1: # Its odd
-                mid = (iy-1)/2
-                coords[iSurf][6] = surfs[iSurf][0, mid]
-                coords[iSurf][7] = surfs[iSurf][-1, mid]
-            else:
-                coords[iSurf][6] = 0.5*(surfs[iSurf][0 , iy/2] + surfs[iSurf][0 , iy/2-1])
-                coords[iSurf][7] = 0.5*(surfs[iSurf][-1, iy/2] + surfs[iSurf][-1, iy/2-1])
-            # end if
+        for ii in xrange(nSurf):
+            for j in xrange(sizes[ii][1]):
+                for i in xrange(sizes[ii][0]):
+                    pts.append(surfs[ii][i,j])
         # end for
 
-        # Compute surface topology
-        topo = geo_utils.SurfaceTopology(coords=coords, **kwargs)
-      
-        # And the global numbering
-        topo.calcGlobalNumbering(sizes)
+        # Find the unique points
+        uniquePts, link, nUnique = self.hyp.pointreducewrap(numpy.array(pts).T, 1e-8)
 
-        return surfs, sizes, topo
+        # Just take the actual number of unique points
+        uniquePts = uniquePts[:,0:nUnique].T
+
+        # Convert to 0-based ordering
+        link = link - 1
+
+        # Now we can easily compute the connectivity and the l_index
+        conn = []
+        l_index = []
+        pt_offset = 0
+        for ii in xrange(nSurf):
+            l_index.append(numpy.zeros(sizes[ii],'intc'))
+
+            # Loop over FACES, take nodes around face and index into link to get
+            # the index of the original node (from surfs) on the
+            # compacted node list
+            for j in xrange(sizes[ii][1]-1):
+                for i in xrange(sizes[ii][0]-1):
+                    conn.append([link[pt_offset + (j  )*sizes[ii][0] + i  ],
+                                 link[pt_offset + (j  )*sizes[ii][0] + i+1],
+                                 link[pt_offset + (j+1)*sizes[ii][0] + i+1],
+                                 link[pt_offset + (j+1)*sizes[ii][0] + i  ]])
+                # end for
+            # end for
+
+            # Loop over the NODES, and index directly into link
+            for i in xrange(sizes[ii][0]):
+                for j in xrange(sizes[ii][1]):
+                    l_index[ii][i, j] = link[pt_offset + j*sizes[ii][0] + i]
+                    # end for
+            # end for
+
+            # Increment pt_offset to account for the number of nodes
+            # we've gone through on this patch
+            pt_offset += sizes[ii][0] * sizes[ii][1]
+        # end if (surf loop)
+
+        return surfs, sizes, uniquePts, conn, l_index
+
+    # Some helper routines
+    def e_dist(self, x1, x2):
+        '''Get the eculidean distance between two points'''
+        if len(x1) == 3:
+            return numpy.sqrt((x1[0]-x2[0])**2 + (x1[1]-x2[1])**2 + (x1[2]-x2[2])**2)
+        elif len(x1) == 2:
+            return numpy.sqrt((x1[0]-x2[0])**2 + (x1[1]-x2[1])**2)
+        elif len(x1) == 1:
+            return numpy.abs(x1[0]-x2[0])
+
+    def reverseRows(self, in_array):
+        '''Flip Rows (horizontally)'''
+        rows = in_array.shape[0]
+        cols = in_array.shape[1]
+        output = numpy.empty([rows, cols], in_array.dtype)
+        for row in xrange(rows):
+            output[row] = in_array[row][::-1].copy()
+        # end for
+
+        return output
+
+    def readNValues(self, handle, N, dtype, binary=False, sep=' '):
+        '''Read N values of dtype 'float' or 'int' from file handle'''
+        if binary:
+            sep = ""
+        # end if
+
+        if dtype == 'int':
+            values = numpy.fromfile(handle, dtype='int32', count=N, sep=sep)
+        else:
+            values = numpy.fromfile(handle, dtype='float', count=N, sep=sep)
+        return values
