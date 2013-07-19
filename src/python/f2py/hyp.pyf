@@ -80,7 +80,7 @@ python module hyp ! in
 
         subroutine zeromirrorplane(filename,mirrorlist,mirrordim,nmirror) ! in :test:writeCGNS_3d.F90
           character*(*) intent(in) :: filename
-          integer(kind=inttype) dimension(nmirror,2),intent(in) :: mirrorlist
+          integer(kind=inttype) dimension(nmirror,3),intent(in) :: mirrorlist
           integer(kind=inttype) intent(in) :: mirrordim
           integer(kind=inttype), optional,intent(in),check(shape(mirrorlist,0)==nmirror),depend(mirrorlist) :: nmirror=shape(mirrorlist,0)
         end subroutine zeromirrorplane

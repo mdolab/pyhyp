@@ -1,9 +1,9 @@
 #!/usr/bin/python
 """
-pyHyp2D
+pyHyp
 
-The pyHyp2D module is used to generate a hyperbolic grid around a
-closed curve
+The pyHyp module is used to generate a hyperbolic grid around a 3D
+surface
 
 Copyright (c) 2013 by G. Kenway
 All rights reserved. Not to be used for commercial purposes.
@@ -324,7 +324,93 @@ linear segment. This may or not be what is desired!'
                 self._readPlot3D(fileName, **kwargs)
             nSurf = len(surfs)
 
-            self.symEdges = None
+            # To determine the nodes on the symmetry plane, we need to
+            # figure out which edges have a face only on one
+            # side. Finally, the end goal is to prodce an
+            # (unstructured) list that looks like: 
+            #
+            # [[surfID_1, i_1, j_1], [surfID_2, i_2, j_2] ...]
+            # 
+            # where the i,j gives the index on surf that is initialy
+            # on the mirror plane. This information can then be used
+            # to zero this "line" to be precisely on the mirror plane
+            # as a post processing step. This method does not depend
+            # on the 
+            
+            edges = {}
+            def getKey(n1, n2):
+                if n1 < n2:
+                    return (n1, n2)
+                else:
+                    return (n2, n1)
+
+                
+            def incrementEdge(edges, n1, n2):
+                key = getKey(n1, n2)
+
+                if key in edges:
+                    edges[key] += 1
+                else:
+                    edges[key] = 1
+                # end if
+
+                return edges
+
+            # Loop over faces and add edges with keys of (n1, n2)
+            # where n1 < n2
+
+            for ii in xrange(len(surfs)):
+                for i in xrange(sizes[ii][0]-1):
+                    for j in xrange(sizes[ii][1]-1):
+                        edges = incrementEdge(edges, l_index[ii][i  , j  ], l_index[ii][i+1, j  ])
+                        edges = incrementEdge(edges, l_index[ii][i+1, j  ], l_index[ii][i+1, j+1])
+                        edges = incrementEdge(edges, l_index[ii][i+1, j+1], l_index[ii][i  , j+1])
+                        edges = incrementEdge(edges, l_index[ii][i  , j+1], l_index[ii][i  , j  ])
+                    # end for
+                # end for
+            # end for
+
+            # Now generate a final list of nodes that are on the mirror plane:
+            mirrorNodes = []
+            for key in edges:
+                if edges[key] == 1:
+                    mirrorNodes.append(key[0])
+                    mirrorNodes.append(key[1])
+                # end if
+            # end for
+
+            # Uniquify them
+            uniqueMirrorNodes = numpy.unique(mirrorNodes)
+
+            # Now loop back over the boundries of the surfaces. For
+            # each node on the boundary check if it is in uniqueMirror nodes. 
+
+            self.symNodes = []
+            for ii in xrange(len(surfs)):
+                imax = sizes[ii][0]
+                jmax = sizes[ii][1]
+                for i in xrange(imax):
+                    if l_index[ii][i, 0] in uniqueMirrorNodes:
+                        self.symNodes.append([ii, i  , 0])
+                    if l_index[ii][i, jmax-1] in uniqueMirrorNodes:
+                        self.symNodes.append([ii, i,  jmax-1])
+                    # end if
+
+                for j in xrange(jmax):
+                    if l_index[ii][0, j] in uniqueMirrorNodes:
+                        self.symNodes.append([ii, 0, j  ])
+                    if l_index[ii][imax-1, j] in uniqueMirrorNodes:
+                        self.symNodes.append([ii, imax-1, j  ])
+                    # end if
+                # end for
+            # end for
+            
+            # Conver symnodes to array and index everything my 1 
+            self.symNodes = numpy.array(self.symNodes) + 1
+            
+            # Note that we are guaranteed that symNodes is sorted by
+            # patchID. This is important since it means we can loop
+            # over the blocked in sequence and all nodes need to 
 
             # Generate new list of sizes (double the length)
             newSizes = numpy.zeros((nSurf*2, 2),'intc')
@@ -382,7 +468,7 @@ linear segment. This may or not be what is desired!'
             fileName = 'tmp.fmt'
             delFile=True
         else:
-            self.symEdges = None
+            self.symNodes = None
         # end if
 
         surfs, sizes, nodes, conn, l_index = self._readPlot3D(fileName, **kwargs)
@@ -531,7 +617,7 @@ formatted 1-Cell wide CGNS file suitable for running in SUmb."""
             else:
                 self.hyp.writecgns_3d(fileName)
                 # Possibly zero mirror plane for mirrored geometries
-                if self.symEdges:
+                if self.symNodes is not None:
                     if self.xMirror:
                         mirrorDim = 1
                     elif self.yMirror:
@@ -539,8 +625,7 @@ formatted 1-Cell wide CGNS file suitable for running in SUmb."""
                     else:
                         mirrorDim = 3
                     # end if
-                    self.hyp.zeromirrorplane(
-                        fileName, numpy.array(self.symEdges), mirrorDim)
+                    self.hyp.zeromirrorplane(fileName, self.symNodes, mirrorDim)
                 # end if
             # end if
         else:
@@ -635,7 +720,7 @@ command before trying to write the grid!')
         return
 
     def _readPlot3D(self, file_name, file_type='ascii', order='f', **kwargs):
-        '''Load a plot3D file and create the splines to go with each patch
+        '''Load a plot3D file and create the required unstructured data.
 
         file_name: Required string for file
         file_type: 'ascii' or 'binary'
