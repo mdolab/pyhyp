@@ -170,8 +170,8 @@ subroutine calcGridRatio()
   ! Do a brute force search to get a starting point
   r = one
   fMin = huge(fMin)
-  do i=1,50
-     r = r + .01
+  do i=1,1000
+     r = r + .005
      fm1 = S - s0*(1-r**M)/(1-r)
      if (abs(fm1) < fMin) then
         rm2 = r
@@ -181,7 +181,7 @@ subroutine calcGridRatio()
 
   ! Get the two starting points for secant.
   fm2 = S - s0*(1-rm2**M)/(1-rm2)
-  rm1 = rm2 + .01
+  rm1 = rm2 + .001
   fm1 = S - s0*(1-rm1**M)/(1-rm1)
 
   do i=1,10
