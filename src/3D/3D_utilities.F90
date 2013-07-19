@@ -159,48 +159,37 @@ subroutine calcGridRatio()
 
   ! Working Parameters
   integer(kind=intType) :: i, M
-  real(kind=realType) ::  s, r, rm1, rm2, fm1, fm2, fmin
+  real(kind=realType) ::  s, r, a,b, c, f, fa, fb
 
   ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 i
-  ! sinitial ratio and r is the grid ratio. First point will be 1.01
-  ! and second point 1.05
+  ! sinitial ratio and r is the grid ratio. 
 
   S = radius0*rMin
   M = N-1
-  ! Do a brute force search to get a starting point
-  r = one
-  fMin = huge(fMin)
-  do i=1,1000
-     r = r + .005
-     fm1 = S - s0*(1-r**M)/(1-r)
-     if (abs(fm1) < fMin) then
-        rm2 = r
-        fMin = fm1
+
+  ! Do a bisection search
+  ! Max and min bounds...root must be in here...
+  a = one + 1e-8
+  b = four
+
+  fa = S - s0*(1-a**M)/(1-a)
+  fb = S - s0*(1-b**M)/(1-b)
+  do i=1, 100
+     c = half*(a + b)
+     f = S - s0*(1-c**M)/(1-c)
+     if (abs(f) < 1e-6) then ! Converged
+        exit
      end if
-  end do
-
-  ! Get the two starting points for secant.
-  fm2 = S - s0*(1-rm2**M)/(1-rm2)
-  rm1 = rm2 + .001
-  fm1 = S - s0*(1-rm1**M)/(1-rm1)
-
-  do i=1,10
-     r = rm1 - fm1*(rm1 - rm2)/(fm1 - fm2)
-
-     ! Shuffle
-     rm2 = rm1
-     fm2 = fm1
-
-     rm1 = r
-     fm1 = S - s0*(1-r**M)/(1-r)
-
-     if (abs(fm1) < 1e-8) then
-        exit 
+     
+     if (f * fa > 0) then 
+        a = c
+     else
+        b = c
      end if
   end do
 
   ! Finally set the gridRatio variable to r
-  gridRatio = r
+  gridRatio = c
 
 end subroutine calcGridRatio
 
