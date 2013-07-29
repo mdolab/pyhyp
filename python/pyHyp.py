@@ -303,14 +303,6 @@ linear segment. This may or not be what is desired!'
         if 'zMirror' in kwargs and kwargs['zMirror']:
             self.zMirror=True
 
-        # Extract a tolerance for zeroing points near the mirror
-        # plane
-        if 'zeroMirrorTol' in kwargs:
-            tol = kwargs['zeroMirrorTol']
-        else:
-            tol = 1e-6
-        # end if
-
         delFile = False
         if self.xMirror or self.yMirror or self.zMirror:
 
@@ -404,6 +396,23 @@ linear segment. This may or not be what is desired!'
                     # end if
                 # end for
             # end for
+
+            # Now that we know the symnodes, we can hard zero the
+            # nodes on the mirror plane. Note that if your surface
+            # isn't closed, some really really stuff will result since
+            # those nodes will be zeroed!
+            for iSym in xrange(len(self.symNodes)):
+                iSurf = self.symNodes[iSym][0]
+                i     = self.symNodes[iSym][1]
+                j     = self.symNodes[iSym][2]
+                if self.xMirror:
+                    surfs[iSurf][i,j,0] = 0.0
+                if self.yMirror:
+                    surfs[iSurf][i,j,1] = 0.0
+                if self.zMirror:
+                    surfs[iSurf][i,j,2] = 0.0
+                # end if
+            # end for
             
             # Conver symnodes to array and index everything my 1 
             self.symNodes = numpy.array(self.symNodes) + 1
@@ -448,17 +457,6 @@ linear segment. This may or not be what is desired!'
                 for idim in xrange(3):
                     for j in xrange(newSizes[ii][1]):
                         for i in xrange(newSizes[ii][0]):
-                            absVal = abs(surfs[ii][i, j, idim]) 
-                            if absVal < tol:
-                                if self.xMirror and idim == 0:
-                                    surfs[ii][i, j, idim] = 0
-                                elif self.yMirror and idim == 1:
-                                    surfs[ii][i, j, idim] = 0
-                                elif self.zMirror and idim == 2:
-                                    surfs[ii][i, j, idim] = 0
-                                # end if 
-                            # end if
-
                             f.write('%20.13g\n'%(surfs[ii][i,j,idim]))
                         # end for
                     # end for
@@ -475,6 +473,8 @@ linear segment. This may or not be what is desired!'
         nSurf = len(surfs)
         self.conn = conn
         self.X = nodes
+        self.sizes = sizes
+        self.l_index = l_index
         nGlobal = len(nodes)
 
         if delFile:
