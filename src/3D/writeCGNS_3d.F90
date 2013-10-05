@@ -65,7 +65,8 @@ subroutine writeCGNS_3D(fileName)
   diss(3) = 'diss_z'
 
   ! Open the CGNS File:
-  call cg_open_f(fileName, MODE_WRITE, cg, ierr)
+  call cg_open_f(fileName, CG_MODE_WRITE, cg, ierr)
+
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
   ! Write the single base
@@ -300,6 +301,7 @@ subroutine writeCGNS_3D(fileName)
 
   ! Finally close cgns_file
   call cg_close_f(cg, ierr)
+
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
 end subroutine writeCGNS_3D
@@ -341,7 +343,7 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
   integer(kind=intType), intent(in) :: mirrorDim, nMirror
 
   ! Working Variables
-  integer(kind=intType) :: cg, ierr, base, nzones, ii, zone, zonesize(3)
+  integer(kind=intType) :: cg, ierr, base, nzones, ii, zone, zonesize(9)
   integer(kind=intType) :: coordID, start(3), zoneType, loadedZone 
   character*32 zonename
   real(kind=realType), dimension(:, :, :), allocatable :: coor
@@ -352,7 +354,8 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
   end if
 
   ! Open the CGNS File:
-  call cg_open_f(fileName, MODE_MODIFY, cg, ierr)
+  call cg_open_f(fileName, CG_MODE_MODIFY, cg, ierr)
+
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
   base = 1
@@ -438,7 +441,6 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
   end do
 
   ! Finally write the last zone:
-
   ! We need to write the data back for current zone:
   if (mirrorDim == 1) then
      call cg_coord_write_f(cg,base,loadedZone,RealDouble,"CoordinateX",coor,coordID,ierr)
