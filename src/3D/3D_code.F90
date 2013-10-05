@@ -30,7 +30,6 @@ subroutine run3D(Xin, nNodes)
   ! Set the number of nodes on this proc, nx in hypData as nNodes
   nx = nNodes
 
-
   ! Create the PETSc Variables
   call create3DPetscVars
 
@@ -1034,27 +1033,27 @@ subroutine create3DPetscVars
   call KSPSetTolerances(hypKSP, kspRelTol, 1e-16, 1e5, kspMaxIts, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  ! Create the SNES object
-  call SNESCreate(PETSC_COMM_WORLD, hypSNES, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  ! ! Create the SNES object
+  ! call SNESCreate(PETSC_COMM_WORLD, hypSNES, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
   
-  call SNESSetFromOptions(hypSNES, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  ! call SNESSetFromOptions(hypSNES, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
 
-  ! Most important thing is to set the "function" that computes the residual "R"
-  call SNESSetFunction(hypSNES, hypRes, formFunction, ctx, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  ! ! Most important thing is to set the "function" that computes the residual "R"
+  ! call SNESSetFunction(hypSNES, hypRes, formFunction, ctx, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
 
-  ! Next we must set the jacobian and the function to evaluate the jacobian
-  call MatCreateSNESMF(hypSnes, hypMatFD, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  ! ! Next we must set the jacobian and the function to evaluate the jacobian
+  ! call MatCreateSNESMF(hypSnes, hypMatFD, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
 
-  call SNESSetJacobian(hypSNES, hypMatFD, hypMat, formJacobian, ctx, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  ! call SNESSetJacobian(hypSNES, hypMatFD, hypMat, formJacobian, ctx, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
 
-  ! Set the sens tolerances...some of these should be options eventually
-  call SNESSetTolerances(hypSNES, 1e-16, 1e-8, 1e-12, 50, 5000, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  ! ! Set the sens tolerances...some of these should be options eventually
+  ! call SNESSetTolerances(hypSNES, 1e-16, 1e-8, 1e-12, 50, 5000, ierr)
+  ! call EChk(ierr, __FILE__, __LINE__)
 
   ! Finally allocate local fortran data arrays
   allocate(xx(3,nx),rr(3,nx), xxm1(3,nx), xxm2(3,nx), inds(3*nx), volume(nx))

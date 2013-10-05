@@ -17,7 +17,7 @@ CGNS_LINKER_FLAGS = -Wl,-rpath,/usr/local/lib -lcgns
 FF90_GEN_FLAGS = 
 CC_GEN_FLAGS   =
 
-FF90_OPT_FLAGS   =  -fPIC -fdefault-real-8 -O2  
+FF90_OPT_FLAGS   =  -fPIC -fdefault-real-8 -O2  -fdefault-double-8
 CC_OPT_FLAGS     = -O2 -fPIC
 
 # ------- Define Linker Flags ------------------------------------------
