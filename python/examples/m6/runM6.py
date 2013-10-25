@@ -1,13 +1,4 @@
-import sys, os, time
-sys.path.append('../../')
-import pyHyp
-try:
-    import petsc4py
-    petsc4py.init(sys.argv)
-    from petsc4py import PETSc
-except:
-    pass
-# end try
+from pyhyp import pyHyp
 
 options= {
     # ---------------------------

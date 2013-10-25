@@ -1,13 +1,4 @@
-import sys, time
-sys.path.append('../../')
-import pyHyp
-import numpy
-
-import petsc4py 
-petsc4py.init(sys.argv)
-
-print '2D Code is currently broken. Please check back later'
-sys.exit(0)
+from pyhyp import pyHyp
 
 # # Shpere with non-uniform spacing
 # N = 250
@@ -120,7 +111,7 @@ sys.exit(0)
 #           }
 
 # #hyp = pyHyp.pyHyp('2d',X=X, options=options, flip=True)
-# #hyp = pyHyp.pyHyp('2d',fileName='naca0012.dat', options=options,flip=True)
+hyp = pyHyp.pyHyp('2d',fileName='naca0012.dat', options=options,flip=True)
 # hyp = pyHyp.pyHyp('2d',fileName='rae2822_marco.dat', options=options,flip=True)
 # #from matplotlib.pylab import *
 # #plot(X[:,0],X[:,1],'ko-')

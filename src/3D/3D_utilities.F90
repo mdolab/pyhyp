@@ -247,7 +247,6 @@ subroutine three_by_three_inverse(Jac, Jinv)
 end subroutine three_by_three_inverse
 
 subroutine writeHeader
-
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway

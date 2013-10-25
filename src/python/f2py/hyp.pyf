@@ -85,6 +85,8 @@ python module hyp ! in
           integer(kind=inttype), optional,intent(in),check(shape(mirrorlist,0)==nmirror),depend(mirrorlist) :: nmirror=shape(mirrorlist,0)
         end subroutine zeromirrorplane
 
+        subroutine initpetsc
+        end subroutine initpetsc
         ! subroutine writecgns_3dorig(filename) 
         !   character*(*) :: filename
         ! end subroutine writecgns_3dorig

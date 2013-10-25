@@ -15,6 +15,7 @@ vpath %.o $(HYP_OBJDIR)
 
 
 FF90_OBJECTS =	EChk.o\
+		initPETSc.o\
 		releaseMemory.o\
 
 all:
