@@ -1,13 +1,4 @@
-import sys, os, time
-sys.path.append('../../')
-import pyHyp
-try:
-    import petsc4py
-    petsc4py.init(sys.argv)
-    from petsc4py import PETSc
-except:
-    pass
-# end try
+from pyhyp import pyHyp
 
 options= {
     # ---------------------------
@@ -28,9 +19,11 @@ options= {
     #   Smoothing parameters
     # ---------------------------
     'epsE': 1.0,
-    'volCoef': 0.16,
-    'volBlend': 0.0005,
-    'volSmoothIter': 15,
+    'epsI': 2.0,
+    'theta': 3.0,
+    'volCoef': .16,
+    'volBlend': 0.0001,
+    'volSmoothIter': 20,
 
     # ---------------------------
     #   Solution Parameters

@@ -1,26 +1,7 @@
-# =============================================================================
-# Standard Python modules
-# =============================================================================
-import sys, os, time
-
-# =============================================================================
-# External Python modules
-# =============================================================================
+from pyhyp import pyHyp
+from pygeo import pyBlock, DVGeometry
+from pyspline import pySpline
 import numpy
-
-# =============================================================================
-# Extension modules
-# =============================================================================
-
-from mdo_import_helper import import_modules, MPI, mpiPrint
-exec(import_modules('pyBlock', 'pySpline'))
-exec(import_modules('DVGeometry'))
-sys.path.append('../../')
-import pyHyp
-import petsc4py
-petsc4py.init(sys.argv)
-from petsc4py import PETSc
-
 # Define params here:
 ffd_file = 'mdo_tutorial_ffd.fmt'
 

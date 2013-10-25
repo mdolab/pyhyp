@@ -186,6 +186,9 @@ class pyHyp(object):
             self.comm = comm
         # end if
 
+        # Initialize PETSc if not already done so:
+        self.hyp.initpetsc()
+
         # Set the dimension:
         if not dimension.lower() in ['2d', '3d']:
             mpiPrint('Error: \'dimension\' must be one of \'2d\' or \'3d\'', 
