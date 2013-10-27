@@ -1,124 +1,49 @@
 from pyhyp import pyHyp
+import numpy
+options= {
+    # ---------------------------
+    #        Grid Parameters
+    # ---------------------------
+    'N': 33,
+    's0':1e-2,
+    'rMin':100,
 
-# # Shpere with non-uniform spacing
-# N = 250
-# X = numpy.zeros((N,2))
-# for i in xrange(N):
-#     theta = 2*numpy.pi*i/(N-1) + .80*numpy.sin(2*numpy.pi*i/(N-1))
-#     X[i,0] = 1*numpy.cos(theta)
-#     X[i,1] = 1*numpy.sin(theta)
+    # ---------------------------
+    #   Pseudo Grid Parameters
+    # ---------------------------
+    'ps0':.50e-7,
+    'pGridRatio':1.1,
+    'cMax':6.0,
 
-# # Box with 1/4 of it cut out - even spacing
-# N = 255
-# M = 127
-# x = []
-# y = []
-# side = 1.0
-# # Bottom
-# for i in xrange(N):
-#     x.append(side*i/(N-1))
-#     y.append(0.0)
+    # ---------------------------
+    #   Smoothing parameters
+    # ---------------------------
+    'epsE': 1.0,
+    'epsI': 2.0,
+    'theta': 4.0,
+    'volCoef': .16,
+    'volBlend': 0.005,
+    'volSmoothIter': 25,
+    
+    # ---------------------------
+    #   Solution Parameters
+    # ---------------------------
+    'kspRelTol': 1e-15,
+    'kspMaxIts': 500,
+    'preConLag': 5,
+    'kspSubspaceSize':50,
+    }
 
-# # Half Right size
-# for i in xrange(1,M):
-#     x.append(1.0)
-#     y.append(0.5*side*i/(M-1))
+alpha = numpy.linspace(0,2*numpy.pi,129)
+x = numpy.cos(alpha)*0.5 + 0.5
+y = numpy.zeros_like(x)
+for i in xrange(len(x)):
+    if i < len(x)/2:
+        y[i] = 0.6*(0.2969*numpy.sqrt(x[i]) - 0.1260*x[i]- 0.3516*x[i]**2 + 0.2843*x[i]**3 - 0.1036*x[i]**4)
+    else:
+        y[i] = -0.6*(0.2969*numpy.sqrt(x[i]) - 0.1260*x[i]- 0.3516*x[i]**2 + 0.2843*x[i]**3 - 0.1036*x[i]**4)
 
-# # Going left
-# for i in xrange(1,M):
-#     x.append(1.0 - 0.5*side*i/(M-1))
-#     y.append(.5)
-
-# # Going Up
-# for i in xrange(1,M):
-#     x.append(.5)
-#     y.append(.5 + 0.5*side*i/(M-1))
-
-# # # Going left and up
-# # for i in xrange(1,M):
-# #     x.append(1.0 - 0.5*side*i/(M-1))
-# #     y.append(.5 + 0.5*side*i/(M-1))
-
-# # Going Left
-# for i in xrange(1,M):
-#     x.append(.5 - 0.5*side*i/(M-1))
-#     y.append(1.0)
-
-# # Going Down
-# for i in xrange(1,N):
-#     x.append(0.0)
-#     y.append(1.0 - side*i/(N-1))
-# X = numpy.array([x,y]).T
-
-# # # -----------------------------------------
-# # L domain --- looks like wing with winglet
-# N = 129*1-1
-# M = 65*1-1
-# L = 9*1-1
-# x = []
-# y = []
-# side = 1.0
-# h = .25
-# w = .025
-# # Bottom
-# for i in xrange(N):
-#     x.append(side*i/(N-1))
-#     y.append(0.0)
-
-# # Going up
-# for i in xrange(1,M):
-#     x.append(side)
-#     y.append(h*side*i/(M-1))
-
-# # Going left
-# for i in xrange(1,L):
-#     x.append(side - w*side*i/(L-1))
-#     y.append(h)
-
-# # Going Down
-# for i in xrange(1,M):
-#     x.append(side - w)
-#     y.append(h - (h-w)*side*i/(M-1))
-
-# # Going left 
-# for i in xrange(1,2*N):
-#     x.append((side - w) - (side-w)*side*i/(2*N-1))
-#     y.append(w)
-
-# X = numpy.array([x,y]).T
-
-# options= {'N': 97,
-#           's0':5e-6,
-#           'epsI':1.0,
-#           'epsE':0.5,
-#           'theta':3.0,
-#           'volCoef':1.0,
-#           'volBlend':0.01,
-#           'volSmoothIter':5,
-#           'gridRatio':1.15,
-#           }
-
-# options= {'N':110,
-#           'Ndebug':110,
-#           's0':5e-6,
-#           'epsI':1.0,
-#           'epsE':0.5,
-#           'theta':3.0,
-#           'volCoef':1.0,
-#           'volBlend':0.001,
-#           'volSmoothIter':0,
-#           'gridRatio':1.15,
-#           }
-
-# #hyp = pyHyp.pyHyp('2d',X=X, options=options, flip=True)
-hyp = pyHyp.pyHyp('2d',fileName='naca0012.dat', options=options,flip=True)
-# hyp = pyHyp.pyHyp('2d',fileName='rae2822_marco.dat', options=options,flip=True)
-# #from matplotlib.pylab import *
-# #plot(X[:,0],X[:,1],'ko-')
-# #show()
-
-# timeA = time.time()
-# hyp.run()
-# print 'Run time:',time.time()-timeA
-# hyp.writePlot3D('test.fmt')
-# hyp.writeCGNS('test.cgns')
+X = numpy.hstack([[x,y]]).T
+hyp = pyHyp.pyHyp('2d',X=X, options=options, flip=True)
+hyp.run()
+hyp.writeCGNS('naca0012.cgns')

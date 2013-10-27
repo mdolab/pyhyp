@@ -521,10 +521,7 @@ subroutine calcResidual(assembleJac, secondOrder, saveMetrics)
   ! non-linear residual
 
   sl = (scaleDist/(radius0*rMin))**slExp
-  !sl = sqrt((marchIter-one)/(N-one))
-  !sl = sqrt((marchIter + (dble(subIter)-1)/nSubIter)/(73-one))
-  !sl = (scaleDist/(radius0*rMin))**.16
-  !print *,'sl:',sl
+
   ! Record the maximum and minimum grid sensors
   gridSensorMax = zero 
   gridSensorMin = huge(gridSensorMin)
@@ -1061,5 +1058,5 @@ subroutine create3DPetscVars
   do i=1,3*nx
      inds(i) = i-1
   end do
-
+  three_d_vars_allocated = .True.
 end subroutine create3DPetscVars

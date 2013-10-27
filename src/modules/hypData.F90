@@ -9,6 +9,7 @@ module hypData
 
   ! Data for the 2D generator:
   real(kind=realType), dimension(:, :, :), allocatable, target :: grid2D
+  real(kind=realType), dimension(:, :), allocatable :: X0, X1, Xm1
 
   ! Data for both generators
   real(kind=realType) :: scaleDist
@@ -27,6 +28,9 @@ module hypData
   integer(kind=intType) :: Nlayers,  smoothIter
   integer(kind=intType) :: nSubIter, subIter
   real(kind=realType) :: desiredS
+  logical :: three_d_vars_allocated = .False.
+  logical :: two_d_vars_allocated = .False.
+
   ! Petsc Varibles for solving linearized hyperbolic system 
   Mat hypMat, hypMatFD, hypMatPC
   Vec hypDelta, hypRHS, hypRes

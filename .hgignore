@@ -1,0 +1,21 @@
+# use glob syntax.
+syntax: glob
+
+*.so
+*.o
+*.pyc
+*~
+.*~
+*.orig
+*.mod
+*.pyf
+*.cgns
+*.a
+doc/*
+*.dat
+*.mk
+*.xyz
+*.phy
+*.fmt
+*.lay
+*.plt
