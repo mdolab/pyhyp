@@ -207,6 +207,11 @@ class pyHyp(object):
             self.options = {}
         # end if
 
+        # No mirroring by default
+        self.xMirror = False
+        self.yMirror = False
+        self.zMirror = False
+
         # Depending on the dimensionality, we initialize the problem
         # separately. 
         if self.twoD:
@@ -277,10 +282,10 @@ initialization!')
                 X = X[0:-1,:]
             else:
                 # Curve is not closed, print warning
-                print '*'*80
-                print 'Warning: Curve was not closed! Closing curve with a \
+                print '*'*105
+                print ' Warning: Curve was not closed! Closing curve with a \
 linear segment. This may or not be what is desired!'
-                print '*'*80
+                print '*'*105
             # end if
 
             if flip: # Reverse direction
@@ -296,9 +301,6 @@ linear segment. This may or not be what is desired!'
 
     def _init3d(self, fileName, **kwargs):
 
-        self.xMirror = False
-        self.yMirror = False
-        self.zMirror = False
         if 'xMirror' in kwargs and kwargs['xMirror']:
             self.xMirror=True
         if 'yMirror' in kwargs and kwargs['yMirror']:
@@ -745,7 +747,6 @@ command before trying to write the grid!')
             itype = self.readNValues(f, 1, 'int', binary)[0] # Need these
             sizes   = self.readNValues(
                 f, nSurf*3, 'int', binary).reshape((nSurf, 3))
-            print sizes
         else:
             nSurf = self.readNValues(f, 1, 'int', binary)[0]
             sizes   = self.readNValues(

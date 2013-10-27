@@ -29,10 +29,11 @@ python module hyp ! in
         end subroutine releasememory
 
         ! Run Commands
-        ! subroutine run2d(xin,nx) ! in :test:2D_code.F90
-        !   real(kind=realtype) dimension(2,nx) :: xin
-        !     integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
-        ! end subroutine run2d
+        subroutine run2d(xin,nx) ! in :test:2D_code.F90
+          real(kind=realtype) dimension(2,nx) :: xin
+            integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
+        end subroutine run2d
+
         subroutine init3d(sizes,nn,nptr_in,lmax,nnodes) ! in :test:3D_code.F90
             use hypdata
             use hypinput

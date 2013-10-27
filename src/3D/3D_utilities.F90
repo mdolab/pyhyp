@@ -382,7 +382,7 @@ subroutine computeR(xVec, R)
   end do
 
   ! Always remember to restore the array
-  call VecGetArrayF90(xVec, xx, ierr)
+  call VecRestoreArrayF90(xVec, xx, ierr)
 end subroutine computeR
 
 subroutine computeMinR(xVec, R)
