@@ -132,13 +132,13 @@ class pyHyp(object):
             # ---------------------------
 
             # epsE: The explict smoothing coefficient
-            'epsE': 0.5,
+            'epsE': 1.0,
 
             # epsI: The implicit smoothing coefficient
-            'epsI': 1.5,
+            'epsI': 2.0,
 
             # theta: The barth implicit smoothing coefficient
-            'theta': 1.0,
+            'theta': 3.0,
 
             # volCoef: The volume smoothing coefficinet for
             # pointJacobi iterations
@@ -652,6 +652,7 @@ command before trying to write the grid!')
         # end if
 
         return
+    
     def writeFEMesh(self, fileName):
         """ Ouput a tecplot FE mesh of the surface. Useful for debugging numberings"""
 
