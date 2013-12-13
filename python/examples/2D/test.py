@@ -4,15 +4,15 @@ options= {
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 33,
-    's0':1e-2,
+    'N': 129,
+    's0':.1e-2,
     'rMin':100,
 
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
     'ps0':.50e-7,
-    'pGridRatio':1.1,
+    'pGridRatio':1.02,
     'cMax':6.0,
 
     # ---------------------------
@@ -34,7 +34,7 @@ options= {
     'kspSubspaceSize':50,
     }
 
-alpha = numpy.linspace(0,2*numpy.pi,129)
+alpha = numpy.linspace(0,2*numpy.pi,513)
 x = numpy.cos(alpha)*0.5 + 0.5
 y = numpy.zeros_like(x)
 for i in xrange(len(x)):
