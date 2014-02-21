@@ -2,9 +2,9 @@
    sphinx-quickstart on Sun Oct 13 13:46:01 2013.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
-
-Welcome to pyHyp's documentation!
-=================================
+=====
+pyHyp
+=====
 
 Contents:
 
