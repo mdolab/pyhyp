@@ -2,6 +2,9 @@
    sphinx-quickstart on Sun Oct 13 13:46:01 2013.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
+
+.. _pyhyp:
+
 =====
 pyHyp
 =====
@@ -11,7 +14,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-.. _introduction:
+.. _pyhyp_introduction:
 
 Introduction
 ============
@@ -24,7 +27,7 @@ line) corresponding to the geometry of interest and then *grow* or
 distance from the original surface. In the process, the entire space
 surrounding the geometry is meshed. In the usage_ section.
 
-.. _installation:
+.. _pyhyp_installation:
 
 Installation 
 =============
@@ -160,13 +163,13 @@ $PYTHONPATH variable in your bashrc file::
 
     export $PYTHONPATH:/path/to/folder/containing/pyhyp/
 
-.. _theory:
+.. _pyhyp_theory:
 
 Theory
 ======
 Most the theory for `pyHyp` was taken from Chan.
 
-.. _usage:
+.. _pyhyp_usage:
 
 Usage
 =====
@@ -263,23 +266,23 @@ Parameter              Type      Description
 			       spacing of the final grid; that spacing ratio is computed and displayed at the beginning
 			       of a calculation. The pGridRatio *must* be smaller than that number. 
 
-`epsE`                `float`  The explict smoothing parameter. See the :ref:`Theory<Theory>` section for more information.
+`epsE`                `float`  The explict smoothing parameter. See the :ref:`Theory<pyhyp_theory>` section for more information.
                                Typical values are approximately 1.0. Increasing the explict smoothing may result in  a
 			       smoother grid, at the expense of orhtogonality. If the geometry is very sharp corners,
                                too much explict smoothing will cause the solver to rapidly "soften" the corner and the 
 			       grid will fold back on itself. 
 
-`epsI`                `float`  Implict smoothing parameter. See the :ref:`Theory<Theory>` section for more information.
+`epsI`                `float`  Implict smoothing parameter. See the :ref:`Theory<pyhyp_theory>` section for more information.
                                Typical values are from 2.0 to 6.0. Generally increasing the implict coefficient results
 			       in a more stable solution procedure.
 
-`theta`               `float`  Kinsley-Barth coefficient See the :ref:`Theory<Theory>` section for more information.
+`theta`               `float`  Kinsley-Barth coefficient See the :ref:`Theory<pyhyp_theory>` section for more information.
                                Only a single theta value is used for both directions. Typical values are ~2.0 to ~4.0.
 
 `volCoef`             `float`  Coefficient used in point-Jacobi local volume smoothing algorithm. Typically this
                                value is 0.16 and need not be modified. Use more `volSmoothIter` for stronger local smoothing.
 			    
-`volBlend`            `float`  The gloabl volume blending coefficinet. See the :ref:`Theory<Theory>` section for more information.
+`volBlend`            `float`  The gloabl volume blending coefficinet. See the :ref:`Theory<pyhyp_theory>` section for more information.
                                This value will typically be very small, especially if you widely varrying cell sizes. 
 			       Typically values are from ~0 to 0.001. Default is 0.0001
 
