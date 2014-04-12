@@ -1,4 +1,4 @@
-subroutine init3d(sizes, nn, nPtr_in, lmax, nNodes)
+subroutine init3d(sizes, nn)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -6,33 +6,24 @@ subroutine init3d(sizes, nn, nPtr_in, lmax, nNodes)
   !     Abstract: init3d performs initialization task for the 3D
   !     code. This function is called from Python.
   !    
-  !     Description of Arguments
-  !     Input:
-  !     sizes - integer array size(nn, 2) : Sizes of each of the patches
-  !     nn - integer: The number of patches
-  !     nPtr_in - integer array size(lMax, nGlobal) : Nodal pointer. This 
-  !               structure is used to store the nodal neighbours in a 
-  !               consistent counter clockwise ordering fashion. 
-  !     lmax - integer: Maximum number of neighbours (first dimension 
-  !            of nPtr_in
-  !     nGlobal - N
-  !     Xin - array size (nNodes, 3): The (unstructured) list of nodes that 
-  !           this processor owns. 
-  !     nNodes - integer : The number of nodes on this proc.
-  !
-  !     Ouput: None
+  !     Parameters
+  !     ----------
+  !     sizes : integer array size(nn, 2)
+  !         Sizes of each of the patches
+  !     nn : integer
+  !         The number of patches
 
   use hypInput
   use hypData
-
+  use panel
   implicit none
 
   ! Input Parameters
-  integer(kind=intType), intent(in) :: sizes(nn, 2), nn, lMax
-  integer(kind=intType), intent(in) :: nPtr_in(lMax, nNodes), nNodes
+  integer(kind=intType), intent(in) :: sizes(nn, 2), nn
+
   ! Working Parameters
   integer(kind=intType) :: i
-
+ 
   ! Set the number of patches:
   nPatch = nn
 
@@ -47,17 +38,90 @@ subroutine init3d(sizes, nn, nPtr_in, lmax, nNodes)
      patches(i)%jl = sizes(i, 2)
   end do
 
-  ! Allocate the global node pointer structure
-  if (.not. allocated(nPtr)) then
-     allocate(nptr(lmax, nNodes))
-  end if
-
-  ! And copy in our python data
-  do i=1, nNodes
-     nPtr(:, i) = nPtr_in(:, i) 
-  end do
+  ! Create the array of panels
+  !allocate(panels(nNodes))
 
 end subroutine init3d
+
+subroutine setPanelData(i, nodes, normal, Area, N)
+  !***DESCRIPTION
+  !
+  !     Written by Gaetan Kenway
+  !
+  !     Abstract: setPanelData sets the required nodal data for node (dual panel) 'i'
+  !  
+  ! Parameters
+  ! ----------
+  ! i : int
+  !   The index of the panel
+  ! nodes : real size (3, N)
+  !   The panels corners 
+  ! normal : real size(3)
+  !   The panel normal
+  ! area : real
+  !   The panel area
+  ! N : int
+  !   The number of nodes on this dual panel
+
+  use panel
+  implicit none
+
+  ! Input Parameters
+  integer(kind=intType), intent(in) :: i, N
+  real(kind=realType), intent(in) :: nodes(3, N), normal(3), Area
+
+  ! Working parameters
+  real(kind=realType), dimension(3) :: v1, v2, v3
+  integer(kind=intType) :: ii
+
+  ! Just copy the data into the right slot
+  panels(i)%N = N
+  panels(i)%X(:, 1:N) = nodes
+  panels(i)%normal(:) = normal(:)
+  panels(i)%Area = Area
+
+  ! Compute the area and the transformation matrices. 
+  if (panels(i)%N == 3) then
+     v1 = panels(i)%X(:, 2) - panels(i)%X(:, 1)
+  else if (panels(i)%N == 4) then
+     v1 = panels(i)%X(:, 3) - panels(i)%X(:, 1)
+  end if
+
+  ! Compute the panel center
+  panels(i)%center(:) = zero
+  do ii=1,panels(i)%N
+     panels(i)%center = panels(i)%center + nodes(:, ii)
+  end do
+  panels(i)%center = panels(i)%center / panels(i)%N 
+
+  ! Following Hess, take the xaxis to be from p1 to p3
+  v1 = panels(i)%X(:, 3) - panels(i)%X(:, 1)
+
+  ! Normalize the first direction
+  v1 = v1 / sqrt(v1(1)**2 + v1(2)**2 + v1(3)**2)
+ 
+  ! Normalize the normal:
+  v3 = normal
+  v3 = v3/sqrt(v3(1)**2 + v3(2)**2 + v3(3)**2)
+
+  ! And we can get the (normalized) axis2 by doing one more cross
+  ! product: axis2 = axis3 x axis 1
+  v2(1) = v3(2) * v1(3) - v3(3) * v1(2)
+  v2(2) = v3(3) * v1(1) - v3(1) * v1(3)
+  v2(3) = v3(1) * v1(2) - v3(2) * v1(1)
+
+  ! Finally finish our transformation matrix:
+  panels(i)%C(1, :) = v1
+  panels(i)%C(2, :) = v2
+  panels(i)%C(3, :) = v3
+
+  ! And the tranpose
+  panels(i)%CT = transpose(panels(i)%C)
+
+  ! Zero out the source strength
+  panels(i)%strength = zero
+
+end subroutine setPanelData
 
 subroutine setLindex(ind_in, nnx, nny, iPatch)
   !***DESCRIPTION
@@ -66,14 +130,16 @@ subroutine setLindex(ind_in, nnx, nny, iPatch)
   !
   !     Abstract: sets the local index data for each patch from python.
   !    
-  !     Description of Arguments
-  !     Input:
-  !     ind_in - integer array size(nnx, nny) : Indices to set.
-  !     nnx - integer: First dimension of the patch
-  !     nny - integer: Second dimension of the patch
-  !     iPatch - integer: Index of the patch to set. 
-  !
-  !     Ouput: None
+  !     Parameters
+  !     ----------
+  !     ind_in : integer array size(nnx, nny) 
+  !         Indices to set for this patch
+  !     nnx : integer
+  !         First dimension of patch indices
+  !     nny : integer
+  !         Second dimension of the patch
+  !     iPatch : integer
+  !         Index of the patch to set. 1 based numbering
   use hypInput
   use hypData
 
@@ -88,14 +154,14 @@ subroutine setLindex(ind_in, nnx, nny, iPatch)
   ! Set the ind_in into the proper patch l_index. Note we will convert
   ! to fortran ordering here by adding a 1
 
-  if (.not. allocated(patches(iPatch + 1)%l_index)) then
-     allocate(patches(iPatch + 1)%l_index( &
-          patches(iPatch + 1)%il, patches(iPatch + 1)%jl))
+  if (.not. allocated(patches(iPatch)%l_index)) then
+     allocate(patches(iPatch)%l_index( &
+          patches(iPatch)%il, patches(iPatch)%jl))
   end if
 
   do j=1, nny
      do i=1, nnx
-        patches(iPatch + 1)%l_index(i, j) = ind_in(i, j) + 1
+        patches(iPatch)%l_index(i, j) = ind_in(i, j) + 1
      end do
   end do
 
@@ -110,12 +176,15 @@ subroutine computeStretch(L)
   !     deltaS, depending on the grid level L. In the future
   !     this function may be more complex or call a user-supplied function.
   !    
-  !     Description of Arguments
-  !     Input:
-  !     L - integer: Marching 
+  !     Parameters
+  !     ----------
+  !     L : integer
+  !         The marching level to compute stretch for
   !
-  !     Ouput:
-  !     deltaS: Marching increment set in hypData
+  !     Returns
+  !     -------
+  !     deltaS : real
+  !         Marching increment set in hypData
   !
   use precision
   use hypInput
@@ -142,7 +211,7 @@ subroutine computeStretch(L)
 end subroutine computeStretch
 
 
-subroutine calcGridRatio()
+subroutine calcGridRatio(N, s0, S, ratio)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -150,21 +219,39 @@ subroutine calcGridRatio()
   !     Abstract: calcGridRatio() calculates the exponential
   !     distribution Turns out we need to solve a transendental
   !     equation here. We will do this with a secant iteration.
+  !
+  !     Parameters
+  !     ----------
+  !     N : integer
+  !         The number of nodes in sequence
+  !     s0 : real
+  !         The initial grid spacing
+  !     S : real
+  !         The total integrated length
+  !     
+  !     Returns
+  !     -------
+  !     ratio : real
+  !         The computed grid ratio that satifies, N, s0, and S.
 
-
-  use hypInput
-  use hypData
+  use precision
 
   implicit none
 
+  ! Input Parameters
+  integer(kind=intType), intent(in) :: N
+  real(kind=realType), intent(in) :: s0, S
+
+  ! Output Parameters
+  real(kind=realType), intent(out) :: ratio
+
   ! Working Parameters
   integer(kind=intType) :: i, M
-  real(kind=realType) ::  s, r, a,b, c, f, fa, fb
+  real(kind=realType) ::  r, a,b, c, f, fa, fb
 
   ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 i
   ! sinitial ratio and r is the grid ratio. 
 
-  S = radius0*rMin
   M = N-1
 
   ! Do a bisection search
@@ -188,8 +275,8 @@ subroutine calcGridRatio()
      end if
   end do
 
-  ! Finally set the gridRatio variable to r
-  gridRatio = c
+  ! Finally set the ratio variable to r
+  ratio = c
 
 end subroutine calcGridRatio
 
@@ -200,12 +287,15 @@ subroutine three_by_three_inverse(Jac, Jinv)
   !
   !     Abstract: return the inverse of the 3x3 matrix Jac in Jinv
   !    
-  !     Description of Arguments
-  !     Input:
-  !     Jac - array size (3,3): Matrix to invert
+  !     Parameters
+  !     ----------
+  !     Jac : array size (3,3)
+  !         Matrix to invert
   !
-  !     Ouput:
-  !     Jinv - array size (3,3) : Inverse of Jac
+  !     Returns
+  !     -------
+  !     Jinv : array size (3,3)
+  !         Inverse of Jac
   !
   use precision
   implicit none
@@ -338,15 +428,18 @@ subroutine computeR(xVec, R)
   !     computeR0 determines the minimum radius of a sphere that will
   !     fully enclose the grid level defined by xVec
   !
-  !     Description of Arguments
-  !     Input:
-  !     xVec - Petsc vector : Vector of nodes to use in calculation
+  !     Parameters
+  !     ----------
+  !     xVec : Petsc vector 
+  !        Vector of nodes
   !
-  !     Ouput: 
-  !     R - real : Minimum radius surrounding xVec
-  !
-  use precision
-  use hypData, only : nx, xAvg
+  !     Returns
+  !     -------
+  !     R : real
+  !        Minimum radius surrounding xVec
+
+  use communication
+  use hypData, only : xAvg, xx, nXGlobal, nX
   implicit none
 
 #include "include/finclude/petsc.h"
@@ -354,35 +447,44 @@ subroutine computeR(xVec, R)
 
   ! Input parameters
   Vec, intent(in) :: xVec
-
+  
   ! Ouput parameters
   real(kind=realType), intent(out) :: R
 
   ! Working
   integer(kind=intType) :: i, ierr
-  real(kind=realType), dimension(:), pointer :: xx
-  real(kind=realType) :: dist, xpt(3)
+  real(kind=realType) :: dist, XavgLocal(3), rLocal
+
   ! First find the average of X
-  Xavg = zero
+  XavgLocal = zero
 
   call VecGetArrayF90(xVec, xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
-  do i=1,nx
-     Xavg = Xavg + XX(3*(i-1)+1:3*i)
+  do i=1,nX
+     XavgLocal = XavgLocal + xx(3*i-2:3*i)
   end do
 
-  Xavg = Xavg/nx
+  ! All reduce across all procs:
+  call mpi_AllReduce(XavgLocal, Xavg, 3, MPI_DOUBLE, MPI_SUM, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  ! And Now divide by total number of points nGloabl
+  Xavg = Xavg / nXGlobal
 
   ! Now find the maximum distance of X from Xavg
-  R = zero
+  rLocal = zero
   do i=1,nx
-     xpt = xx(3*i-2:3*i)
-     R = max(R, dist(Xavg, xpt))
+     rLocal = max(rLocal, dist(Xavg, xx(3*i-2:3*i)))
   end do
+
+  ! All reduce with max
+  call mpi_AllReduce(rLocal, R, 1, MPI_DOUBLE, MPI_MAX, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
 
   ! Always remember to restore the array
   call VecRestoreArrayF90(xVec, xx, ierr)
+
 end subroutine computeR
 
 subroutine computeMinR(xVec, R)
@@ -390,18 +492,21 @@ subroutine computeMinR(xVec, R)
   !
   !     Written by Gaetan Kenway
   !
-  !     Abstract: computeMinR determines the cloest point of xVec to
+  !     Abstract: computeMinR determines the closest point of xVec to
   !     Xavg
   !
-  !     Description of Arguments
-  !     Input:
-  !     xVec - Petsc vector : Vector of nodes to use in calculation
+  !     Parameters
+  !     ----------
+  !     xVec : Petsc vector 
+  !        Vector of nodes
   !
-  !     Ouput: 
-  !     R - real : Minimum distance from xVec to Xavg
+  !     Returns
+  !     -------
+  !     R : real
+  !        Minimum distance from xVec to xAvg
 
-  use precision
-  use hypData, only : nx, xAvg
+  use communication
+  use hypData, only : nx, xAvg, xx
   implicit none
 
 #include "include/finclude/petsc.h"
@@ -415,21 +520,23 @@ subroutine computeMinR(xVec, R)
 
   ! Working
   integer(kind=intType) :: i, ierr
-  real(kind=realType), dimension(:), pointer :: xx
-  real(kind=realType) :: dist, xpt(3)
+  real(kind=realType) :: dist, Rlocal
 
   call VecGetArrayF90(xVec, xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
+  Rlocal = huge(Rlocal)
   ! Now find the minimum distance of X from Xavg
-  R = huge(R)
-  do i=1,nx
-     xpt = xx(3*i-2:3*i)
-     R = min(R, dist(Xavg, xpt))
+  do i=1,nX
+     Rlocal = min(Rlocal, dist(Xavg, xx(3*i-2:3*i)))
   end do
 
+  ! All reduce with min
+  call mpi_AllReduce(rLocal, R, 1, MPI_DOUBLE, MPI_MIN, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
   ! Always remember to restore the array
-  call VecGetArrayF90(xVec, xx, ierr)
+  call VecRestoreArrayF90(xVec, xx, ierr)
 
 end subroutine computeMinR
 
@@ -441,6 +548,7 @@ subroutine computeQualityLayer
   !     Compute the minimum quality measure for the cells defined by
   !     two grid levels
   !
+  use communication
   use hypInput
   use hypData
   implicit none
@@ -451,40 +559,52 @@ subroutine computeQualityLayer
 
   ! Since we are dealing with volumes, we need to loop over faces:
   minQuality = one
-  call VecGetArrayF90(X(marchIter), xxtmp, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
 
-  call VecGetArrayF90(X(marchIter-1), xxm1tmp, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
+  call VecScatterBegin(rootScatter, X(marchIter), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+  call VecScatterEnd(rootScatter, X(marchIter), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
 
-  do iPatch=1, nPatch
-     do j=1,patches(iPatch)%jl-1
-        do i=1,patches(iPatch)%il-1
-           ! Assemble the 8 points we need for the volume - Note
-           ! coodinate coordinate ordering!
-           points(:,1) = xxm1tmp(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
-           points(:,2) = xxm1tmp(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
-           points(:,3) = xxm1tmp(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
-           points(:,4) = xxm1tmp(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
+  call VecScatterBegin(rootScatter, X(marchIter-1), XLocalm1, INSERT_VALUES, SCATTER_FORWARD, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+  call VecScatterEnd(rootScatter, X(marchIter-1), XLocalm1, INSERT_VALUES, SCATTER_FORWARD, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
 
-           points(:,5) = xxtmp(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
-           points(:,6) = xxtmp(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
-           points(:,7) = xxtmp(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
-           points(:,8) = xxtmp(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
+  if (myid == 0) then
+     call VecGetArrayF90(Xlocal, xx, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
 
-           call quality_hexa(points, Q)
-           minQuality = min(minQuality, Q)
-
+     call VecGetArrayF90(XLocalm1, xxm1, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+  
+     do iPatch=1, nPatch
+        do j=1,patches(iPatch)%jl-1
+           do i=1,patches(iPatch)%il-1
+              ! Assemble the 8 points we need for the volume - Note
+              ! coodinate coordinate ordering!
+              points(:,1) = xxm1(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
+              points(:,2) = xxm1(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
+              points(:,3) = xxm1(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
+              points(:,4) = xxm1(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
+              
+              points(:,5) = xx(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
+              points(:,6) = xx(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
+              points(:,7) = xx(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
+              points(:,8) = xx(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
+              
+              call quality_hexa(points, Q)
+              minQuality = min(minQuality, Q)
+              
+           end do
         end do
      end do
-  end do
-  call VecRestoreArrayF90(X(marchIter), xxtmp, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
 
-  call VecRestoreArrayF90(X(marchIter-1), xxm1tmp, ierr)
-  call EChk(ierr, __FILE__, __LINE__)
-
-
+     call VecRestoreArrayF90(Xlocal, xx, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+     
+     call VecRestoreArrayF90(Xlocal-1, xxm1, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+  end if
 end subroutine computeQualityLayer
 
 subroutine quality_hexa(points, quality)
@@ -495,13 +615,15 @@ subroutine quality_hexa(points, quality)
   !     Abstract: quality_hexa determine the 2x2x2 quality measure for
   !     a hexa defined by 8 nodes. 
   !    
-  !     Description of Arguments
-  !     Input:
-  !     points - array size(3, 8): Nodes defining the hexa in coordinate ording. 
+  !     Parameters
+  !     ----------
+  !     points : real array size(3, 8)
+  !         Nodes defining the hexa in coordinate ording. 
   !
-  !     Ouput: 
-  !     Quality - real : Quality measure
-
+  !     Returns
+  !     -------
+  !     Quality : real 
+  !         The computed quality measure
   use precision
   implicit none
 
@@ -706,104 +828,6 @@ subroutine lagrangeSF( sf, dsf, a, order)
 
 end subroutine lagrangeSF
 
-subroutine FindBin(ss, s, nn, bin)
-
-  ! Basic bisection search: search 'ss' in 's' (of length 'nn') and
-  ! return 'bin'
-
-  use precision
-  implicit none
-
-  ! Input/Output
-  real(kind=realType), intent(in) :: ss, s(nn)
-  integer(kind=intType), intent(in) :: nn
-  integer(kind=intType), intent(out) :: bin
-
-  ! Working
-  integer(kind=intType) :: low, high
-
-  ! Explicit check of upper bound:
-  if (ss >= s(nn)) then
-     bin = nn-1
-     return
-  end if
-
-  if (ss < s(1)) then
-     bin = 1
-     return
-  end if
-
-  ! Do binary search
-  low = 1
-  high = nn
-  bin = (low+high)/2 ! Integer division
-
-  do while(ss < s(bin) .or. ss >= s(bin+1))
-
-     if (ss < s(bin)) then
-        high = bin
-     else
-        low = bin
-     end if
-
-     bin = (low + high)/2
-  end do
-
-end subroutine FindBin
-
-subroutine volume_hexa(points, volume)
-  use precision
-
-  implicit none
-
-  ! Input/Output
-  real(kind=realType), intent(in) :: points(3, 8)
-  real(kind=realType), intent(out) :: volume
-
-  ! Working
-  real(kind=realType) :: center(3), volpymrid, v1, v2, v3, v4, v5, v6
-  integer(kind=intType) ::  i, idim
-
-  ! Compute the center of the points
-  center = zero
-  do i=1, 8
-     do idim=1, 3
-        center(idim) = center(idim) + points(idim, i)
-     end do
-  end do
-  center = center / eight
-
-  ! Compute the volumes of the 6 sub pyramids. The
-  ! arguments of volpym must be such that for a (regular)
-  ! right handed hexahedron all volumes are positive.
-
-  v1 = volpymrid(center, points(:, 1), points(:, 2), points(:, 4), points(:, 3))
-  v2 = volpymrid(center, points(:, 7), points(:, 8), points(:, 6), points(:, 5))
-  v3 = volpymrid(center, points(:, 1), points(:, 3), points(:, 7), points(:, 5))
-  v4 = volpymrid(center, points(:, 4), points(:, 2), points(:, 6), points(:, 8)) 
-  v5 = volpymrid(center, points(:, 2), points(:, 1), points(:, 5), points(:, 6)) 
-  v6 = volpymrid(center, points(:, 3), points(:, 4), points(:, 8), points(:, 7))
-
-  volume = (v1+v2+v3+v4+v5+v6)/six
-
-end subroutine volume_hexa
-
-function volpymrid(p, a, b, c, d)
-
-  use precision
-  implicit none
-  real(kind=realType) :: p(3), a(3), b(3), c(3), d(3), volpymrid
-
-  ! 6*Volume of a pyrimid -> Counter clockwise ordering
-  volpymrid = (p(1) - fourth*(a(1) + b(1)  + c(1) + d(1))) *&
-       ((a(2) - c(2))*(b(3) - d(3)) - (a(3) - c(3))*(b(2) - d(2)))   + &
-       (p(2) - fourth*(a(2) + b(2)  + c(2) + d(2)))*&
-       ((a(3) - c(3))*(b(1) - d(1)) - (a(1) - c(1))*(b(3) - d(3)))   + &
-       (p(3) - fourth*(a(3) + b(3)  + c(3) + d(3)))* &
-       ((a(1) - c(1))*(b(2) - d(2)) - (a(2) - c(2))*(b(1) - d(1)))
-
-end function volpymrid
-
 function dist(p1, p2)
   use precision
 
@@ -813,74 +837,10 @@ function dist(p1, p2)
 
 end function dist
 
-
-recursive subroutine ArgQSort(A, nA, ind)
-
-  ! Do an ArgQuickSort. Adapted from
-  ! http://rosettacode.org/wiki/Sorting_algorithms/Quicksort#FPr. Modified
-  ! such that array 'A' is unchanged and the index 'ind' is initialzed
-  ! inside the algorithm
-
-
-  use precision
-  implicit none
-
-  ! DUMMY ARGUMENTS
-  integer(kind=intType), intent(in) :: nA
-  real(kind=realType), dimension(nA), intent(inout) :: A
-  integer(kind=intType), dimension(nA), intent(inout) :: ind
-
-  ! LOCAL VARIABLES
-  integer(kind=intType) :: left, right, itemp, i
-  real(kind=realType) :: random, pivot, temp
-  integer(kind=intType) :: marker
-
-  if (nA > 1) then
-
-     call random_number(random)
-     i = int(random*real(nA-1))+1
-     pivot = A(i)    ! random pivot (not best performance, but avoids worst-case)
-     left = 0
-     right = nA + 1
-
-     do while (left < right)
-        right = right - 1
-        do while (A(right) > pivot)
-           right = right - 1
-        end do
-        left = left + 1
-        do while (A(left) < pivot)
-           left = left + 1
-        end do
-        if (left < right) then
-           ! Swap value 
-           temp = A(left)
-           A(left) = A(right)
-           A(right) = temp
-           ! ! And swap index
-           iTemp = ind(left)
-           ind(left) = ind(right)
-           ind(right) = itemp
-
-        end if
-     end do
-
-     if (left == right) then
-        marker = left + 1
-     else
-        marker = left
-     end if
-
-     call argQSort(A(:marker-1), marker-1, ind(:marker-1))
-     call argQSort(A(marker:), nA-marker+1, ind(marker:))
-
-  end if
-
-end subroutine ArgQSort
-
 subroutine pointReduceWrap(pts, N, tol, uniquePts, link, nUnique)
   
-  ! Python wrapped versino of pointReduce,
+  ! Python wrapped version of pointReduce. See pointReduce for more
+  ! information. 
 
   use precision
   implicit none
@@ -913,11 +873,34 @@ subroutine pointReduceWrap(pts, N, tol, uniquePts, link, nUnique)
 end subroutine pointReduceWrap
 
 subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
+  !***DESCRIPTION
+  !
+  !     Written by Gaetan Kenway
+  !
+  !     Abstract: Given a list of N points (pts) in three space, with
+  !     possible duplicates, (to within tol) return a list of the
+  !     nUnqiue uniquePoints of points and a link array of length N,
+  !     that points into the unique list
 
-  ! Given a list of N points (pts) in three space, with possible
-  ! duplicates, (to within tol) return a list of the nUnqiue
-  ! uniquePoints of points and a link array of length N, that points
-  ! into the unique list
+  !     Parameters
+  !     ----------
+  !     pts : real array size (3, N)
+  !         List of points with possible duplicates
+  !     N : integer
+  !         The number of points
+  !     tol : real
+  !         Spatial distance tolerance for nodes to be considered idential.
+  ! 
+  !     Returns
+  !     -------
+  !     uniquePts : real array (3, N)
+  !         List of unique points. Only the for nUnqiue entries are meaningful
+  !     link : integer array size(N)
+  !         This is pointer that is the same size as the original
+  !         list. The value at link(i) is the index of the same node
+  !         in the uniquePts array. 
+  !     nUnique : integer
+  !         The number of unique points
 
   use precision 
   implicit none
@@ -944,7 +927,6 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
      subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
        use precision
        implicit none
-
        real(kind=realType), dimension(:, :) :: pts
        integer(kind=intType), intent(in) :: N
        real(kind=realType), intent(in) :: tol
@@ -960,7 +942,6 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 
   ! Compute distances of all points from the origin
   do i=1, N
-     !dists(i) = sqrt((pts(1,i)-pts(1,1))**2 + (pts(2,i)-pts(2,1))**2 + (pts(3, i)-pts(3,1))**2)
      dists(i) = sqrt(pts(1,i)**2 + pts(2,i)**2 + pts(3, i)**2)
      tmp(i) = dists(i)
      ind(i) = i
@@ -1028,11 +1009,36 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 end subroutine pointReduce
 
 subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
-
-  ! Given a list of N points (pts) in three space, with possible
-  ! duplicates, (to within tol) return a list of the nUnqiue
-  ! uniquePoints of points and a link array of length N, that points
-  ! into the unique list
+ !***DESCRIPTION
+  !
+  !     Written by Gaetan Kenway
+  !
+  !     Abstract: Given a list of N points (pts) in three space, with
+  !     possible duplicates, (to within tol) return a list of the
+  !     nUnqiue uniquePoints of points and a link array of length N,
+  !     that points into the unique list. This is the brute force
+  !     version that should only be called from the efficient
+  !     pointReduce version. 
+  !
+  !     Parameters
+  !     ----------
+  !     pts : real array size (3, N)
+  !         List of points with possible duplicates
+  !     N : integer
+  !         The number of points
+  !     tol : real
+  !         Spatial distance tolerance for nodes to be considered idential.
+  ! 
+  !     Returns
+  !     -------
+  !     uniquePts : real array (3, N)
+  !         List of unique points. Only the for nUnqiue entries are meaningful
+  !     link : integer array size(N)
+  !         This is pointer that is the same size as the original
+  !         list. The value at link(i) is the index of the same node
+  !         in the uniquePts array. 
+  !     nUnique : integer
+  !         The number of unique points
 
   use precision 
   implicit none
@@ -1080,86 +1086,63 @@ subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
 
 end subroutine pointReduceBruteForce
 
-! subroutine reparameterize(nx)
-!   !***DESCRIPTION
-!   !
-!   !     Written by Gaetan Kenway
-!   !
-!   !     reparameterize() takes the pseudo grid defined in pgrid3d and
-!   !     computes the final desired distribution according to N, s0,
-!   !     and gridRatio. (rMin was already used since that determined
-!   !     when the marching stopped'. When we are done, the final
-!   !     desired grid will be in grid3D with the corect dimensions
-!   !
-!   use hypData
-!   use hypInput
-!   implicit none
+recursive subroutine ArgQSort(A, nA, ind)
 
-!   ! Input
-!   integer(kind=intType), intent(in) :: nx
+  ! Do an ArgQuickSort. Adapted from
+  ! http://rosettacode.org/wiki/Sorting_algorithms/Quicksort#FPr. Modified
+  ! such that array 'A' is unchanged and the index 'ind' is initialzed
+  ! inside the algorithm
 
-!   ! Working
-!   integer(kind=intType) :: i, l, bin
-!   real(kind=realType) :: s(Nlayers), sAvg(nLayers), lAvg, R, sp1, factor, sp
+  use precision
+  implicit none
 
-!   ! The first step is to compute a averaged global parameterization of
-!   ! the k-direction
+  ! DUMMY ARGUMENTS
+  integer(kind=intType), intent(in) :: nA
+  real(kind=realType), dimension(nA), intent(inout) :: A
+  integer(kind=intType), dimension(nA), intent(inout) :: ind
 
-!   savg = zero
-!   lAvg = zero
-!   do i=1,nx
-!      s(1) = zero
-!      do l=2,nLayers
-!         s(l) = s(l-1) + dist(pGrid3d(:, i, l), pGrid3d(:, i, l-1))
-!      end do
+  ! LOCAL VARIABLES
+  integer(kind=intType) :: left, right, itemp, i
+  real(kind=realType) :: random, pivot, temp
+  integer(kind=intType) :: marker
 
-!      ! Add the length of this curve:
-!      lAvg = lAvg + s(nLayers)
+  if (nA > 1) then
 
-!      ! Normalize
-!      s = s / s(nLayers)
-!      ! Add to running total
-!      savg = savg + s
-!   end do
+     call random_number(random)
+     i = int(random*real(nA-1))+1
+     pivot = A(i)    ! random pivot (not best performance, but avoids worst-case)
+     left = 0
+     right = nA + 1
 
-!   ! Final s average
-!   savg = savg/nx
+     do while (left < right)
+        right = right - 1
+        do while (A(right) > pivot)
+           right = right - 1
+        end do
+        left = left + 1
+        do while (A(left) < pivot)
+           left = left + 1
+        end do
+        if (left < right) then
+           ! Swap value 
+           temp = A(left)
+           A(left) = A(right)
+           A(right) = temp
+           ! ! And swap index
+           iTemp = ind(left)
+           ind(left) = ind(right)
+           ind(right) = itemp
 
-!   ! Final averge length
-!   lavg = lAvg/nx
+        end if
+     end do
 
-!   ! Compute 'r' for the exponential distribution
-!   sp1 = s0/lavg
-!   R = -log((N-1)*sp1)/(N-2)
+     if (left == right) then
+        marker = left + 1
+     else
+        marker = left
+     end if
 
-!   ! Allocate grid3d
-
-!   ! Master loop over final levels:
-!   allocate(grid3D(3, nx, N))
-!   grid3D = zero
-
-!   ! Special case for l=1 --- Always the boundary:
-!   grid3d(:, :, 1) = pGrid3d(:, :, 1)
-
-!   do l=2,N
-
-!      ! Generate the position where we need to interpolate
-!      sp = sp1*(l-1)*exp(R*(l-2))
-
-!      ! Now what we want to find is the "bin" in l where this spacing
-!      ! falls. What we want is something like l=2.75. This means we
-!      ! interpolate three quarters of the way between l=2 and l=3. 
-
-!      call FindBin(sp, savg, Nlayers, bin)
-
-!      ! Bin is index of the lower level, bin+1 is index of the upper level
-
-!      ! Now get the factor
-!      factor = (sp-savg(bin))/(savg(bin+1)-savg(bin))
-
-!      ! Now in vector form:
-!      grid3d(:,:,l) = (one-factor)*pGrid3D(:,:,bin) + factor*pGrid3D(:,:,bin+1)
-!   end do
-
-! end subroutine reparameterize
-
+     call argQSort(A(:marker-1), marker-1, ind(:marker-1))
+     call argQSort(A(marker:), nA-marker+1, ind(marker:))
+  end if
+end subroutine ArgQSort

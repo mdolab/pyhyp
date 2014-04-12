@@ -4,22 +4,24 @@ subroutine writeCGNS_3D(fileName)
   !     Written by Gaetan Kenway
   !
   !     Abstract: writeCGNS_3d write the current grid to a 3D CGNS
-  !               file. It computes grid connectivities such that the
-  !               grid and boundary condition information such that
-  !               the grid can be used directly in a 3D flow solver
-  !               such  as SUmb.
+  !               file. It does not make any attempt to do grid
+  !               connectivities or boundary conditions. Use
+  !               cgns_utils from cgnsUtilities for that. 
   !
-  !     Description of Arguments
-  !     Input:
-  !     fileName - Character array: the name of the cgns file
-  !
-  !     Ouput: None
+  !     Parameters
+  !     ----------
+  !     fileName : Character array
+  !         The name of the cgns file
 
-  use hypInput
-  use hypData
+  use communication
+  use hypInput 
+  use hypData, only : X, metrics, rootScatter, xLocal, metricsAllocated
+  use hypData, only : nPatch, patches, xx, metrics, ix_ksi, ix_eta, ix_zeta, iX_eta_eta, iX_ksi_ksi, iX_diss
 
   implicit none
   include 'cgnslib_f.h'
+#include "include/finclude/petsc.h"
+#include "finclude/petscvec.h90"
 
   ! Input Arguments
   character*(*) :: fileName
@@ -28,7 +30,7 @@ subroutine writeCGNS_3D(fileName)
   integer(kind=intType) :: cg, ierr
   integer(kind=intType) :: cellDim, physDim, base, coordID, gridShp(3)
   character*256 :: zoneName
-  integer(kind=intType) :: sizes(9), zone, ii, i, j, k, transform(3)
+  integer(kind=intType) :: sizes(9), zone, ii, i, j, k, cgtransform(3)
   integer(kind=intType) :: pnts(3,2), pnts_donor(3,2), BCOut, nCon
   integer(kind=intType) :: nPatchToWrite, s, f
   real(kind=realType), dimension(:,:,:), allocatable :: coordArray, solArray
@@ -37,273 +39,161 @@ subroutine writeCGNS_3D(fileName)
   integer(kind=intType) :: iPatch, idim, idglobal
 
   ! Set All Names
-  coorNames(1) = "CoordinateX"
-  coorNames(2) = "CoordinateY"
-  coorNames(3) = "CoordinateZ"     
-  r_ksi(1) = 'x_ksi_x'
-  r_ksi(2) = 'x_ksi_y'
-  r_ksi(3) = 'x_ksi_z'
-
-  r_eta(1) = 'x_eta_x'
-  r_eta(2) = 'x_eta_y'
-  r_eta(3) = 'x_eta_z'
-
-  r_zeta(1) = 'x_zeta_x'
-  r_zeta(2) = 'x_zeta_y'
-  r_zeta(3) = 'x_zeta_z'
-
-  r_ksi_ksi(1) = 'x_ksi_ksi_x'
-  r_ksi_ksi(2) = 'x_ksi_ksi_y'
-  r_ksi_ksi(3) = 'x_ksi_ksi_z'
-
-  r_eta_eta(1) = 'x_eta_eta_x'
-  r_eta_eta(2) = 'x_eta_eta_y'
-  r_eta_eta(3) = 'x_eta_eta_z'
-
-  diss(1) = 'diss_x'
-  diss(2) = 'diss_y'
-  diss(3) = 'diss_z'
+  coorNames = (/"CoordinateX", "CoordinateY", "CoordinateZ"/)
+  r_ksi = (/'x_ksi_x', 'x_ksi_y', 'x_ksi_z'/)
+  r_eta = (/'x_eta_x', 'x_eta_y', 'x_eta_z'/)
+  r_zeta = (/'x_zeta_x', 'x_zeta_y', 'x_zeta_z'/)
+  r_ksi_ksi = (/'x_ksi_ksi_x', 'x_ksi_ksi_y', 'x_ksi_ksi_z'/)
+  r_eta_eta = (/'x_eta_eta_x', 'x_eta_eta_y', 'x_eta_eta_z'/)
+  diss = (/'diss_x', 'diss_y', 'diss_z'/)
 
   ! Open the CGNS File:
-  call cg_open_f(fileName, CG_MODE_WRITE, cg, ierr)
-
-  if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-  ! Write the single base
-  cellDim = 3
-  physDim = 3
-  call cg_base_write_f(cg,"Base#1", Celldim, Physdim, base, ierr)
-  if (ierr .eq. CG_ERROR) call cg_error_exit_f
+  if (myid == 0) then
+     call cg_open_f(fileName, CG_MODE_WRITE, cg, ierr)
+     if (ierr .eq. CG_ERROR) call cg_error_exit_f
+     
+     ! Write the single base
+     cellDim = 3
+     physDim = 3
+     call cg_base_write_f(cg,"Base#1", Celldim, Physdim, base, ierr)
+     if (ierr .eq. CG_ERROR) call cg_error_exit_f
+  end if
   if (writeMirror) then
      nPatchToWrite = nPatch
   else
      nPatchToWrite = nPatch/2
   end if
-
+ 
   do iPatch=1, nPatchToWrite
-     ! Write the single zone
-999  FORMAT('domain.',I5.5)
-     write(zonename,999) iPatch ! Domains are typically ordered form 1
-     sizes(:) = 0_intType
-     sizes(1) = patches(iPatch)%il
-     sizes(2) = patches(iPatch)%jl
-     sizes(3) = N
-     sizes(4) = sizes(1) - 1
-     sizes(5) = sizes(2) - 1
-     sizes(6) = sizes(3) - 1 
-     call cg_zone_write_f(cg, base, zonename, sizes, Structured, &
-          zone, ierr)
-     if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-     ! Allocate the coord array
-     allocate(coordArray(sizes(1),sizes(2),sizes(3)))
-     allocate(solArray(sizes(1), sizes(2), sizes(3)))
+     if (myid == 0) then
+        ! Write the single zone
+999     FORMAT('domain.',I5.5)
+        write(zonename,999) iPatch ! Domains are typically ordered form 1
+        sizes(:) = 0_intType
+        sizes(1) = patches(iPatch)%il
+        sizes(2) = patches(iPatch)%jl
+        sizes(3) = N
+        sizes(4) = sizes(1) - 1
+        sizes(5) = sizes(2) - 1
+        sizes(6) = sizes(3) - 1 
+        call cg_zone_write_f(cg, base, zonename, sizes, Structured, &
+             zone, ierr)
+        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+        
+        ! Allocate the coord array
+        allocate(coordArray(sizes(1),sizes(2),sizes(3)))
+        allocate(solArray(sizes(1), sizes(2), sizes(3)))
+     end if
 
      do idim=1,3
         ! Copy values and write:
         do k=1,N
-           call VecGetArrayF90(X(k), xxtmp, ierr)
-           call EChk(ierr, __FILE__, __LINE__)
 
-           do j=1,patches(iPatch)%jl
-              do i=1,patches(iPatch)%il
-                 idGlobal = patches(iPatch)%l_index(i,j)
-                 coordArray(i,j,k) = xxtmp(3*(idGlobal-1)+iDim)
+           call VecScatterBegin(rootScatter, X(k), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
+           call EChk(ierr,__FILE__,__LINE__)
+           call VecScatterEnd(rootScatter, X(k), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
+           call EChk(ierr,__FILE__,__LINE__)
+           
+           if (myid == 0) then
+              call VecGetArrayF90(XLocal, xx, ierr)
+              call EChk(ierr, __FILE__, __LINE__)
+
+              do j=1,patches(iPatch)%jl
+                 do i=1,patches(iPatch)%il
+                    idGlobal = patches(iPatch)%l_index(i,j)
+                    coordArray(i,j,k) = xx(3*(idGlobal-1)+iDim)
+                 end do
               end do
-           end do
-           call VecRestoreArrayF90(X(k), xxtmp, ierr)
-           call EChk(ierr, __FILE__, __LINE__)
+              call VecRestoreArrayF90(XLocal, xx, ierr)
+              call EChk(ierr, __FILE__, __LINE__)
+           end if
         end do
-        call cg_coord_write_f(cg, base, zone, realDouble, &
-             coorNames(iDim), coordArray, coordID, ierr)
-        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+        if (myid == 0) then
+           call cg_coord_write_f(cg, base, zone, realDouble, &
+                coorNames(iDim), coordArray, coordID, ierr)
+           if (ierr .eq. CG_ERROR) call cg_error_exit_f
+        end if
      end do
-
-     if (writeMetrics) then
-        call cg_sol_write_f(cg, base, zone, "FlowSolution", Vertex, s, ierr)
-        if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-
-        ! ------------------ X_ksi --------------------
-        do idim=1,3
-           do k=1,N
-              call VecGetArrayF90(X_ksi(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-
-              do j=1,patches(iPatch)%jl
-                 do i=1,patches(iPatch)%il
-                    idGlobal = patches(iPatch)%l_index(i,j)
-                    solArray(i,j,k) = xxtmp(3*(idGlobal-1)+iDim)
-                 end do
-              end do
-              call VecRestoreArrayF90(X_ksi(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-           end do
-           call cg_field_write_f(cg, base, zone, s, RealDouble, &
-                r_ksi(idim), solArray, F, ierr)
+     if (writeMetrics .and. metricsAllocated) then
+        if (myid == 0) then
+           call cg_sol_write_f(cg, base, zone, "FlowSolution", Vertex, s, ierr)
            if (ierr .eq. CG_ERROR) call cg_error_exit_f
-        end do
+        end if
 
-        ! ------------------ X_eta --------------------
-        do idim=1,3
-           do k=1,N
-              call VecGetArrayF90(X_eta(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
+        call writeVar(metrics(:, iX_ksi), r_ksi)
+        call writeVar(metrics(:, iX_eta), r_eta)
+        call writeVar(metrics(:, iX_zeta), r_zeta)
+        call writeVar(metrics(:, iX_ksi_ksi), r_ksi_ksi)
+        call writeVar(metrics(:, iX_eta_eta), r_eta_eta)
+        call writeVar(metrics(:, iX_diss), diss)
+        
+     !    ! ! Volume is special since there is only 1
+     !    ! do k=1,N
+     !    !    call VecGetArrayF90(Vhist(k), xxtmp, ierr)
+     !    !    call EChk(ierr, __FILE__, __LINE__)
 
-              do j=1,patches(iPatch)%jl
-                 do i=1,patches(iPatch)%il
-                    idGlobal = patches(iPatch)%l_index(i,j)
-                    solArray(i,j,k) = xxtmp(3*(idGlobal-1)+iDim)
-                 end do
-              end do
-              call VecRestoreArrayF90(X_eta(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-           end do
-           call cg_field_write_f(cg, base, zone, s, RealDouble, &
-                r_eta(idim), solArray, F, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-        end do
-
-        ! ------------------ X_zeta --------------------
-        do idim=1,3
-           do k=1,N
-              call VecGetArrayF90(X_zeta(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-
-              do j=1,patches(iPatch)%jl
-                 do i=1,patches(iPatch)%il
-                    idGlobal = patches(iPatch)%l_index(i,j)
-                    solArray(i,j,k) = xxtmp(3*(idGlobal-1)+iDim)
-                 end do
-              end do
-              call VecRestoreArrayF90(X_zeta(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-           end do
-           call cg_field_write_f(cg, base, zone, s, RealDouble, &
-                r_zeta(idim), solArray, F, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-        end do
-
-        ! ------------------ X_ksi_ksi --------------------
-        do idim=1,3
-           do k=1,N
-              call VecGetArrayF90(X_ksi_ksi(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-
-              do j=1,patches(iPatch)%jl
-                 do i=1,patches(iPatch)%il
-                    idGlobal = patches(iPatch)%l_index(i,j)
-                    solArray(i,j,k) = xxtmp(3*(idGlobal-1)+iDim)
-                 end do
-              end do
-              call VecRestoreArrayF90(X_ksi_ksi(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-           end do
-           call cg_field_write_f(cg, base, zone, s, RealDouble, &
-                r_ksi_ksi(idim), solArray, F, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-        end do
-
-        ! ------------------ X_eta_eta --------------------
-        do idim=1,3
-           do k=1,N
-              call VecGetArrayF90(X_eta_eta(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-
-              do j=1,patches(iPatch)%jl
-                 do i=1,patches(iPatch)%il
-                    idGlobal = patches(iPatch)%l_index(i,j)
-                    solArray(i,j,k) = xxtmp(3*(idGlobal-1)+iDim)
-                 end do
-              end do
-              call VecRestoreArrayF90(X_eta_eta(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-           end do
-           call cg_field_write_f(cg, base, zone, s, RealDouble, &
-                r_eta_eta(idim), solArray, F, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-        end do
-
-        ! ------------------ X_diss --------------------
-        do idim=1,3
-           do k=1,N
-              call VecGetArrayF90(X_diss(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-
-              do j=1,patches(iPatch)%jl
-                 do i=1,patches(iPatch)%il
-                    idGlobal = patches(iPatch)%l_index(i,j)
-                    solArray(i,j,k) = xxtmp(3*(idGlobal-1)+iDim)
-                 end do
-              end do
-              call VecRestoreArrayF90(X_diss(k), xxtmp, ierr)
-              call EChk(ierr, __FILE__, __LINE__)
-           end do
-           call cg_field_write_f(cg, base, zone, s, RealDouble, &
-                diss(idim), solArray, F, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-        end do
-
-        ! ------------------ Volume --------------------
-        do k=1,N
-           call VecGetArrayF90(Vhist(k), xxtmp, ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-
-           do j=1,patches(iPatch)%jl
-              do i=1,patches(iPatch)%il
-                 idGlobal = patches(iPatch)%l_index(i,j)
-                 solArray(i,j,k) = xxtmp(3*idGlobal)
-              end do
-           end do
-           call VecRestoreArrayF90(Vhist(k), xxtmp, ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-        end do
-        call cg_field_write_f(cg, base, zone, s, RealDouble, &
-             'volume', solArray, F, ierr)
-        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+     !    !    do j=1,patches(iPatch)%jl
+     !    !       do i=1,patches(iPatch)%il
+     !    !          idGlobal = patches(iPatch)%l_index(i,j)
+     !    !          solArray(i,j,k) = xxtmp(3*idGlobal)
+     !    !       end do
+     !    !    end do
+     !    !    call VecRestoreArrayF90(Vhist(k), xxtmp, ierr)
+     !    !    call EChk(ierr, __FILE__, __LINE__)
+     !    ! end do
+     !    ! call cg_field_write_f(cg, base, zone, s, RealDouble, &
+     !    !      'volume', solArray, F, ierr)
+     !    ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
      end if
 
-     ! ! We know we can write the klow wall BC and the k-high farfield
-     ! ! ---------- Klow --------------
-     ! pnts(:, 1) = (/1, 1, 1/)
-     ! pnts(:, 2) = (/sizes(1), sizes(2), 1/)
-
-     ! call cg_boco_write_f(cg, base, zone, "klow", BCWallViscous, PointRange, &
-     !      2, pnts, BCout, ierr)
-     ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-     ! call cg_goto_f(cg,base,ierr,'Zone_t', zone,"ZoneBC_t", 1,&
-     !      "BC_t", BCOut, "end")
-     ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-     ! call cg_famname_write_f("wall", ierr)
-     ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-     ! ! ---------- Khigh --------------
-     ! pnts(:, 1) = (/1, 1, sizes(3)/)
-     ! pnts(:, 2) = (/sizes(1), sizes(2), sizes(3)/)
-
-     ! call cg_boco_write_f(cg, base, zone, "khigh", BCFarField, PointRange, &
-     !      2, pnts, BCout, ierr)
-     ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-     ! call cg_goto_f(cg,base,ierr,'Zone_t', zone,"ZoneBC_t", 1,&
-     !      "BC_t", BCOut, "end")
-     ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-     ! call cg_famname_write_f("far", ierr)
-     ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
      ! Deallocate the coord and solution array for this patch
-     deallocate(coordArray, solArray)
-
+     if (myid == 0) then
+        deallocate(coordArray, solArray)
+     end if
   end do ! Patch Loop
 
-  ! Finally close cgns_file
-  call cg_close_f(cg, ierr)
+  if (myid == 0) then
+     ! Finally close cgns_file
+     call cg_close_f(cg, ierr)
+     if (ierr .eq. CG_ERROR) call cg_error_exit_f
+  end if
 
-  if (ierr .eq. CG_ERROR) call cg_error_exit_f
+  contains
+    subroutine writeVar(vectors, names)
+      Vec, dimension(:) :: vectors
+      character*12, dimension(3) :: names
+      
+      do idim=1,3
+         do k=1,N
 
+            call VecScatterBegin(rootScatter, vectors(k), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
+            call EChk(ierr,__FILE__,__LINE__)
+            call VecScatterEnd(rootScatter, vectors(k), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
+            call EChk(ierr,__FILE__,__LINE__)
+
+            if (myid == 0) then
+               call VecGetArrayF90(XLocal, xx, ierr)
+               call EChk(ierr, __FILE__, __LINE__)
+
+               do j=1,patches(iPatch)%jl
+                  do i=1,patches(iPatch)%il
+                     idGlobal = patches(iPatch)%l_index(i,j)
+                     solArray(i,j,k) = xx(3*(idGlobal-1)+iDim)
+                  end do
+               end do
+
+               call VecRestoreArrayF90(XLocal, xx, ierr)
+               call EChk(ierr, __FILE__, __LINE__)
+            end if
+         end do
+         if (myid == 0) then
+            call cg_field_write_f(cg, base, zone, s, RealDouble, &
+                 names(idim), solArray, F, ierr)
+            if (ierr .eq. CG_ERROR) call cg_error_exit_f
+         end if
+      end do
+    end subroutine writeVar
 end subroutine writeCGNS_3D
 
 subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
@@ -321,19 +211,24 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
   !               read, the correct dimension, zero the correct
   !               plane, and the rewrite. 
   !
-  !     Description of Arguments
-  !     Input:
-  !     fileName - Character array: the name of the cgns file to modify
-  !     mirrorList - integer array, size(nMirror, 3): List of faces and node indices
-  !                  (on surface) to mirror
-  !     mirrorDim - Dimension to mirror, 1 for x, 2 for y, 3 for z.
-  !     nMirror - integer: The number of faces to modify.
+  !     Parameters
+  !     ----------
+  !     fileName : Character array
+  !        The name of the cgns file to modify
+  !     mirrorList : integer array, size(nMirror, 3)
+  !        The list of faces and node indices (on surface) to mirror
+  !     mirrorDim : int 
+  !        Dimension to mirror, 1 for x, 2 for y, 3 for z.
+  !     nMirror : integer
+  !        The number of faces to modify.
   !
-  !     Ouput: None
+  !     Notes
+  !     -----
+  !     Since this uses file-i/o it should only be called on the root
+  !     processor
 
   use hypInput
   use hypData
-
   implicit none
   include 'cgnslib_f.h'
 
@@ -355,9 +250,7 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
 
   ! Open the CGNS File:
   call cg_open_f(fileName, CG_MODE_MODIFY, cg, ierr)
-
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
   base = 1
 
   ! Goto Base Node
@@ -437,7 +330,6 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
 
      ! Now mirror the line based on mirro list
      coor(mirrorList(ii, 2), mirrorList(ii, 3), :) = zero
-
   end do
 
   ! Finally write the last zone:
@@ -457,102 +349,3 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
 end subroutine zeroMirrorPlane
-
-
-! subroutine writeCGNS_3DOrig(fileName)
-
-!   !***DESCRIPTION
-!   !
-!   !     Written by Gaetan Kenway
-!   !
-!   !     Abstract: writeCGNS_3d write the current grid to a 3D CGNS
-!   !               file. It computes grid connectivities such that the
-!   !               grid and boundary condition information such that
-!   !               the grid can be used directly in a 3D flow solver
-!   !               such  as SUmb.
-!   !
-!   !     Description of Arguments
-!   !     Input:
-!   !     fileNmae - Character array: the name of the cgns file
-!   !
-!   !     Ouput: None
-
-!   use hypInput
-!   use hypData
-
-!   implicit none
-!   include 'cgnslib_f.h'
-
-!   ! Input Arguments
-!   character*(*) :: fileName
-
-!   ! Working Variables
-!   integer(kind=intType) :: cg, ierr
-!   integer(kind=intType) :: cellDim, physDim, base, coordID, gridShp(3)
-!   character*256 :: zoneName
-!   integer(kind=intType) :: sizes(9), zone, ii, i, j, k, nx, transform(3)
-!   integer(kind=intType) :: pnts(3,2), pnts_donor(3,2), BCOut, nCon
-!   integer(kind=intType) :: nPatchToWrite
-!   real(kind=realType), dimension(:,:,:), allocatable :: coordArray
-!   character*12, dimension(3) :: coorNames
-!   integer(kind=intType) :: iPatch, idim, idglobal
-!   ! Open the CGNS File:
-!   call cg_open_f(fileName, MODE_WRITE, cg, ierr)
-!   if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-!   ! Write the single base
-!   cellDim = 3
-!   physDim = 3
-!   call cg_base_write_f(cg,"Base#1", Celldim, Physdim, base, ierr)
-!   if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-!   if (writeMirror) then
-!      nPatchToWrite = nPatch
-!   else
-!      nPatchToWrite = nPatch/2
-!   end if
-
-!   do iPatch=1, npatchToWrite
-!      ! Write the single zone
-! 999  FORMAT('domain.',I5.5)
-!      write(zonename,999) iPatch ! Domains are typically ordered form 1
-!      sizes(:) = 0_intType
-!      sizes(1) = patches(iPatch)%il
-!      sizes(2) = patches(iPatch)%jl
-!      sizes(3) = NLayers
-!      sizes(4) = sizes(1) - 1
-!      sizes(5) = sizes(2) - 1
-!      sizes(6) = sizes(3) - 1 
-!      call cg_zone_write_f(cg, base, zonename, sizes, Structured, &
-!           zone, ierr)
-!      if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-!      ! Allocate the coord array
-!      allocate(coordArray(sizes(1),sizes(2),sizes(3)))
-!      coorNames(1) = "CoordinateX"
-!      coorNames(2) = "CoordinateY"
-!      coorNames(3) = "CoordinateZ"     
-
-!      do idim=1,3
-!         ! Copy values and write:
-!         do k=1,Nlayers
-!            do j=1,patches(iPatch)%jl
-!               do i=1,patches(iPatch)%il
-!                  idGlobal = patches(iPatch)%l_index(i,j)
-!                  coordArray(i,j,k) = pGrid3d(idim, idGlobal, k)
-!               end do
-!            end do
-!         end do
-!         call cg_coord_write_f(cg, base, zone, realDouble, &
-!              coorNames(iDim), coordArray, coordID, ierr)
-!      end do
-
-!      ! Deallocate the coord array for this patch
-!      deallocate(coordArray)
-!   end do ! Patch Loop
-
-!   ! Finally close cgns_file
-!   call cg_close_f(cg, ierr)
-!   if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-! end subroutine writeCGNS_3DOrig

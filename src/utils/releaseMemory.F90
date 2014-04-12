@@ -1,51 +1,36 @@
 subroutine releaseMemory
 
+  use communication
   use hypData
-
+  use hypInput
   implicit none
 
   ! Working variables
-  integer(kind=intType) :: iPatch
-
+  integer(kind=intType) :: iPatch, ierr, i, j
+  
   if (allocated(grid2D)) then
      deallocate(grid2D)
   end if
 
-  if (allocated(x0)) then
-     deallocate(x0)
-  end if
-
-  if (allocated(x1)) then
-     deallocate(x1)
-  end if
-
-  if (allocated(xm1)) then
-     deallocate(xm1)
-  end if
-
   if (allocated(patches)) then
      do iPatch=1, nPatch
-        if (allocated(patches(iPatch)%l_index)) then
-           deallocate(patches(iPatch)%l_index) 
-        end if
+        deallocate(patches(iPatch)%l_index) 
      end do
-
-     ! Finally deallocate the patches array
      deallocate(patches)
   end if
-  call destroyPetscVars
 
-end subroutine releaseMemory
+  if (allocated(gnPtr)) then
+     deallocate(gnPtr)
+  end if
 
+  if (allocated(lnPtr)) then
+     deallocate(lnPtr)
+  end if
 
-subroutine destroyPetscVars
-  use hypInput
-  use hypData
-
-  implicit none
-
-  integer(kind=intType) :: ierr, i
-
+  if (allocated(Xsurf)) then
+     deallocate(Xsurf) 
+  end if
+ 
   if (three_d_vars_allocated) then
      ! Destroy hyp system objects
      call KSPDestroy(hypKSP, ierr)
@@ -60,41 +45,41 @@ subroutine destroyPetscVars
      call VecDestroy(hypDelta, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
+     call VecDestroy(XL, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+
+     call VecDestroy(XLm1, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+     
+     call VecDestroy(XLocal, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+
+     call VecDestroy(XLocalm1, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+
+     call VecScatterDestroy(rootScatter, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+
+     ! Detrory all the PETsc vectors
      do i=1,N
         call vecDestroy(X(i), ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        if (writeMetrics) then
-           call VecDestroy(X_ksi(i), ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-
-           call VecDestroy(X_eta(i), ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-
-           call VecDestroy(X_zeta(i), ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-
-           call VecDestroy(X_ksi_ksi(i), ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-
-           call VecDestroy(X_eta_eta(i), ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-
-           call VecDestroy(X_diss(i), ierr)
-           call EChk(ierr, __FILE__, __LINE__)
-
-           call VecDestroy(Vhist(i), ierr)
-           call EChk(ierr, __FILE__, __LINE__)
+        if (metricsAllocated) then
+           do j=1,nMetric
+              call VecDestroy(metrics(i, j), ierr)
+              call EChk(ierr, __FILE__, __LINE__)
+           end do
         end if
      end do
-
      deallocate(X)
 
-     if (writeMetrics) then
-        deallocate(X_ksi, X_eta, X_zeta, X_ksi_ksi, X_eta_eta, X_diss, Vhist)
+     if (metricsAllocated) then
+        deallocate(metrics)
+        metricsAllocated = .False.
      end if
 
-     deallocate(xx, rr, xxm1, xxm2, inds, volume, xxinterp)
+     !deallocate(volume)
      three_d_vars_allocated = .False.
   end if
 
@@ -113,4 +98,4 @@ subroutine destroyPetscVars
      call EChk(ierr, __FILE__, __LINE__)
   end if
 
-end subroutine destroyPetscVars
+end subroutine releaseMemory
