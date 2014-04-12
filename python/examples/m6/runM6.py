@@ -1,13 +1,23 @@
-from pyhyp import pyHyp
+from pyhypellip import pyHyp
 
 options= {
     # ---------------------------
+    #        Input Information
+    # ---------------------------
+    'dimension':'3d',
+    #'inputFile':'m6_small.fmt',
+    #'inputFile':'m6_large.fmt',
+    'inputFile':'m6_tiny.fmt',
+    'mode':'hyperbolic',
+    
+    # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 65,
-    's0':1.5e-6,
-    'rMin':60,
-
+    'N': 33,
+    's0':1.5e-4,
+    'rMin':1,
+    'mirror':'z',
+    
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
@@ -19,24 +29,26 @@ options= {
     #   Smoothing parameters
     # ---------------------------
     'epsE': 1.0,
-    'epsI': 2.0,
+    'epsI': 4.0,
     'theta': 3.0,
     'volCoef': .16,
     'volBlend': 0.005,
-    'volSmoothIter': 10,
+    'volSmoothIter': 100,
     
     # ---------------------------
     #   Solution Parameters
     # ---------------------------
-    'kspRelTol': 1e-5,
+    'kspRelTol': 1e-10,
     'kspMaxIts': 500,
-    'preConLag': 5,
+    'preConLag': 10,
     'kspSubspaceSize':50,
+    'writeMetrics': True,
     }
 
-hyp = pyHyp.pyHyp('3d',fileName='m6_small.fmt', options=options, zMirror=True)
-#hyp = pyHyp.pyHyp('3d',fileName='m6_large.fmt', options=options, zMirror=True)
-
+hyp = pyHyp(options=options)
+#hyp.writeFEMesh('test.dat')
 hyp.run()
+# hyp.hyp.run3delliptic()
 hyp.writeCGNS('m6.cgns')
+hyp.writePlot3D('m6.p3d')
 
