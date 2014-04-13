@@ -29,8 +29,11 @@ python module hyp ! in
           use precision
           integer(kind=inttype) :: nx, nxglobal, nghost
           real(kind=realtype), dimension(:, :), allocatable :: xsurf
+          real(kind=realtype), dimension(:, :), allocatable :: xsurfglobal
           integer(kind=inttype), dimension(:, :), allocatable :: lnptr
           integer(kind=inttype), dimension(:, :), allocatable :: gnptr
+          integer(kind=inttype), dimension(:, :), allocatable :: cptr
+          integer(kind=inttype), dimension(:, :), allocatable :: conn
           integer(kind=inttype), dimension(:), allocatable :: ghost
         end module hypdata
 
@@ -48,13 +51,8 @@ python module hyp ! in
             integer(kind=inttype), optional,intent(in),check(shape(sizes,0)==nn),depend(sizes) :: nn=shape(sizes,0)
         end subroutine init3d
        
-        subroutine setpaneldata(i,nodes,normal,area,n) ! in :test:3D_utilities.F90
-            integer(kind=inttype) intent(in) :: i
-            real(kind=realtype) dimension(3,n),intent(in) :: nodes
-            real(kind=realtype) dimension(3),intent(in) :: normal
-            real(kind=realtype) intent(in) :: area
-            integer(kind=inttype), optional,intent(in),check(shape(nodes,1)==n),depend(nodes) :: n=shape(nodes,1)
-        end subroutine setpaneldata
+        subroutine setuppanels
+        end subroutine setuppanels
  
         subroutine setlindex(ind_in,nnx,nny,ipatch) ! in :test:3D_code.F90
             integer(kind=inttype) dimension(nnx,nny),intent(in) :: ind_in

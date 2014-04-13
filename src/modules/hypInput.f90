@@ -14,4 +14,5 @@ module hypInput
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
   real(kind=realType) :: kspRelTol,rMin, cmax
   logical :: writeMirror, nonLinear, writeMetrics
+  real(kind=realType) :: eps
 end module hypInput

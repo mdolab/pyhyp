@@ -38,90 +38,154 @@ subroutine init3d(sizes, nn)
      patches(i)%jl = sizes(i, 2)
   end do
 
-  ! Create the array of panels
-  !allocate(panels(nNodes))
-
 end subroutine init3d
 
-subroutine setPanelData(i, nodes, normal, Area, N)
+subroutine setupPanels
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
   !
-  !     Abstract: setPanelData sets the required nodal data for node (dual panel) 'i'
+  !     Abstract: setupPanels generates all the required data
+  !     structures for doing the fast multipole method. This
+  !     subroutine should only need to be called once from python.
   !  
-  ! Parameters
-  ! ----------
-  ! i : int
-  !   The index of the panel
-  ! nodes : real size (3, N)
-  !   The panels corners 
-  ! normal : real size(3)
-  !   The panel normal
-  ! area : real
-  !   The panel area
-  ! N : int
-  !   The number of nodes on this dual panel
+  !  Parameters
+  !  ----------
 
+  !  None. This routine uses the global surface in XSurfGlobal as well
+  !  as the patch information and connectivity information, all of
+  !  which is set from python.
+
+  use hypInput
+  use hypData
   use panel
   implicit none
+  
+  ! Working 
+  integer(kind=intType) :: levelMax, iPatch, sizes(2), i, j, ii, jj, iPanel, nn
+  real(kind=realType), dimension(3) :: xCen, r , v1, v2, v3
+  real(kind=realType) :: lenV3
 
-  ! Input Parameters
-  integer(kind=intType), intent(in) :: i, N
-  real(kind=realType), intent(in) :: nodes(3, N), normal(3), Area
 
-  ! Working parameters
-  real(kind=realType), dimension(3) :: v1, v2, v3
-  integer(kind=intType) :: ii
+  ! Before we can do anything we must determine the number of
+  ! multigrid levels we will be using. This is required to allocate
+  ! the MGP with the correct number of levels.
 
-  ! Just copy the data into the right slot
-  panels(i)%N = N
-  panels(i)%X(:, 1:N) = nodes
-  panels(i)%normal(:) = normal(:)
-  panels(i)%Area = Area
-
-  ! Compute the area and the transformation matrices. 
-  if (panels(i)%N == 3) then
-     v1 = panels(i)%X(:, 2) - panels(i)%X(:, 1)
-  else if (panels(i)%N == 4) then
-     v1 = panels(i)%X(:, 3) - panels(i)%X(:, 1)
-  end if
-
-  ! Compute the panel center
-  panels(i)%center(:) = zero
-  do ii=1,panels(i)%N
-     panels(i)%center = panels(i)%center + nodes(:, ii)
+  levelMax = 1000 ! Arbitrary large number 
+  do iPatch=1, nPatch
+     sizes(1) = patches(iPatch)%il
+     sizes(2) = patches(iPatch)%jl
+     levelLoop: do j=1,levelMax
+        if (.not. mod(sizes(1)-1, 2) == 0) then
+           levelMax = j 
+           exit levelLoop
+        end if
+        if (.not. mod(sizes(2)-1,2) == 0) then
+           levelMax = j
+           exit levelLoop
+        end if
+        sizes(1) = (sizes(1)-1)/2 + 1
+        sizes(2) = (sizes(2)-1)/2 + 1
+     end do levelLoop
   end do
-  panels(i)%center = panels(i)%center / panels(i)%N 
 
-  ! Following Hess, take the xaxis to be from p1 to p3
-  v1 = panels(i)%X(:, 3) - panels(i)%X(:, 1)
+  ! Now we can allocate MGP
+  allocate(MGP(levelMax))
 
-  ! Normalize the first direction
-  v1 = v1 / sqrt(v1(1)**2 + v1(2)**2 + v1(3)**2)
+  ! Now we proceed to fill up the "fine" level, ie. level 1
+  allocate(MGP(1)%panels(nXGlobal))
+  MGP(1)%N = nXGlobal
+
+  ! Generate the dual panel mesh for the ellipic method:
+  do i=1,nXGlobal
+
+     ! "The number of nodes on a panel mesh (dual mesh) is equal to
+     ! the number CELLS surrounding a node on the primal mesh. 
+     MGP(1)%panels(i)%N = cPtr(1, i)
+
+     ! Now loop over the cells surronding the node, compute their
+     ! centers. This forms the nodes for the dual mesh (panel mesh)
+     do j=1,cPtr(1, i)
+        iPanel = cPtr(j+1, i)
+        ! Now get the center of this panel:
+        do ii=1,4
+           xCen = xCen + xSurfGlobal(:, conn(ii, iPanel))
+        end do
+        
+        MGP(1)%panels(i)%X(:, j) = fourth*xCen
+     end do
+
+     ! Compute panel center --- this will be close to but not the same
+     ! as the node on the primal mesh.
+     MGP(1)%panels(i)%center = zero
+     NN = MGP(1)%panels(i)%N
+     do j=1, NN
+        MGP(1)%panels(i)%center = MGP(1)%panels(i)%center + MGP(1)%panels(i)%X(:, j) / NN
+     end do
+
+     ! Now compute the (average) normal as well as the area:
+     MGP(1)%panels(i)%area = zero
+     MGP(1)%panels(1)%normal = zero
+
+     do j=1, NN
+        ii = j
+        jj = mod(j+1, NN) + 1
+
+        v1 = MGP(1)%panels(i)%X(:, ii) - MGP(1)%panels(i)%center
+        v2 = MGP(1)%panels(i)%X(:, jj) - MGP(1)%panels(i)%center
+        
+        ! v3 = v1 x v2
+        v3(1) = v1(2) * v2(3) - v1(3) * v2(2)
+        v3(2) = v1(3) * v2(1) - v1(1) * v2(3)
+        v3(3) = v1(1) * v2(2) - v1(2) * v2(1)
+        
+        ! Sum this much of the area
+        lenv3 = sqrt(v3(1)**2 + v3(2)**2 + v3(3)**2)
+        v3 = v3 / lenv3
+        MGP(1)%panels(i)%area = MGP(1)%panels(i)% area + half*lenV3 / NN
+        MGP(1)%panels(i)%normal = MGP(1)%panels(i)%normal + v3 / NN
+     end do
+
+     ! Now "Correct" the dual panels such that they lie
+     ! "eps" BELOW the actual nodes, along the normal
+     r = XSurfGlobal(:, i) - MGP(1)%panels(i)%center
+     eps = 1e-8
+     do j=1,NN
+        MGP(1)%panels(i)%X(:, j) = MGP(1)%panels(i)%X(:, j) + r - eps*MGP(1)%panels(i)%normal
+     end do
+
+     ! Compute the transformation matrics
+     if (MGP(1)%panels(i)%N == 4) then
+        ! Following Hess, take the xaxis to be from p1 to p3 (for quads)
+        v1 = MGP(1)%panels(i)%X(:, 3) - MGP(1)%panels(i)%X(:, 1)
+     else
+        v1 = MGP(1)%panels(i)%X(:, 2) - MGP(1)%panels(i)%X(:, 1)
+     end if
+
+     ! Normalize the first direction
+     v1 = v1 / sqrt(v1(1)**2 + v1(2)**2 + v1(3)**2)
  
-  ! Normalize the normal:
-  v3 = normal
-  v3 = v3/sqrt(v3(1)**2 + v3(2)**2 + v3(3)**2)
+     ! Panel normal
+     v3 = MGP(1)%panels(i)%normal
 
-  ! And we can get the (normalized) axis2 by doing one more cross
-  ! product: axis2 = axis3 x axis 1
-  v2(1) = v3(2) * v1(3) - v3(3) * v1(2)
-  v2(2) = v3(3) * v1(1) - v3(1) * v1(3)
-  v2(3) = v3(1) * v1(2) - v3(2) * v1(1)
+     ! And we can get the (normalized) axis2 by doing one more cross
+     ! product: axis2 = axis3 x axis 1
+     v2(1) = v3(2) * v1(3) - v3(3) * v1(2)
+     v2(2) = v3(3) * v1(1) - v3(1) * v1(3)
+     v2(3) = v3(1) * v1(2) - v3(2) * v1(1)
 
-  ! Finally finish our transformation matrix:
-  panels(i)%C(1, :) = v1
-  panels(i)%C(2, :) = v2
-  panels(i)%C(3, :) = v3
+     ! Finally finish our transformation matrix:
+     MGP(1)%panels(i)%C(1, :) = v1
+     MGP(1)%panels(i)%C(2, :) = v2
+     MGP(1)%panels(i)%C(3, :) = v3
 
-  ! And the tranpose
-  panels(i)%CT = transpose(panels(i)%C)
+     ! And the tranpose
+     MGP(1)%panels(i)%CT = transpose(MGP(1)%panels(i)%C)
 
-  ! Zero out the source strength
-  panels(i)%strength = zero
-
-end subroutine setPanelData
+     ! Zero out the source strength
+     MGP(1)%panels(i)%strength = zero
+  end do
+end subroutine setupPanels
 
 subroutine setLindex(ind_in, nnx, nny, iPatch)
   !***DESCRIPTION
@@ -602,7 +666,7 @@ subroutine computeQualityLayer
      call VecRestoreArrayF90(Xlocal, xx, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      
-     call VecRestoreArrayF90(Xlocal-1, xxm1, ierr)
+     call VecRestoreArrayF90(Xlocalm1, xxm1, ierr)
      call EChk(ierr, __FILE__, __LINE__)
   end if
 end subroutine computeQualityLayer

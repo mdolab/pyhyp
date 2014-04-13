@@ -443,10 +443,6 @@ class pyHyp(object):
             if delFile:
                 os.remove(fileName)
                 
-            # Determine the maximum number of "multigrid" levels
-            # possible.
-            nLevels = self._determineMGLevels(sizes)
-
             # We really should check if the surface is closed. This check
             # is not implemented yet -- so user beware!
 
@@ -455,15 +451,26 @@ class pyHyp(object):
 
             # Now we can invert and get the elements surrounding the nodes:
             nodeToElem = [[] for i in xrange(nGlobal)]
+
             for iElem in xrange(len(conn)):
                 for ii in xrange(4): # 4 nodes on each face
                     # Append the elem Number and the node number of
                     # the node on theface
                     nodeToElem[conn[iElem][ii]].append([iElem, ii]) 
 
+            # Determine the maximum number of nodal neighbours. Node
+            # max must be at least 6 for the 3-corner nodes with a
+            # total of 6 cross-diagonal neighbours
+            NODE_MAX = 6
+            CELL_MAX = 0
+            for i in range(nGlobal):
+                NODE_MAX = max(NODE_MAX, len(nodeToElem))
+                CELL_MAX = max(CELL_MAX, len(nodeToElem))
+
             # Finally we can get the final node pointer structure we need:
-            nPtr = [[] for i in range(nGlobal)]
-            cPtr = [[] for i in range(nGlobal)]
+            nPtr = numpy.zeros((nGlobal, NODE_MAX+1), 'intc')
+            cPtr = numpy.zeros((nGlobal, CELL_MAX+1), 'intc')
+
             for iNode in xrange(nGlobal):
                 nFaceNeighbours = len(nodeToElem[iNode])
 
@@ -471,30 +478,30 @@ class pyHyp(object):
                 if nFaceNeighbours == 2:
                     print('Can\'t do geometries with nodes of valance 2!')
                     sys.exit(0)
-                    nPtr[iNode].append(nFaceNeighbours*2)
                 elif nFaceNeighbours == 3:
-                    nPtr[iNode].append(nFaceNeighbours*2)
+                    nPtr[iNode][0] = nFaceNeighbours*2
                 else:
-                    nPtr[iNode].append(nFaceNeighbours)
-                cPtr[iNode].append(nFaceNeighbours)
+                    nPtr[iNode][0] = nFaceNeighbours
+                cPtr[iNode][0] = nFaceNeighbours
                 
                 # Get the face where this node is node 0
                 firstID  = nodeToElem[iNode][0][0]
                 nodeID  = numpy.mod(nodeToElem[iNode][0][1]+1, 4)
                 nextElemID = None
-
+                iii = 1; jjj = 1;
                 while nextElemID != firstID:
                     if nextElemID is None:
                         nextElemID = firstID
 
                     # Append the next node along that edge:
                     nodeToAdd = conn[nextElemID][numpy.mod(nodeID, 4)]
-                    nPtr[iNode].append(nodeToAdd)
-                    cPtr[iNode].append(nextElemID)
+                    nPtr[iNode][iii] = nodeToAdd; iii += 1
+                    cPtr[iNode][jjj] = nextElemID; jjj += 1
                     # Add the diagonal if not regular node
                     if nFaceNeighbours == 3:
-                        nPtr[iNode].append(conn[nextElemID][
-                            numpy.mod(nodeID+1, 4)])
+                        nPtr[iNode][iii] = (
+                            conn[nextElemID][numpy.mod(nodeID+1, 4)])
+                        iii += 1
 
                     # And we need to find the face that contains the
                     # following node:
@@ -519,80 +526,17 @@ class pyHyp(object):
                     # end while
                 # end if
             # end for
-
-            # Figure out how big we need to make the array for fortran:
-            lMax = 0
-            for i in xrange(len(nPtr)):
-                lMax = max(lMax, len(nPtr[i]))
-
-            tmp = numpy.zeros((len(nPtr), lMax), 'intc')
-            for i in xrange(len(nPtr)):
-                l = len(nPtr[i])
-                tmp[i, 0] = nPtr[i][0]
-                tmp[i, 1:l] = numpy.array(nPtr[i][1:]) 
-            nPtr = tmp
-                           
-            # Generate the dual panel mesh for the ellipic method:
-            dualPanels = [[] for i in range(nGlobal)]
-            for i in range(nGlobal):
-                for j in range(cPtr[i][0]):
-                    iPanel = cPtr[i][j+1]
-                    # Now get the center of this panel:
-                    xCen = numpy.zeros(3)
-                    for ii in range(4):
-                        xCen += nodes[conn[iPanel][ii]]
-                    dualPanels[i].append(xCen/4)
-            
-            # Now compute the centers of DUAL panels
-            dualCenters = numpy.zeros((nGlobal, 3))
-            xCen = numpy.zeros(3)
-            for i in range(nGlobal):
-                xCen[:] = 0.0
-                nn = cPtr[i][0]
-                for j in range(cPtr[i][0]):
-                    dualCenters[i] += dualPanels[i][j]/nn
-        
-            # Now compute the normals of the dual panels:
-            normals = numpy.zeros((nGlobal, 3))
-            areas = numpy.zeros(nGlobal)
-
-            for i in range(nGlobal):
-                if cPtr[i][0] == 3:
-                    v1 = dualPanels[i][1] - dualPanels[i][0]
-                    v2 = dualPanels[i][2] - dualPanels[i][0]
-                    A = 0.5*numpy.linalg.norm(numpy.cross(v1, v2))
-                elif cPtr[i][0] == 4:
-                    v1 = dualPanels[i][2] - dualPanels[i][0]
-                    v2 = dualPanels[i][3] - dualPanels[i][1]
-                    A = numpy.linalg.norm(numpy.cross(v1, v2))
-
-                n = numpy.cross(v1, v2)
-                n /= numpy.linalg.norm(n)
-                normals[i] = n
-                areas[i] = A
-                # Now "Correct" the dual panels such that they lie
-                # "eps" BELOW the actual nodes, along the normal
-                eps = self.options['panelEps']
-                r = nodes[i] - dualCenters[i] # Displacement vector
-                for ii in range(cPtr[i][0]):
-                    dualPanels[i][ii] += r - eps*n
-            dualPanels = None
-            normals = None
-            areas = None
         else:
             nPtr = None
+            cPtr = None
             conn = None
             nodes = None
-            dualPanels = None
-            normals = None
-            areas = None
             sizes = None
             l_index = None
             
         # Broadcast the result to everyone:
-        (sizes, l_index, nPtr, conn, self.X, dualPanels, normals, areas) = (
-            self.comm.bcast((sizes, l_index, nPtr, numpy.array(conn), nodes, 
-                             dualPanels, normals, areas)))
+        (sizes, l_index, nPtr, cPtr, conn, self.X) = (
+            self.comm.bcast((sizes, l_index, nPtr, cPtr, numpy.array(conn), nodes)))
         nGlobal = len(nPtr)
         nSurf = len(sizes)
         # Conn needs to be saved for potential calling of writeFEMesh
@@ -607,7 +551,7 @@ class pyHyp(object):
         isize = iend - istart
         
         # Partition here:
-        self.X = self.X[istart:iend]
+        X = self.X[istart:iend]
         nPtr = nPtr[istart:iend]
 
         # Now get the ghost information we need:
@@ -624,17 +568,21 @@ class pyHyp(object):
                     lnPtr[i, j+1] -= istart
       
         # Now nPtr is the indexing in the global ording. lnPtr uses
-        # the local ghosted form.  Convert both to fortran.
+        # the local ghosted form.  Convert Indexing to fortran
         nPtr[:, 1:] += 1
         lnPtr[:, 1:] += 1
+        cPtr[:, 1:] += 1
 
         # Now we have all the data we need so we can go ahead and
         # initialze the 3D generation
-        self.hyp.hypdata.nx = len(self.X)
+        self.hyp.hypdata.nx = len(X)
         self.hyp.hypdata.nxglobal = nGlobal
-        self.hyp.hypdata.xsurf = self.X.T
+        self.hyp.hypdata.xsurf = X.T
         self.hyp.hypdata.gnptr = nPtr.T
         self.hyp.hypdata.lnptr = lnPtr.T
+        self.hyp.hypdata.cptr = cPtr.T
+        self.hyp.hypdata.conn = self.conn.T
+        self.hyp.hypdata.xsurfglobal = self.X.T
         if len(ghost) > 0:
             self.hyp.hypdata.ghost = ghost
         self.hyp.hypdata.nghost = len(ghost)
@@ -643,10 +591,9 @@ class pyHyp(object):
         for i in xrange(nSurf):
             self.hyp.setlindex(l_index[i], i+1) # +1 for 0->1 ordering
 
-        # # Now set the panel data individually...a little slow we know
-        # for i in range(nGlobal):
-        #     self.hyp.setpaneldata(i+1, numpy.array(dualPanels[i]).T,
-        #                           normals[i], areas[i])
+        # Setup panels for elliptic method:
+        #self.hyp.setuppanels()
+      
 
     def run(self):
         """
@@ -932,49 +879,4 @@ class pyHyp(object):
         else:
             values = numpy.fromfile(handle, dtype='float', count=N, sep=sep)
         return values
-
-    def _determineMGLevels(self, sizes):
-        """Determine the maximum number of 'multi grid' levels
-        possible for the given set of sizes. We print some warnings if
-        we can't do *any* MG based on the size
-
-        Parameters
-        ----------
-        sizes : list
-            List of lists. Each entry contains the u-v size of the patch. This is the
-            NODAL size. 
-
-        Returns
-        -------
-        levelMax : int
-            The maximum number of multigrid levels we can do
-        """
-
-        # First get the total size for reference
-        nPt = 0
-        for size in sizes:
-            nPt += size[0]*size[1]
-
-        levelMax = 1000 # Arbitrary large number 
-        tmp = copy.deepcopy(sizes) # Copy since we will overwrite
-                                   # sizes
-        for size in tmp:
-            for j in range(levelMax):
-                if not numpy.mod(size[0]-1, 2) == 0:
-                    levelMax = j + 1
-                    break
-                if not numpy.mod(size[1]-1, 2) == 0:
-                    levelMax = j + 1
-                    break
-                size[0] = (size[0]-1)/2 + 1
-                size[1] = (size[1]-1)/2 + 1
-
-        if nPt > 2000 and levelMax == 1:
-            print("Warning: There are more than 2000 panels but the "
-                  "node counts do not permit multigrid. This will "
-                  "substantially slow down elliptic generation. "
-                  "Regridding with a multigrid friendly number of "
-                  "nodes is *highly* recommended")
-
-        return levelMax
 
