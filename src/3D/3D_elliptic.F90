@@ -164,7 +164,7 @@ subroutine panelInfluence(i, pt, phi, V)
   V(:) = zero
 
   ! Poiner to panel to make code easier to read
-  p => panels(i)
+  p => MGP(1)%panels(i)
 
   ! vector from the panel center to the point of interest:
   d = pt - p%center

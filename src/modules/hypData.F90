@@ -51,6 +51,8 @@ module hypData
   ! ordering for assembly. 
   integer(kind=intType), dimension(:, :), allocatable :: gnPtr
   integer(kind=intType), dimension(:, :), allocatable :: lnPtr
+  integer(kind=intType), dimension(:, :), allocatable :: cPtr
+  integer(kind=intType), dimension(:, :), allocatable :: conn
  
   ! The (local) initial surface nodes 
   real(kind=realType), dimension(:, :), allocatable :: xSurf
@@ -62,6 +64,9 @@ module hypData
   ! The "nodal volume" of each local node
   Vec Volume, VolumeLocal
   real(kind=realType), dimension(:), pointer :: Vptr
+
+  ! The global set of nodes that all procs have:
+  real(kind=realType), dimension(:,:), allocatable :: XsurfGlobal
 
   ! ---------------------------------------
   !    Marching Iteration/Monitoring Data

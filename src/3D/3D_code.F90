@@ -670,7 +670,7 @@ subroutine calcResidual
         call EChk(ierr, __FILE__, __LINE__)
 
         ! We also need to set the RHS
-        call VecSetValuesBlocked(hypRHS, 1, ii-1, &
+        call VecSetValuesBlocked(hypRHS, 1, (/ii-1/), &
              matmul(Pinv,(/zero, zero, vPtr(i)/)) + De, ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         
@@ -731,31 +731,31 @@ subroutine calcResidual
         call EChk(ierr, __FILE__, __LINE__) 
         
         ! We also need to set the RHS
-        call VecSetValuesBlocked(hypRHS, 1, ii-1, &
+        call VecSetValuesBlocked(hypRHS, 1, (/ii-1/), &
              matmul(Pinv,(/zero, zero, vPtr(i)/)) + De, ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
      end if
 
      if (writeMetrics .and. metricsAllocated) then
-        call VecSetValuesBlocked(metrics(marchIter-1, iX_ksi), 1, ii-1, r_ksi, INSERT_VALUES, ierr)
+        call VecSetValuesBlocked(metrics(marchIter-1, iX_ksi), 1, (/ii-1/), r_ksi, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecSetValuesBlocked(metrics(marchIter-1, iX_eta), 1, ii-1, r_eta, INSERT_VALUES, ierr)
+        call VecSetValuesBlocked(metrics(marchIter-1, iX_eta), 1, (/ii-1/), r_eta, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecSetValuesBlocked(metrics(marchIter-1, iX_zeta), 1, ii-1, r_zeta, INSERT_VALUES, ierr)
+        call VecSetValuesBlocked(metrics(marchIter-1, iX_zeta), 1, (/ii-1/), r_zeta, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecSetValuesBlocked(metrics(marchIter-1, iX_ksi_ksi), 1, ii-1, r_ksi_ksi, INSERT_VALUES, ierr)
+        call VecSetValuesBlocked(metrics(marchIter-1, iX_ksi_ksi), 1, (/ii-1/), r_ksi_ksi, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecSetValuesBlocked(metrics(marchIter-1, iX_eta_eta), 1, ii-1, r_eta_eta, INSERT_VALUES, ierr)
+        call VecSetValuesBlocked(metrics(marchIter-1, iX_eta_eta), 1, (/ii-1/), r_eta_eta, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecSetValuesBlocked(metrics(marchIter-1, iX_diss), 1, ii-1, De, INSERT_VALUES, ierr)
+        call VecSetValuesBlocked(metrics(marchIter-1, iX_diss), 1, (/ii-1/), De, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecSetValuesBlocked(metrics(marchIter-1, iVHist), 1, ii-1, (/zero,zero, vPtr(i)/), INSERT_VALUES, ierr)
+        call VecSetValuesBlocked(metrics(marchIter-1, iVHist), 1, (/ii-1/), (/zero,zero, vPtr(i)/), INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
      end if
   end do ! NODE LOOP
