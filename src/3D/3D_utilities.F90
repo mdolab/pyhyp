@@ -937,9 +937,8 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
   integer(kind=intType), allocatable, dimension(:) :: ind
   integer(kind=intType) :: i, j, nTmp, link_counter, ii
   logical cont, cont2
-  integer(kind=intType), parameter :: dupMax = 50
-  integer(kind=intType) :: tmpInd(dupMax), subLink(dupMax), nSubUnique
-  real(kind=realType) :: subPts(3, dupMax), subUniquePts(3, dupMax)
+  integer(kind=intType) :: tmpInd(N), subLink(N), nSubUnique
+  real(kind=realType) :: subPts(3, N), subUniquePts(3, N)
   interface
      subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
        use precision
@@ -982,10 +981,6 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
      do while(cont2)
         if (abs(dists(ind(i))-dists(ind(j))) < tol) then
            nTmp = nTmp + 1
-           if (nTmp > dupMax) then
-              ! Need to make dupMax larger!
-              call ECHK(-99, __FILE__, __LINE__)
-           end if
 
            tmpInd(nTmp) = ind(j)
            j = j + 1
