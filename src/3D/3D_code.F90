@@ -19,7 +19,7 @@ subroutine run3D(Xin, nNodes)
   use hypInput
 
   implicit none
-
+#include "include/petscversion.h"
   ! Input Parameters
   real(kind=realType), intent(in) :: Xin(3, nNodes)
   integer(kind=intType), intent(in) :: nNodes
@@ -337,9 +337,11 @@ subroutine initialGuess(Xnew)
      
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual(.True., .False., saveMetrics)
-     
-     call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-     call EChk(ierr, __FILE__, __LINE__)
+#if PETSC_VERSION_MINOR > 4
+  call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
+#else
+  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+#endif
      
      ! Now solve the system
      call KSPSolve(hypKSP, hypRHS, hypDelta, ierr)
@@ -1023,8 +1025,11 @@ subroutine create3DPetscVars
 
   call KSPGMRESSetRestart(hypKSP, kspSubspacesize, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-
+#if PETSC_VERSION_MINOR > 4
+  call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
+#else
   call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+#endif
   call EChk(ierr, __FILE__, __LINE__)
 
   call KSPSetTolerances(hypKSP, kspRelTol, 1e-16, 1e5, kspMaxIts, ierr)
