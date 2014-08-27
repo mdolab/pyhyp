@@ -20,7 +20,17 @@ module hypData
 
      ! l_index: Pointer of each node on the patch into the X array
      integer(kind=intType), dimension(:, :), allocatable :: l_index
+
+     ! X: Coordinates of the patch
+     real(kind=realType), dimension(:, :, :), allocatable :: X
+
+     ! symNodes : list of indices that symmetry nodes and must be
+     ! zeroed as such when writing the mesh
+     integer(kind=intType) :: nSym
+     integer(kind=intType), dimension(:, :), allocatable :: symNodes
+     
   end type patchType
+
   integer(kind=intType) :: nPatch
   type(patchType), dimension(:), allocatable :: patches
 
@@ -30,6 +40,9 @@ module hypData
 
   ! The gloabl (total) number of nodes
   integer(kind=intType) :: nXGlobal
+
+  ! The gloabl (total) number of panels
+  integer(kind=intType) :: faceTotal, nPGlobal
 
   ! The local number of nodes
   integer(kind=intType) :: nX 
@@ -52,8 +65,9 @@ module hypData
   integer(kind=intType), dimension(:, :), allocatable :: gnPtr
   integer(kind=intType), dimension(:, :), allocatable :: lnPtr
   integer(kind=intType), dimension(:, :), allocatable :: cPtr
-  integer(kind=intType), dimension(:, :), allocatable :: conn
- 
+  integer(kind=intType), dimension(:, :), allocatable :: conn, fullConn
+  integer(kind=intTYpe) :: nLocalFace
+
   ! The (local) initial surface nodes 
   real(kind=realType), dimension(:, :), allocatable :: xSurf
 
@@ -93,6 +107,13 @@ module hypData
   Vec hypDelta, hypRHS, hypRes
   KSP hypKSP
   VecScatter rootScatter
+
+  Mat ellipMat, ellipPCMat
+  Vec ellipRHS, ellipSol, localSol
+  KSP ellipKSP
+  PC pc
+  VecScatter ellipScatter
+
   ! ------------------------------------------------------
   !         Variables for Storing Metrics (for debugging)
   ! ------------------------------------------------------
@@ -106,4 +127,10 @@ module hypData
   integer(kind=intType), parameter :: iVhist = 7
   integer(kind=intType), parameter :: nMetric = 7
   logical :: metricsAllocated = .False.
+
+  integer(kind=intType), parameter :: nomirror = 0
+  integer(kind=intType), parameter :: xmirror = 1
+  integer(kind=intType), parameter :: ymirror = 2
+  integer(kind=intType), parameter :: zmirror = 3
+
 end module hypData

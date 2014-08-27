@@ -1,236 +1,3 @@
-subroutine init3d(sizes, nn)
-  !***DESCRIPTION
-  !
-  !     Written by Gaetan Kenway
-  !
-  !     Abstract: init3d performs initialization task for the 3D
-  !     code. This function is called from Python.
-  !    
-  !     Parameters
-  !     ----------
-  !     sizes : integer array size(nn, 2)
-  !         Sizes of each of the patches
-  !     nn : integer
-  !         The number of patches
-
-  use hypInput
-  use hypData
-  use panel
-  implicit none
-
-  ! Input Parameters
-  integer(kind=intType), intent(in) :: sizes(nn, 2), nn
-
-  ! Working Parameters
-  integer(kind=intType) :: i
- 
-  ! Set the number of patches:
-  nPatch = nn
-
-  ! Allocate patch list of patch types
-  if (.not. allocated(patches)) then
-     allocate(patches(nPatch))
-  end if
-
-  ! Set sizes
-  do i=1,nPatch
-     patches(i)%il = sizes(i, 1)
-     patches(i)%jl = sizes(i, 2)
-  end do
-
-end subroutine init3d
-
-subroutine setupPanels
-  !***DESCRIPTION
-  !
-  !     Written by Gaetan Kenway
-  !
-  !     Abstract: setupPanels generates all the required data
-  !     structures for doing the fast multipole method. This
-  !     subroutine should only need to be called once from python.
-  !  
-  !  Parameters
-  !  ----------
-
-  !  None. This routine uses the global surface in XSurfGlobal as well
-  !  as the patch information and connectivity information, all of
-  !  which is set from python.
-
-  use hypInput
-  use hypData
-  use panel
-  implicit none
-  
-  ! Working 
-  integer(kind=intType) :: levelMax, iPatch, sizes(2), i, j, ii, jj, iPanel, nn
-  real(kind=realType), dimension(3) :: xCen, r , v1, v2, v3
-  real(kind=realType) :: lenV3
-
-
-  ! Before we can do anything we must determine the number of
-  ! multigrid levels we will be using. This is required to allocate
-  ! the MGP with the correct number of levels.
-
-  levelMax = 1000 ! Arbitrary large number 
-  do iPatch=1, nPatch
-     sizes(1) = patches(iPatch)%il
-     sizes(2) = patches(iPatch)%jl
-     levelLoop: do j=1,levelMax
-        if (.not. mod(sizes(1)-1, 2) == 0) then
-           levelMax = j 
-           exit levelLoop
-        end if
-        if (.not. mod(sizes(2)-1,2) == 0) then
-           levelMax = j
-           exit levelLoop
-        end if
-        sizes(1) = (sizes(1)-1)/2 + 1
-        sizes(2) = (sizes(2)-1)/2 + 1
-     end do levelLoop
-  end do
-
-  ! Now we can allocate MGP
-  allocate(MGP(levelMax))
-
-  ! Now we proceed to fill up the "fine" level, ie. level 1
-  allocate(MGP(1)%panels(nXGlobal))
-  MGP(1)%N = nXGlobal
-
-  ! Generate the dual panel mesh for the ellipic method:
-  do i=1,nXGlobal
-
-     ! "The number of nodes on a panel mesh (dual mesh) is equal to
-     ! the number CELLS surrounding a node on the primal mesh. 
-     MGP(1)%panels(i)%N = cPtr(1, i)
-
-     ! Now loop over the cells surronding the node, compute their
-     ! centers. This forms the nodes for the dual mesh (panel mesh)
-     do j=1,cPtr(1, i)
-        iPanel = cPtr(j+1, i)
-        ! Now get the center of this panel:
-        do ii=1,4
-           xCen = xCen + xSurfGlobal(:, conn(ii, iPanel))
-        end do
-        
-        MGP(1)%panels(i)%X(:, j) = fourth*xCen
-     end do
-
-     ! Compute panel center --- this will be close to but not the same
-     ! as the node on the primal mesh.
-     MGP(1)%panels(i)%center = zero
-     NN = MGP(1)%panels(i)%N
-     do j=1, NN
-        MGP(1)%panels(i)%center = MGP(1)%panels(i)%center + MGP(1)%panels(i)%X(:, j) / NN
-     end do
-
-     ! Now compute the (average) normal as well as the area:
-     MGP(1)%panels(i)%area = zero
-     MGP(1)%panels(1)%normal = zero
-
-     do j=1, NN
-        ii = j
-        jj = mod(j+1, NN) + 1
-
-        v1 = MGP(1)%panels(i)%X(:, ii) - MGP(1)%panels(i)%center
-        v2 = MGP(1)%panels(i)%X(:, jj) - MGP(1)%panels(i)%center
-        
-        ! v3 = v1 x v2
-        v3(1) = v1(2) * v2(3) - v1(3) * v2(2)
-        v3(2) = v1(3) * v2(1) - v1(1) * v2(3)
-        v3(3) = v1(1) * v2(2) - v1(2) * v2(1)
-        
-        ! Sum this much of the area
-        lenv3 = sqrt(v3(1)**2 + v3(2)**2 + v3(3)**2)
-        v3 = v3 / lenv3
-        MGP(1)%panels(i)%area = MGP(1)%panels(i)% area + half*lenV3 / NN
-        MGP(1)%panels(i)%normal = MGP(1)%panels(i)%normal + v3 / NN
-     end do
-
-     ! Now "Correct" the dual panels such that they lie
-     ! "eps" BELOW the actual nodes, along the normal
-     r = XSurfGlobal(:, i) - MGP(1)%panels(i)%center
-     eps = 1e-8
-     do j=1,NN
-        MGP(1)%panels(i)%X(:, j) = MGP(1)%panels(i)%X(:, j) + r - eps*MGP(1)%panels(i)%normal
-     end do
-
-     ! Compute the transformation matrics
-     if (MGP(1)%panels(i)%N == 4) then
-        ! Following Hess, take the xaxis to be from p1 to p3 (for quads)
-        v1 = MGP(1)%panels(i)%X(:, 3) - MGP(1)%panels(i)%X(:, 1)
-     else
-        v1 = MGP(1)%panels(i)%X(:, 2) - MGP(1)%panels(i)%X(:, 1)
-     end if
-
-     ! Normalize the first direction
-     v1 = v1 / sqrt(v1(1)**2 + v1(2)**2 + v1(3)**2)
- 
-     ! Panel normal
-     v3 = MGP(1)%panels(i)%normal
-
-     ! And we can get the (normalized) axis2 by doing one more cross
-     ! product: axis2 = axis3 x axis 1
-     v2(1) = v3(2) * v1(3) - v3(3) * v1(2)
-     v2(2) = v3(3) * v1(1) - v3(1) * v1(3)
-     v2(3) = v3(1) * v1(2) - v3(2) * v1(1)
-
-     ! Finally finish our transformation matrix:
-     MGP(1)%panels(i)%C(1, :) = v1
-     MGP(1)%panels(i)%C(2, :) = v2
-     MGP(1)%panels(i)%C(3, :) = v3
-
-     ! And the tranpose
-     MGP(1)%panels(i)%CT = transpose(MGP(1)%panels(i)%C)
-
-     ! Zero out the source strength
-     MGP(1)%panels(i)%strength = zero
-  end do
-end subroutine setupPanels
-
-subroutine setLindex(ind_in, nnx, nny, iPatch)
-  !***DESCRIPTION
-  !
-  !     Written by Gaetan Kenway
-  !
-  !     Abstract: sets the local index data for each patch from python.
-  !    
-  !     Parameters
-  !     ----------
-  !     ind_in : integer array size(nnx, nny) 
-  !         Indices to set for this patch
-  !     nnx : integer
-  !         First dimension of patch indices
-  !     nny : integer
-  !         Second dimension of the patch
-  !     iPatch : integer
-  !         Index of the patch to set. 1 based numbering
-  use hypInput
-  use hypData
-
-  implicit none
-
-  ! Input Parameters
-  integer(kind=intType), intent(in) :: ind_in(nnx, nny), nnx, nny, iPatch
-
-  ! Working Parameters
-  integer(kind=intType) :: i, j
-
-  ! Set the ind_in into the proper patch l_index. Note we will convert
-  ! to fortran ordering here by adding a 1
-
-  if (.not. allocated(patches(iPatch)%l_index)) then
-     allocate(patches(iPatch)%l_index( &
-          patches(iPatch)%il, patches(iPatch)%jl))
-  end if
-
-  do j=1, nny
-     do i=1, nnx
-        patches(iPatch)%l_index(i, j) = ind_in(i, j) + 1
-     end do
-  end do
-
-end subroutine setlindex
-
 subroutine computeStretch(L)
   !***DESCRIPTION
   !
@@ -273,7 +40,6 @@ subroutine computeStretch(L)
   end if
 
 end subroutine computeStretch
-
 
 subroutine calcGridRatio(N, s0, S, ratio)
   !***DESCRIPTION
@@ -620,55 +386,60 @@ subroutine computeQualityLayer
   ! Working
   integer(kind=intType) :: i, j, iPatch, ierr
   real(kind=realType) :: points(3,8), Q
-
+  real(Kind=realType) :: minQuality_local
   ! Since we are dealing with volumes, we need to loop over faces:
-  minQuality = one
+  minQuality_local = one
 
-  call VecScatterBegin(rootScatter, X(marchIter), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-  call VecScatterEnd(rootScatter, X(marchIter), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
+  call VecGhostUpdateBegin(X(marchIter), INSERT_VALUES, SCATTER_FORWARD, ierr)
+  call VecGhostUpdateEnd(X(marchIter), INSERT_VALUES,SCATTER_FORWARD, ierr)
 
-  call VecScatterBegin(rootScatter, X(marchIter-1), XLocalm1, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-  call VecScatterEnd(rootScatter, X(marchIter-1), XLocalm1, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
+  call VecGhostGetLocalForm(X(marchIter), XL_local, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
 
-  if (myid == 0) then
-     call VecGetArrayF90(Xlocal, xx, ierr)
-     call EChk(ierr, __FILE__, __LINE__)
+  call VecGhostGetLocalForm(X(marchIter-1), XLm1_local, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
 
-     call VecGetArrayF90(XLocalm1, xxm1, ierr)
-     call EChk(ierr, __FILE__, __LINE__)
+  call VecGetArrayF90(XL_local, xx, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call VecGetArrayF90(XLm1_local, xxm1, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  do i=1,nLocalFace
   
-     do iPatch=1, nPatch
-        do j=1,patches(iPatch)%jl-1
-           do i=1,patches(iPatch)%il-1
-              ! Assemble the 8 points we need for the volume - Note
-              ! coodinate coordinate ordering!
-              points(:,1) = xxm1(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
-              points(:,2) = xxm1(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
-              points(:,3) = xxm1(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
-              points(:,4) = xxm1(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
-              
-              points(:,5) = xx(3*patches(iPatch)%l_index(i  ,j  )-2:3*patches(iPatch)%l_index(i  ,j  ))
-              points(:,6) = xx(3*patches(iPatch)%l_index(i+1,j  )-2:3*patches(iPatch)%l_index(i+1,j  ))
-              points(:,7) = xx(3*patches(iPatch)%l_index(i  ,j+1)-2:3*patches(iPatch)%l_index(i  ,j+1))
-              points(:,8) = xx(3*patches(iPatch)%l_index(i+1,j+1)-2:3*patches(iPatch)%l_index(i+1,j+1))
-              
-              call quality_hexa(points, Q)
-              minQuality = min(minQuality, Q)
-              
-           end do
-        end do
-     end do
+     ! Assemble the 8 points we need for the volume - Note
+     ! coodinate coordinate ordering!
+     points(:,1) = xxm1(3*conn(1, i)-2: 3*conn(1, i))
+     points(:,2) = xxm1(3*conn(2, i)-2: 3*conn(2, i))
+     points(:,3) = xxm1(3*conn(4, i)-2: 3*conn(4, i))
+     points(:,4) = xxm1(3*conn(3, i)-2: 3*conn(3, i))
 
-     call VecRestoreArrayF90(Xlocal, xx, ierr)
-     call EChk(ierr, __FILE__, __LINE__)
-     
-     call VecRestoreArrayF90(Xlocalm1, xxm1, ierr)
-     call EChk(ierr, __FILE__, __LINE__)
-  end if
+     points(:,5) = xx(3*conn(1, i)-2: 3*conn(1, i))
+     points(:,6) = xx(3*conn(2, i)-2: 3*conn(2, i))
+     points(:,7) = xx(3*conn(4, i)-2: 3*conn(4, i))
+     points(:,8) = xx(3*conn(3, i)-2: 3*conn(3, i))
+                   
+     call quality_hexa(points, Q)
+     minQuality_local = min(minQuality_local, Q)
+              
+  end do
+
+  call VecRestoreArrayF90(XL_local, xx, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call VecRestoreArrayF90(XLm1_local, xx, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call VecGhostRestoreLocalForm(X(marchIter), XL_local, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call VecGhostRestoreLocalForm(X(marchIter-1), XLm1_local, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  ! Need to reduce the min value to the root proc
+  call mpi_Reduce(minQuality_local, minQuality, 1, MPI_DOUBLE, MPI_MIN, 0, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
 end subroutine computeQualityLayer
 
 subroutine quality_hexa(points, quality)
@@ -698,150 +469,66 @@ subroutine quality_hexa(points, quality)
   ! Working
   integer(kind=intType), parameter :: Ng=2
   real(kind=realType) :: det(Ng*Ng*Ng)
-  integer(kind=intType):: i, k, l, m
+  integer(kind=intType):: i, j, k, l, m, nn, counter
   real(kind=realType) :: r, s, t
   real(kind=realType) :: largest, d_max, corners(Ng)
-  real(kind=realType) :: XX(3), XXd(9), N(8), Na(8), Nb(8), Nc(8), Ua(9)
+  real(kind=realType) ::  Xd(9), N(8), Na(8), Nb(8), Nc(8), Ua(9)
   real(kind=realType) :: JJac(9), h, pt(3)
+  real(kind=realType) :: shp(2, 2), dshp(2, 2)
   ! Relative Determinant: the ratio of the smallest determinat of the
   ! jacobian matrix divided by the largest determinate of the jacobian
   ! matrix using a 3x3x3 stecil
 
   corners(1) = -1
   corners(2) = 1
+  call lagrangeSF(shp(:, 1), dshp(:, 1), corners(1), 2)
+  call lagrangeSF(shp(:, 2), dshp(:, 2), corners(2), 2)
 
   ! 2x2x2 Stencil
-  do k=1, Ng ! Gauss in r
-     do l=1, Ng ! Gauss in s
-        do m=1, Ng ! Gauss in t
-           pt(1) = corners(k)
-           pt(2) = corners(l)
-           pt(3) = corners(m)
+  do nn=1, Ng ! Gauss in r
+     do m=1, Ng ! Gauss in s
+        do l=1, Ng ! Gauss in t
 
-           ! Calculate the Jacobian and shape functions
-           call SolidJacobian(XX, XXd, N, Na, Nb, Nc, pt, points)
-           call jacobian3d(XXd, JJac, h)
+          Xd = zero
+           do k=1, 2
+              do j=1, 2
+                 do i=1, 2
+                    counter = (k-1)*4 + (j-1)*2 + i
+                    Na(counter) = dshp(i, l)*shp(j, m)*shp(k, nn)
+                    Xd(1) = Xd(1) + points(1, counter)*Na(counter)
+                    Xd(2) = Xd(2) + points(2, counter)*Na(counter)
+                    Xd(3) = Xd(3) + points(3, counter)*Na(counter)
+                    
+                    Nb(counter) = shp(i, l)*dshp(j, m)*shp(k, nn)
+                    Xd(4) = Xd(4) + points(1, counter)*Nb(counter)
+                    Xd(5) = Xd(5) + points(2, counter)*Nb(counter)
+                    Xd(6) = Xd(6) + points(3, counter)*Nb(counter)
+                    
+                    Nc(counter) = shp(i, l)*shp(j, m)*dshp(k, nn)
+                    Xd(7) = Xd(7) + points(1, counter)*Nc(counter)
+                    Xd(8) = Xd(8) + points(2, counter)*Nc(counter)
+                    Xd(9) = Xd(9) + points(3, counter)*Nc(counter)
+                    
+                 end do
+              end do
+           end do
 
-           det((k-1)*Ng*Ng + (l-1)*Ng + m) = h
+           h = (Xd(9)*(Xd(1)*Xd(5) - Xd(4)*Xd(2)) &
+                - Xd(8)*(Xd(1)*Xd(6) - Xd(4)*Xd(3)) &
+                + Xd(7)*(Xd(2)*Xd(6) - Xd(3)*Xd(5)))
 
+           det((nn-1)*Ng*Ng + (m-1)*Ng + l) = h
         end do
      end do
   end do
 
   ! We don't use maxval since we can't cs it
-  !largest = maxval(abs(det))
-
-  largest = abs(det(1))
-  do i=1, Ng*Ng*Ng
-     if (abs(det(i)) > largest) then
-        largest = abs(det(i))
-     end if
-  end do
-
-  d_max = abs(largest-det(1))
-  do i=1, Ng*Ng*Ng
-     if (abs(largest-det(i)) > d_max) then
-        d_max = abs(largest-det(i))
-     end if
-  end do
+  largest = maxval(abs(det))
+  d_max = maxval(largest - det)
 
   quality = 1-d_max/largest
 
 end subroutine quality_hexa
-
-subroutine SolidJacobian(X, Xd, N, Na, Nb, Nc, pt, Xpts)
-
-  use precision
-  implicit none
-
-  ! Arguments:
-  ! X: Point evaluated at parametric location 'pt'
-  ! Xd: Derivative evaluated at parametric location 'pt'
-  ! N : Shape function at 'pt'
-  ! Na: 'r' shape function derivative at 'pt'
-  ! Nb: 's' shape function derivative at 'pt'
-  ! Nc: 't' shape function derivative at 'pt'
-  ! pt: Parametric location to evalulate
-  ! Xps: The list of corners defining the element
-
-  ! Input/Output
-  real(kind=realType), intent(out) :: X(3), Xd(9)
-  real(kind=realType), intent(out) :: N(8), Na(8), Nb(8), Nc(8)
-  real(kind=realType), intent(in) :: pt(3), Xpts(3, 8)
-
-  ! Local
-  integer(kind=intType) :: i, j, k, counter
-  real(kind=realType) :: nna(2), nnb(2), nnc(2), dna(2), dnb(2), dnc(2)
-
-  X = zero
-  Xd = zero
-
-  call lagrangeSF(nna, dna, pt(1), 2)
-  call lagrangeSF(nnb, dnb, pt(2), 2)
-  call lagrangeSF(nnc, dnc, pt(3), 2)
-
-  do k=1, 2
-     do j=1, 2
-        do i=1, 2
-           counter = (k-1)*4 + (j-1)*2 + i
-
-           N(counter) = nna(i)*nnb(j)*nnc(k)
-           X(1) = X(1) + Xpts(1, counter)*N(counter)
-           X(2) = X(2) + Xpts(2, counter)*N(counter)
-           X(3) = X(3) + Xpts(3, counter)*N(counter)
-
-           Na(counter) = dna(i)*nnb(j)*nnc(k)
-           Xd(1) = Xd(1) + Xpts(1, counter)*Na(counter)
-           Xd(2) = Xd(2) + Xpts(2, counter)*Na(counter)
-           Xd(3) = Xd(3) + Xpts(3, counter)*Na(counter)
-
-           Nb(counter) = nna(i)*dnb(j)*nnc(k)
-           Xd(4) = Xd(4) + Xpts(1, counter)*Nb(counter)
-           Xd(5) = Xd(5) + Xpts(2, counter)*Nb(counter)
-           Xd(6) = Xd(6) + Xpts(3, counter)*Nb(counter)
-
-           Nc(counter) = nna(i)*nnb(j)*dnc(k)
-           Xd(7) = Xd(7) + Xpts(1, counter)*Nc(counter)
-           Xd(8) = Xd(8) + Xpts(2, counter)*Nc(counter)
-           Xd(9) = Xd(9) + Xpts(3, counter)*Nc(counter)
-
-        end do
-     end do
-  end do
-
-end subroutine SolidJacobian
-
-subroutine jacobian3d(Xd, Jinv, h)
-
-  use precision
-  implicit none
-
-  ! Input/Output
-  real(kind=realType), intent(in)  :: Xd(9)
-  real(kind=realType), intent(out) :: Jinv(9), h
-
-  ! Working
-  real(kind=realType) :: hinv
-
-  h = (Xd(9)*(Xd(1)*Xd(5) - Xd(4)*Xd(2)) &
-       - Xd(8)*(Xd(1)*Xd(6) - Xd(4)*Xd(3)) &
-       + Xd(7)*(Xd(2)*Xd(6) - Xd(3)*Xd(5)))
-
-  hinv = one/h 
-
-  Jinv(1) =   (Xd(5)*Xd(9) - Xd(6)*Xd(8))*hinv
-  Jinv(2) = - (Xd(2)*Xd(9) - Xd(3)*Xd(8))*hinv
-  Jinv(3) =   (Xd(2)*Xd(6) - Xd(3)*Xd(5))*hinv
-
-  Jinv(4) = - (Xd(4)*Xd(9) - Xd(6)*Xd(7))*hinv
-  Jinv(5) =   (Xd(1)*Xd(9) - Xd(3)*Xd(7))*hinv
-  Jinv(6) = - (Xd(1)*Xd(6) - Xd(3)*Xd(4))*hinv
-
-  Jinv(7) =   (Xd(4)*Xd(8) - Xd(5)*Xd(7))*hinv
-  Jinv(8) = - (Xd(1)*Xd(8) - Xd(2)*Xd(7))*hinv
-  Jinv(9) =   (Xd(1)*Xd(5) - Xd(2)*Xd(4))*hinv
-
-end subroutine jacobian3d
 
 subroutine lagrangeSF( sf, dsf, a, order)
 
@@ -901,70 +588,13 @@ function dist(p1, p2)
 
 end function dist
 
-subroutine pointReduceWrap(pts, N, tol, uniquePts, link, nUnique)
-  
-  ! Python wrapped version of pointReduce. See pointReduce for more
-  ! information. 
-
-  use precision
-  implicit none
-
-  ! Input Parameters
-  integer(kind=intType), intent(in) :: N
-  real(kind=realType), intent(in), dimension(3, N) :: pts
-  real(kind=realType), intent(in) :: tol
-
-  ! Output Parametres
-  real(kind=realType), intent(out), dimension(3, N) :: uniquePts
-  integer(kind=intType), intent(out), dimension(N) :: link
-  integer(kind=intType), intent(out) :: nUnique
-
-  interface 
-     subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
-       use precision
-       implicit none
-       real(kind=realType), dimension(:, :) :: pts
-       integer(kind=intType), intent(in) :: N
-       real(kind=realType), intent(in) :: tol
-       real(kind=realType), dimension(:, :) :: uniquePts
-       integer(kind=intType), dimension(:) :: link
-       integer(kind=intType) :: nUnique
-     end subroutine pointReduce
-  end interface
-
-  call pointReduce(pts, N, tol, uniquePts, link, nUnique)
-  
-end subroutine pointReduceWrap
 
 subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
-  !***DESCRIPTION
-  !
-  !     Written by Gaetan Kenway
-  !
-  !     Abstract: Given a list of N points (pts) in three space, with
-  !     possible duplicates, (to within tol) return a list of the
-  !     nUnqiue uniquePoints of points and a link array of length N,
-  !     that points into the unique list
 
-  !     Parameters
-  !     ----------
-  !     pts : real array size (3, N)
-  !         List of points with possible duplicates
-  !     N : integer
-  !         The number of points
-  !     tol : real
-  !         Spatial distance tolerance for nodes to be considered idential.
-  ! 
-  !     Returns
-  !     -------
-  !     uniquePts : real array (3, N)
-  !         List of unique points. Only the for nUnqiue entries are meaningful
-  !     link : integer array size(N)
-  !         This is pointer that is the same size as the original
-  !         list. The value at link(i) is the index of the same node
-  !         in the uniquePts array. 
-  !     nUnique : integer
-  !         The number of unique points
+  ! Given a list of N points (pts) in three space, with possible
+  ! duplicates, (to within tol) return a list of the nUnqiue
+  ! uniquePoints of points and a link array of length N, that points
+  ! into the unique list
 
   use precision 
   implicit none
@@ -984,13 +614,13 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
   integer(kind=intType), allocatable, dimension(:) :: ind
   integer(kind=intType) :: i, j, nTmp, link_counter, ii
   logical cont, cont2
-  integer(kind=intType), parameter :: dupMax = 50
-  integer(kind=intType) :: tmpInd(dupMax), subLink(dupMax), nSubUnique
-  real(kind=realType) :: subPts(3, dupMax), subUniquePts(3, dupMax)
+  integer(kind=intType) :: tmpInd(N), subLink(N), nSubUnique
+  real(kind=realType) :: subPts(3, N), subUniquePts(3, N)
   interface
      subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
        use precision
        implicit none
+
        real(kind=realType), dimension(:, :) :: pts
        integer(kind=intType), intent(in) :: N
        real(kind=realType), intent(in) :: tol
@@ -1006,6 +636,7 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 
   ! Compute distances of all points from the origin
   do i=1, N
+     !dists(i) = sqrt((pts(1,i)-pts(1,1))**2 + (pts(2,i)-pts(2,1))**2 + (pts(3, i)-pts(3,1))**2)
      dists(i) = sqrt(pts(1,i)**2 + pts(2,i)**2 + pts(3, i)**2)
      tmp(i) = dists(i)
      ind(i) = i
@@ -1027,10 +658,6 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
      do while(cont2)
         if (abs(dists(ind(i))-dists(ind(j))) < tol) then
            nTmp = nTmp + 1
-           if (nTmp > dupMax) then
-              ! Need to make dupMax larger!
-              call ECHK(-99, __FILE__, __LINE__)
-           end if
 
            tmpInd(nTmp) = ind(j)
            j = j + 1
@@ -1073,36 +700,11 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 end subroutine pointReduce
 
 subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
- !***DESCRIPTION
-  !
-  !     Written by Gaetan Kenway
-  !
-  !     Abstract: Given a list of N points (pts) in three space, with
-  !     possible duplicates, (to within tol) return a list of the
-  !     nUnqiue uniquePoints of points and a link array of length N,
-  !     that points into the unique list. This is the brute force
-  !     version that should only be called from the efficient
-  !     pointReduce version. 
-  !
-  !     Parameters
-  !     ----------
-  !     pts : real array size (3, N)
-  !         List of points with possible duplicates
-  !     N : integer
-  !         The number of points
-  !     tol : real
-  !         Spatial distance tolerance for nodes to be considered idential.
-  ! 
-  !     Returns
-  !     -------
-  !     uniquePts : real array (3, N)
-  !         List of unique points. Only the for nUnqiue entries are meaningful
-  !     link : integer array size(N)
-  !         This is pointer that is the same size as the original
-  !         list. The value at link(i) is the index of the same node
-  !         in the uniquePts array. 
-  !     nUnique : integer
-  !         The number of unique points
+
+  ! Given a list of N points (pts) in three space, with possible
+  ! duplicates, (to within tol) return a list of the nUnqiue
+  ! uniquePoints of points and a link array of length N, that points
+  ! into the unique list
 
   use precision 
   implicit none

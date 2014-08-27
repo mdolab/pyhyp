@@ -1,9 +1,9 @@
-subroutine writeCGNS_3D(fileName)
+subroutine writeCGNS(fileName)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
   !
-  !     Abstract: writeCGNS_3d write the current grid to a 3D CGNS
+  !     Abstract: writeCGNS write the current grid to a 3D CGNS
   !               file. It does not make any attempt to do grid
   !               connectivities or boundary conditions. Use
   !               cgns_utils from cgnsUtilities for that. 
@@ -194,7 +194,7 @@ subroutine writeCGNS_3D(fileName)
          end if
       end do
     end subroutine writeVar
-end subroutine writeCGNS_3D
+  end subroutine writeCGNS
 
 subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
 

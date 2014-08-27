@@ -1,4 +1,3 @@
-#!/usr/bin/python
 from __future__ import print_function
 from __future__ import division
 """
@@ -24,8 +23,9 @@ History
 # =============================================================================
 import sys
 import os
-import copy
 import numpy
+import tempfile
+import time
 from mpi4py import MPI
 from . import MExt
 
@@ -72,7 +72,6 @@ class pyHyp(object):
         debug : bool
             Flag used to specify if debugging. This only needs to be
             set to true when using a symbolic debugger. 
-           
             """
             
         # Default options for hyperbolic generation
@@ -84,7 +83,7 @@ class pyHyp(object):
             'dimension':'3d',
 
             # Input file
-            'inputFile':'default',
+            'inputFile':'default.fmt',
 
             # Type of extrusion: hyperbolic or elliptic
             'mode':'hyperbolic',
@@ -106,33 +105,33 @@ class pyHyp(object):
             'nodeTol':1e-8,
 
             # mirror: Possible mirroring of mesh. Use 'x', 'y', 'z'
-            # if grid needs to be mirrored. 
+            # if grid needs to be mirrored or None otherwise.
             'mirror':None,
 
             # panelEps: Distance source panels are "below" nodes. This
             # parameter usually doesn't need to be changed.
-            'panelEps':1e-8,
+            'panelEps':1e-6,
             
             # ------------------------------------------
             #   Pseudo Grid Parameters (Hyperbolic only)
             # ------------------------------------------
 
             # Maximum permissible ratio of marching direction length
-            # to smallest in-plane edge
+            # to smallest in-plane edge.
             'cMax':6.0, 
 
             #nonLinear: True/False. Use nonlinear scheme. Not
-            #currently working. Hyperbolic only
+            #currently working. 
             'nonLinear': False, 
 
             #slExp: Exponent for Sl calc. Don't change this value
-            #unless you know what you are doing! Hyperbolic only.
+            #unless you know what you are doing! 
             'slExp': .15, 
 
-            # Initial off-wall spacing. Hyperbolic only
+            # Initial off-wall spacing.
             'ps0':0.01, 
             
-            # Grid Spacing Ratio. 
+            # Pseudo grid Spacing Ratio.
             'pGridRatio':1.15, 
 
             # ----------------------------------------
@@ -177,7 +176,7 @@ class pyHyp(object):
             # ---------------------------
             #   Output Parameters
             # ---------------------------
-            # Debugging option to write grid metrics. 
+            # Debugging option to write grid metrics. Hyperbolic only
             'writeMetrics': False, 
             }
    
@@ -202,398 +201,32 @@ class pyHyp(object):
         # Setup the options
         self._checkOptions()
         self._setOptions()
+        self.gridGenerated = False
 
         # Initialize the problem based on dimension
         if self.options['dimension'] == '2d':
             self._init2d()
         else:
-            self._init3d()
-
-        self.gridGenerated = False
-        self.symNodes = None
+            self._init3d2()
+            
         if self.comm.rank == 0:
             print('Problem successfully setup!')
 
-    def _init2d(self, fileName, X, flip):
-
-        # Check to see how the user has passed in the data:
-        if fileName is None and X is None:
-            raise Error("Either fileName or X must be passed on "
-                        " initialization!")
-
-        if fileName is not None and X is not None:
-            raise Error("BOTH fileName or X have been passed on initialization!"
-                        " Only one is required.")
-
-        # Take the file name and try loading it.  Only do this on one
-        # proc; we will MPI-bcast the information back to everyone
-        # else when it is necessary.
-        if self.comm.rank == 0:
-            if fileName is not None:
-                # Load the curve from a file using the the following format:
-                # <number of points>
-                # x1 y1
-                # x2 y2 
-                # ....
-                # xn yn
-
-                f = open(fileName, 'r')
-                N = int(f.readline())
-                x = []
-                y = []
-                for i in xrange(N):
-                    aux = f.readline().split()
-                    x.append(float(aux[0]))
-                    y.append(float(aux[1]))
-
-                # Done with the file so close
-                f.close()
-
-                # Convert the lists to an array
-                X = numpy.array([x, y]).T
-
-            # Now check if the first and the last point are within
-            # tolerance of each other:
-            if self._e_dist(X[0], X[-1]) < 1e-6:
-                # Curve is closed, we're ok. Internally, we work
-                # with the unclosed curve and explictly deal with
-                # the  0th and Nth points 
-                X = X[0:-1, :]
-            else:
-                # Curve is not closed, print warning
-                print('*'*105)
-                print(" Warning: Curve was not closed! Closing curve with a "
-                      "linear segment. This may or not be what is desired!")
-                print('*'*105)
-
-            if flip: # Reverse direction
-                X[:, 0] = X[:, 0][::-1]
-                X[:, 1] = X[:, 1][::-1]
-
-        # Now broadcast the required info to the other procs:
-        self.X = self.comm.bcast(X, root=0)
-        self.N = len(self.X)
-
-    def _init3d(self, **kwargs):
-
+    def _init3d2(self, **kwargs):
+        """Main initialization routine"""
         if 'xMirror' in kwargs or 'yMirror' in kwargs or 'zMirror' in kwargs:
             raise Error("Mirror specification must be now done in the "
                         "options dictionary using: 'mirror':'z' for "
                         "example.")
-
-        # Only need to file i/o and processing on root proc:
-        if self.comm.rank == 0:
-            delFile = False
-            fileName = self.options['inputFile']
-            if self.options['mirror'] is not None:
-
-                # We need to first read the file, mirror it, and write it
-                # back to a tmp file such that the nominal read below
-                # works.
-
-                # Load in the file and determine the free edges, these
-                # will be symmetry edges (which turn into symmetry planes)
-                surfs, sizes, __, __, l_index = self._readPlot3D(fileName)
-                nSurf = len(surfs)
-
-                # To determine the nodes on the symmetry plane, we need to
-                # figure out which edges have a face only on one
-                # side. Finally, the end goal is to prodce an
-                # (unstructured) list that looks like: 
-                #
-                # [[surfID_1, i_1, j_1], [surfID_2, i_2, j_2] ...]
-                # 
-                # where the i, j gives the index on surf that is
-                # initialy on the mirror plane. This information can
-                # then be used to zero this "line" to be precisely on
-                # the mirror plane as a post processing step. This
-                # method works even if a complete block edge is not on
-                # a mirror plane.
-
-                edges = {}
-                def getKey(n1, n2):
-                    if n1 < n2:
-                        return (n1, n2)
-                    else:
-                        return (n2, n1)
-
-                def incrementEdge(edges, n1, n2):
-                    key = getKey(n1, n2)
-                    if key in edges:
-                        edges[key] += 1
-                    else:
-                        edges[key] = 1
-
-                    return edges
-
-                # Loop over faces and add edges with keys of (n1, n2)
-                # where n1 < n2
-                for ii in xrange(len(surfs)):
-                    for i in xrange(sizes[ii][0]-1):
-                        for j in xrange(sizes[ii][1]-1):
-                            edges = incrementEdge(edges, l_index[ii][i  , j  ], l_index[ii][i+1, j  ])
-                            edges = incrementEdge(edges, l_index[ii][i+1, j  ], l_index[ii][i+1, j+1])
-                            edges = incrementEdge(edges, l_index[ii][i+1, j+1], l_index[ii][i  , j+1])
-                            edges = incrementEdge(edges, l_index[ii][i  , j+1], l_index[ii][i  , j  ])
-
-                # Now generate a final list of nodes that are on the
-                # mirror plane:
-                mirrorNodes = []
-                for key in edges:
-                    if edges[key] == 1:
-                        mirrorNodes.append(key[0])
-                        mirrorNodes.append(key[1])
-
-                # Uniquify them
-                uniqueMirrorNodes = numpy.unique(mirrorNodes)
-
-                # Now loop back over the boundries of the
-                # surfaces. For each node on the boundary check if it
-                # is in uniqueMirror nodes.
-
-                self.symNodes = []
-                for ii in xrange(len(surfs)):
-                    imax = sizes[ii][0]
-                    jmax = sizes[ii][1]
-                    for i in xrange(imax):
-                        if l_index[ii][i, 0] in uniqueMirrorNodes:
-                            self.symNodes.append([ii, i  , 0])
-                        if l_index[ii][i, jmax-1] in uniqueMirrorNodes:
-                            self.symNodes.append([ii, i,  jmax-1])
-
-                    for j in xrange(jmax):
-                        if l_index[ii][0, j] in uniqueMirrorNodes:
-                            self.symNodes.append([ii, 0, j  ])
-                        if l_index[ii][imax-1, j] in uniqueMirrorNodes:
-                            self.symNodes.append([ii, imax-1, j  ])
-
-                # Now that we know the symnodes, we can hard zero the
-                # nodes on the mirror plane. Note that if your surface
-                # isn't closed, some really really stuff will result
-                # since those nodes will be zeroed!
-                for iSym in xrange(len(self.symNodes)):
-                    iSurf = self.symNodes[iSym][0]
-                    i     = self.symNodes[iSym][1]
-                    j     = self.symNodes[iSym][2]
-                    if self.options['mirror'] == 'x':
-                        surfs[iSurf][i, j, 0] = 0.0
-                    if self.options['mirror'] == 'y':
-                        surfs[iSurf][i, j, 1] = 0.0
-                    if self.options['mirror'] == 'z':
-                        surfs[iSurf][i, j, 2] = 0.0
-
-                # Conver symnodes to array and index everything my 1 
-                self.symNodes = numpy.array(self.symNodes) + 1
-
-                # Note that we are guaranteed that symNodes is sorted by
-                # patchID. This is important since it means we can loop
-                # over the blocked in sequence and all nodes need to 
-
-                # Generate new list of sizes (double the length)
-                newSizes = numpy.zeros((nSurf*2, 2), 'intc')
-                for i in xrange(nSurf):
-                    newSizes[i] = sizes[i]
-                    newSizes[i+nSurf] = sizes[i]
-
-                # Now mirror each zone, while flipping the i and j index
-                for i in xrange(nSurf):
-                    surfs.append(numpy.zeros([newSizes[i+nSurf, 0],
-                                              newSizes[i+nSurf, 1], 3]))
-                    if self.options['mirror'] == 'x':
-                        surfs[i+nSurf][:, :, 0] = -self._reverseRows(surfs[i][:, :, 0])
-                    else:
-                        surfs[i+nSurf][:, :, 0] = self._reverseRows(surfs[i][:, :, 0])
-
-                    if self.options['mirror'] == 'y':
-                        surfs[i+nSurf][:, :, 1] = -self._reverseRows(surfs[i][:, :, 1])
-                    else:
-                        surfs[i+nSurf][:, :, 1] = self._reverseRows(surfs[i][:, :, 1])
-
-                    if self.options['mirror'] == 'z':
-                        surfs[i+nSurf][:, :, 2] = -self._reverseRows(surfs[i][:, :, 2])
-                    else:
-                        surfs[i+nSurf][:, :, 2] = self._reverseRows(surfs[i][:, :, 2])
-
-                # Dump back out
-                f = open('tmp.fmt', 'w')
-                f.write('%d\n'%(nSurf*2))
-                for i in xrange(nSurf*2):
-                    f.write('%d %d %d\n'%(newSizes[i][0], newSizes[i][1], 1))
-                for ii in xrange(nSurf*2):
-                    for idim in xrange(3):
-                        for j in xrange(newSizes[ii][1]):
-                            for i in xrange(newSizes[ii][0]):
-                                f.write('%20.13g\n'%(surfs[ii][i, j, idim]))
-                f.close()
-                fileName = 'tmp.fmt'
-                delFile = True
-
-            # Now we read (the possibly) mirrored plot3d file
-            surfs, sizes, nodes, conn, l_index = self._readPlot3D(fileName)
-            f = open('node_test.dat','w')
-            f.write('VARIABLES = \"X\", \"Y\", \"Z\" \n')
-            f.write("Zone\n")
-            for i in range(len(nodes)):
-                f.write('%g %g %g\n'% (nodes[i][0], nodes[i][1], nodes[i][2]))
-            f.close()
+        mirror = self.hyp.hypdata.nomirror
+        if self.options['mirror'] == 'x':
+            mirror = self.hyp.hypdata.xmirror
+        elif self.options['mirror'] == 'y':
+            mirror = self.hyp.hypdata.ymirror
+        elif self.options['mirror'] == 'z':
+            mirror = self.hyp.hypdata.zmirror
             
-            nSurf = len(surfs)
-            nGlobal = len(nodes)
-      
-            if delFile:
-                os.remove(fileName)
-                
-            # We really should check if the surface is closed. This check
-            # is not implemented yet -- so user beware!
-
-            # Next we need to produced an unstructured-like data
-            # structure
-
-            # Now we can invert and get the elements surrounding the nodes:
-            nodeToElem = [[] for i in xrange(nGlobal)]
-
-            for iElem in xrange(len(conn)):
-                for ii in xrange(4): # 4 nodes on each face
-                    # Append the elem Number and the node number of
-                    # the node on theface
-                    nodeToElem[conn[iElem][ii]].append([iElem, ii]) 
-
-            # Determine the maximum number of nodal neighbours. Node
-            # max must be at least 6 for the 3-corner nodes with a
-            # total of 6 cross-diagonal neighbours
-            NODE_MAX = 6
-            CELL_MAX = 0
-            for i in range(nGlobal):
-                NODE_MAX = max(NODE_MAX, len(nodeToElem))
-                CELL_MAX = max(CELL_MAX, len(nodeToElem))
-
-            # Finally we can get the final node pointer structure we need:
-            nPtr = numpy.zeros((nGlobal, NODE_MAX+1), 'intc')
-            cPtr = numpy.zeros((nGlobal, CELL_MAX+1), 'intc')
-
-            for iNode in xrange(nGlobal):
-                nFaceNeighbours = len(nodeToElem[iNode])
-
-                # Regular nodes get 4 neightbours, others get double
-                if nFaceNeighbours == 2:
-                    print('Can\'t do geometries with nodes of valance 2!')
-                    sys.exit(0)
-                elif nFaceNeighbours == 3:
-                    nPtr[iNode][0] = nFaceNeighbours*2
-                else:
-                    nPtr[iNode][0] = nFaceNeighbours
-                cPtr[iNode][0] = nFaceNeighbours
-                
-                # Get the face where this node is node 0
-                firstID  = nodeToElem[iNode][0][0]
-                nodeID  = numpy.mod(nodeToElem[iNode][0][1]+1, 4)
-                nextElemID = None
-                iii = 1; jjj = 1;
-                while nextElemID != firstID:
-                    if nextElemID is None:
-                        nextElemID = firstID
-
-                    # Append the next node along that edge:
-                    nodeToAdd = conn[nextElemID][numpy.mod(nodeID, 4)]
-                    nPtr[iNode][iii] = nodeToAdd; iii += 1
-                    cPtr[iNode][jjj] = nextElemID; jjj += 1
-                    # Add the diagonal if not regular node
-                    if nFaceNeighbours == 3:
-                        nPtr[iNode][iii] = (
-                            conn[nextElemID][numpy.mod(nodeID+1, 4)])
-                        iii += 1
-
-                    # And we need to find the face that contains the
-                    # following node:
-                    nodeToFind = conn[nextElemID][numpy.mod(nodeID + 2, 4)]
-
-                    found = False
-                    jj = -1
-                    while not found:
-                        jj = jj + 1
-                        # Find the next face
-                        faceToCheck = nodeToElem[iNode][jj][0]
-                        if faceToCheck != nextElemID:
-                            # Check the 4 nodes on this face 
-                            for ii in xrange(4):
-                                if conn[faceToCheck][ii] == nodeToFind:
-                                    nextElemID = faceToCheck
-                                    nodeID = ii
-                                    found = True
-                                # end if
-                            # end for
-                        # end if
-                    # end while
-                # end if
-            # end for
-        else:
-            nPtr = None
-            cPtr = None
-            conn = None
-            nodes = None
-            sizes = None
-            l_index = None
-            
-        # Broadcast the result to everyone:
-        (sizes, l_index, nPtr, cPtr, conn, self.X) = (
-            self.comm.bcast((sizes, l_index, nPtr, cPtr, numpy.array(conn), nodes)))
-        nGlobal = len(nPtr)
-        nSurf = len(sizes)
-        # Conn needs to be saved for potential calling of writeFEMesh
-        self.conn = numpy.array(conn, 'intc')
-
-        # Now we can divy up the nodes -- as evenly as possible.
-        evenNodes = nGlobal//self.comm.size
-        istart = self.comm.rank*evenNodes
-        iend =  istart + evenNodes
-        if self.comm.rank == self.comm.size-1:
-            iend = nGlobal
-        isize = iend - istart
-        
-        # Partition here:
-        X = self.X[istart:iend]
-        nPtr = nPtr[istart:iend]
-
-        # Now get the ghost information we need:
-        ghost = []
-        ii = 0
-        lnPtr = nPtr.copy()
-        for i in range(len(lnPtr)):
-            for j in range(lnPtr[i][0]):
-                if lnPtr[i][j+1] < istart or lnPtr[i][j+1] >= iend:
-                    ghost.append(lnPtr[i][j+1])
-                    lnPtr[i, j+1] = isize + ii
-                    ii += 1
-                else:
-                    lnPtr[i, j+1] -= istart
-      
-        # Now nPtr is the indexing in the global ording. lnPtr uses
-        # the local ghosted form.  Convert Indexing to fortran
-        nPtr[:, 1:] += 1
-        lnPtr[:, 1:] += 1
-        cPtr[:, 1:] += 1
-
-        # Now we have all the data we need so we can go ahead and
-        # initialze the 3D generation
-        self.hyp.hypdata.nx = len(X)
-        self.hyp.hypdata.nxglobal = nGlobal
-        self.hyp.hypdata.xsurf = X.T
-        self.hyp.hypdata.gnptr = nPtr.T
-        self.hyp.hypdata.lnptr = lnPtr.T
-        self.hyp.hypdata.cptr = cPtr.T
-        self.hyp.hypdata.conn = self.conn.T
-        self.hyp.hypdata.xsurfglobal = self.X.T
-        if len(ghost) > 0:
-            self.hyp.hypdata.ghost = ghost
-        self.hyp.hypdata.nghost = len(ghost)
-
-        self.hyp.init3d(sizes)
-        for i in xrange(nSurf):
-            self.hyp.setlindex(l_index[i], i+1) # +1 for 0->1 ordering
-
-        # Setup panels for elliptic method:
-        #self.hyp.setuppanels()
-      
+        self.hyp.setup3d(self.options['inputFile'], mirror)
 
     def run(self):
         """
@@ -628,52 +261,28 @@ class pyHyp(object):
             else:
                 self.hyp.writecgns_3d(fileName)
                 # Possibly zero mirror plane for mirrored geometries
-                if self.symNodes is not None:
-                    mirrorDims = {'x':1,'y':2,'z':3}
-                    mirrorDim = mirrorDims[self.options['mirror']]
-                    self.hyp.zeromirrorplane(fileName, self.symNodes, mirrorDim)
+                # if self.symNodes is not None:
+                #     mirrorDims = {'x':1, 'y':2, 'z':3}
+                #     mirrorDim = mirrorDims[self.options['mirror']]
+                #     self.hyp.zeromirrorplane(fileName, self.symNodes, mirrorDim)
         else:
             raise Error("No grid has been generated! Run the run() "
                         "command before trying to write the grid!")
 
-    def writeFEMesh(self, fileName):
-        """ Ouput a tecplot FE mesh of the surface. Useful for
-        debugging numberings.
-
-        Parameters
-        ----------
-        fileName : str
-            Filename of tecplot file. Should have .dat extension.
-        """
-
-        nNodes = len(self.X)
-        nElem = len(self.conn)
-        f = open(fileName, 'w')
-        f.write("FE Data\n")
-        f.write('VARIABLES = \"X\", \"Y\", \"z\" \n')
-        f.write("ZONE NODES=%d, ELEMENTS=%d, DATAPACKING=POINT, "
-                "ZONETYPE=FEQUADRILATERAL\n"%(nNodes, nElem))
-        for i in xrange(nNodes):
-            f.write('%f %f %f\n'%(self.X[i, 0], self.X[i, 1], self.X[i, 2]))
-        for i in xrange(len(self.conn)):
-            f.write('%d %d %d %d\n'%(self.conn[i][0]+1, self.conn[i][1]+1, 
-                                     self.conn[i][2]+1, self.conn[i][3]+1))
-        f.close()
-      
     def _setOptions(self):
         """Internal function to set the options in pyHyp"""
-        self.hyp.hypinput.n         = self.options['N']
-        self.hyp.hypinput.s0        = self.options['s0']
-        self.hyp.hypinput.rmin      = self.options['rMin']
-        self.hyp.hypinput.ps0        = self.options['ps0']
+        self.hyp.hypinput.n = self.options['N']
+        self.hyp.hypinput.s0 = self.options['s0']
+        self.hyp.hypinput.rmin = self.options['rMin']
+        self.hyp.hypinput.ps0 = self.options['ps0']
         self.hyp.hypinput.pgridratio = self.options['pGridRatio']
-        self.hyp.hypinput.slexp     = self.options['slExp']
-        self.hyp.hypinput.epse      = self.options['epsE']
-        self.hyp.hypinput.epsi      = self.options['epsI']
-        self.hyp.hypinput.theta     = self.options['theta']
-        self.hyp.hypinput.volcoef   = self.options['volCoef']
-        self.hyp.hypinput.volblend  = self.options['volBlend']
-        self.hyp.hypinput.cmax      = self.options['cMax']
+        self.hyp.hypinput.slexp = self.options['slExp']
+        self.hyp.hypinput.epse = self.options['epsE']
+        self.hyp.hypinput.epsi = self.options['epsI']
+        self.hyp.hypinput.theta = self.options['theta']
+        self.hyp.hypinput.volcoef = self.options['volCoef']
+        self.hyp.hypinput.volblend = self.options['volBlend']
+        self.hyp.hypinput.cmax = self.options['cMax']
         self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
         self.hyp.hypinput.kspreltol = self.options['kspRelTol']
         self.hyp.hypinput.kspmaxits = self.options['kspMaxIts']
@@ -681,14 +290,16 @@ class pyHyp(object):
         self.hyp.hypinput.nonlinear = self.options['nonLinear']
         self.hyp.hypinput.kspsubspacesize = self.options['kspSubspaceSize']
         self.hyp.hypinput.writemetrics = self.options['writeMetrics']
-
+        self.hyp.hypinput.eps = 1e-8
+        self.hyp.hypinput.farfieldtol = 10.0
+        self.hyp.hypinput.nodetol = self.options['nodeTol']
     def _checkOptions(self):
         """
         Check the solver options against the default ones
         and add option iff it is NOT in solver_options
         """
         for key in self.options_default.keys():
-            if not(key in self.options.keys()):
+            if not key in self.options.keys():
                 self.options[key] = self.options_default[key]
 
     def __del__(self):
@@ -697,186 +308,54 @@ class pyHyp(object):
         """
         self.hyp.releasememory()
 
-    def _readPlot3D(self, fileName, fileType='ascii', order='f'):
-        """Load a plot3D file and create the required unstructured
-        data.
-
+    def writeLayer(self, fileName, layer=1, meshType='plot3d', partitions=True):
+        """
+        Write a single mesh layer out to a file for visualization or for other purposes. 
+        
         Parameters
         ----------
         fileName : str
-            The plot3d filename
-    
-        fileType : str
-            One of 'ascii' or 'binary'. The binary loader is flaky and
-            may not work correctly. It is recommended to use ascii format
-            if possible.
-        order : str
-            The internal ordering of the plot3d file. Must be one of
-            'f' or 'c'. Fortran ordering ('f') is the usual case. 
+            Filename to use. Should have .fmt extension for plot3d or .dat for tecplot
+        layer : int
+            Index of layer to print. Values greater than 1 are only valid if the mesh
+            has already been extruded. 
+        meshType : str
+            Type of mesh to write. The two valid arguments are 'plot3d' and 'fe'. The plot3d
+            will write the mesh in the original plot3d format while the FE mesh is the 
+            unstructured internal representation. 
+        partitions : bool
+            This flag which is only used for the 'fe' mesh type option will write a separate
+            zone for each partition on each processor. This is useful for visualizing the 
+            parallel mesh decomposition. 
         """
-        
-        if fileType == 'ascii':
-            if self.comm.rank == 0:
-                print('Loading ascii plot3D file: %s ...'%(fileName))
-            binary = False
-            f = open(fileName, 'r')
+        if meshType.lower() == 'plot3d':
+            self.hyp.writelayerplot3d(fileName, layer)
         else:
-            if self.comm.rank == 0:
-                print('Loading binary plot3D file: %s ...'%(fileName))
-            binary = True
-            f = open(fileName, 'rb')
-       
-        if binary:
-            itype = self._readNValues(f, 1, 'int', binary)[0]
-            nSurf = self._readNValues(f, 1, 'int', binary)[0]
-            itype = self._readNValues(f, 1, 'int', binary)[0] # Need these
-            itype = self._readNValues(f, 1, 'int', binary)[0] # Need these
-            sizes   = self._readNValues(
-                f, nSurf*3, 'int', binary).reshape((nSurf, 3))
-        else:
-            nSurf = self._readNValues(f, 1, 'int', binary)[0]
-            sizes   = self._readNValues(
-                f, nSurf*3, 'int', binary).reshape((nSurf, 3))
+            self.hyp.writelayerfe(fileName, layer, partitions)
 
-        # ONE of Patch Sizes index must be one
-        nPts = 0
-        for i in xrange(nSurf):
-            if sizes[i, 0] == 1: # Compress back to indices 0 and 1
-                sizes[i, 0] = sizes[i, 1]
-                sizes[i, 1] = sizes[i, 2] 
-            elif sizes[i, 1] == 1:
-                sizes[i, 1] = sizes[i, 2]
-            elif sizes[i, 2] == 1:
-                pass
-            else:
-                raise Error("Surface %d does not have one block index "
-                            "dimension of 1" % i)
-            nPts += sizes[i, 0]*sizes[i, 1]
 
-        if self.comm.rank == 0:
-            print(' -> nSurf = %d'%(nSurf))
-            print(' -> Surface Points: %d'%(nPts))
+    # def writeFEMesh(self, fileName):
+    #     """ Ouput a tecplot FE mesh of the surface. Useful for
+    #     debugging numberings.
 
-        surfs = []
-        for i in xrange(nSurf):
-            cur_size = sizes[i, 0]*sizes[i, 1]
-            surfs.append(numpy.zeros([sizes[i, 0], sizes[i, 1], 3]))
-            for idim in xrange(3):
-                surfs[-1][:, :, idim] = self._readNValues(
-                    f, cur_size, 'float', binary).reshape(
-                    (sizes[i, 0], sizes[i, 1]), order=order)
-        f.close()
-
-        # Final list of patch sizes:
-        sizes = []
-        for iSurf in xrange(nSurf):
-            sizes.append([surfs[iSurf].shape[0], surfs[iSurf].shape[1]])
-
-        # Concatenate the points into a flat array:
-        pts = []
-        for ii in xrange(nSurf):
-            for j in xrange(sizes[ii][1]):
-                for i in xrange(sizes[ii][0]):
-                    pts.append(surfs[ii][i, j])
-
-        # Find the unique points -- (efficient) spatial search. 
-        uniquePts, link, nUnique = self.hyp.pointreducewrap(
-            numpy.array(pts).T, self.options['nodeTol'])
-
-        # Just take the actual number of unique points
-        uniquePts = uniquePts[:, 0:nUnique].T
-
-        # Convert to 0-based ordering
-        link = link - 1
-
-        # We will do a greedy-reordering with substructuring of each
-        # of the patch blocks. Basically what we want to do is reorder
-        # the nodes such that nodes that are logically next to each
-        # other are close in the vector. This will minimize
-        # communication during the hyperbolic marching. This is
-        # effectively a poor-man's partitioning algorithm.
-        MAX_NODE_SIZE = 17
-                
-        ptInd = -1*numpy.ones(nUnique, dtype='intc')
-        newNodes = numpy.zeros((nUnique, 3))
-        conn = []
-        l_index = []
-        pt_offset = 0
-        iNode = 0
-        for iSurf in range(nSurf):
-            l_index.append(numpy.zeros(sizes[iSurf],'intc'))
-
-            iBlocks = sizes[iSurf][0] // MAX_NODE_SIZE + 1
-            jBlocks = sizes[iSurf][1] // MAX_NODE_SIZE + 1
-       
-            # Loop over nodes
-            for ii in range(iBlocks):
-                for jj in range(jBlocks):
-                    iStart = ii*MAX_NODE_SIZE
-                    iEnd = min(sizes[iSurf][0], (ii+1)*MAX_NODE_SIZE)
-
-                    jStart = jj*MAX_NODE_SIZE
-                    jEnd = min(sizes[iSurf][1], (jj+1)*MAX_NODE_SIZE)
-
-                    for j in range(jStart, jEnd): 
-                        for i in range(iStart, iEnd):
-                          
-                            # This is the original index of this point
-                            ind = pt_offset + j*sizes[iSurf][0] + i
-
-                            # Check if we have used this node yet:
-                            if ptInd[link[ind]] == -1:
-                                ptInd[link[ind]] = iNode
-                                newNodes[iNode] = uniquePts[link[ind]]
-                                iNode += 1
-
-                            l_index[iSurf][i,j] = ptInd[link[ind]]
-                        
-            # Loop over faces for the conn array:
-            for i in range(sizes[iSurf][0]-1):
-                for j in range(sizes[iSurf][1]-1):
-                    conn.append([l_index[iSurf][i,   j  ],
-                                l_index[iSurf][i+1, j  ],
-                                l_index[iSurf][i+1, j+1],
-                                l_index[iSurf][i  , j+1]])
-                    
-            pt_offset += sizes[iSurf][0] * sizes[iSurf][1]
-            
-        return surfs, sizes, newNodes, conn, l_index
-
-    #-----------------------
-    # Some helper routines
-    #-----------------------
-    def _e_dist(self, x1, x2):
-        """Get the eculidean distance between two points"""
-        if len(x1) == 3:
-            return numpy.sqrt((x1[0]-x2[0])**2 + (x1[1]-x2[1])**2 + (x1[2]-x2[2])**2)
-        elif len(x1) == 2:
-            return numpy.sqrt((x1[0]-x2[0])**2 + (x1[1]-x2[1])**2)
-        elif len(x1) == 1:
-            return numpy.abs(x1[0]-x2[0])
-
-    def _reverseRows(self, in_array):
-        """Flip Rows (horizontally)"""
-        rows = in_array.shape[0]
-        cols = in_array.shape[1]
-        output = numpy.empty([rows, cols], in_array.dtype)
-        for row in xrange(rows):
-            output[row] = in_array[row][::-1].copy()
-
-        return output
-
-    def _readNValues(self, handle, N, dtype, binary=False):
-        """Read 'N' values of type 'float' or 'int' from file handle
-        'handle'"""
-        if binary:
-            sep = ""
-        else:
-            sep = ' '
-
-        if dtype == 'int':
-            values = numpy.fromfile(handle, dtype='int32', count=N, sep=sep)
-        else:
-            values = numpy.fromfile(handle, dtype='float', count=N, sep=sep)
-        return values
-
+    #     Parameters
+    #     ----------
+    #     fileName : str
+    #         Filename of tecplot file. Should have .dat extension.
+    #     """
+    #     X = self.hyp.hypdata.xsurf.T
+    #     conn = self.hyp.hypdata.conn.T
+    #     nNodes = len(X)
+    #     nElem = len(conn)
+    #     f = open(fileName, 'w')
+    #     f.write("FE Data\n")
+    #     f.write('VARIABLES = \"X\", \"Y\", \"z\" \n')
+    #     f.write("ZONE NODES=%d, ELEMENTS=%d, DATAPACKING=POINT, "
+    #             "ZONETYPE=FEQUADRILATERAL\n"%(nNodes, nElem))
+    #     for i in xrange(nNodes):
+    #         f.write('%f %f %f\n'%(X[i, 0], X[i, 1], X[i, 2]))
+    #     for i in xrange(len(conn)):
+    #         f.write('%d %d %d %d\n'%(conn[i][0], conn[i][1], 
+    #                                  conn[i][2], conn[i][3]))
+    #     f.close()
+      

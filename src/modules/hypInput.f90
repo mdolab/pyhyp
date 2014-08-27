@@ -15,4 +15,6 @@ module hypInput
   real(kind=realType) :: kspRelTol,rMin, cmax
   logical :: writeMirror, nonLinear, writeMetrics
   real(kind=realType) :: eps
+  real(kind=realType) :: farFieldTol
+  real(kind=realType) :: nodeTol
 end module hypInput
