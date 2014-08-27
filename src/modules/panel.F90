@@ -18,9 +18,10 @@ module panel
      real(kind=realType) :: area
      real(kind=realType) :: strength
      real(kind=realType), dimension(3) :: center
+     real(kind=realType) :: length
 
      ! Data for grouped panel
-     integer(kind=intType), dimension(:), allocatable :: children
+     integer(kind=intType), dimension(9) :: children
      integer(kind=intType) :: nChildren
 
   end type panelType
@@ -33,6 +34,12 @@ module panel
 
   ! Array of Panel Levels (MGP = multi-grid-panles)
   type(panelLevel), dimension(:), target, allocatable :: MGP
+  integer(kind=intType) :: levelMax
+  integer(kind=intType), dimension(:), allocatable :: coarseIndices
+  integer(kind=intType) :: nCoarse
+  integer(kind=intType) :: nFar, nNear
 
+  ! Generic pointer for a panel
+  type(panelType), pointer :: pp
 end module panel
 

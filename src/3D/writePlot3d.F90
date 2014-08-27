@@ -1,9 +1,9 @@
-subroutine writePlot3d_3d(fileName)
+subroutine writePlot3d(fileName)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
   !
-  !     Abstract: writePLot3d_3d write the current grid to a 3D PLOT3D
+  !     Abstract: writePLot3d write the current grid to a 3D PLOT3D
   !               file. It does not make any attempt to do grid
   !               connectivities or boundary conditions.
   !
@@ -37,7 +37,10 @@ subroutine writePlot3d_3d(fileName)
 6    format(I5, I5, I5)
   end if
   ! Loop over each patch and write
+  call VecView(X(1), PETSC_VIEWER_STDOUT_WORLD, ierr)
+
   do iPatch = 1, nPatch
+     print *, patches(iPatch)%l_index
      do idim=1,3
         do k=1, N
 
@@ -69,4 +72,4 @@ subroutine writePlot3d_3d(fileName)
      ! Finally close the file
      close(7)
   end if
-end subroutine writePlot3d_3d
+end subroutine writePlot3d

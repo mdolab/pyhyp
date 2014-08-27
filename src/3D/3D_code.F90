@@ -1,4 +1,4 @@
-subroutine run3D
+subroutine runHyperbolic
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -13,24 +13,6 @@ subroutine run3D
 
   ! Working parameters
   integer(kind=intType) :: i, ierr, idim, l, reason
- 
-
-  ! Create the PETSc Variables
-  call create3DPetscVars
-
-
-  ! Copy X-surf into the first grid slot
-  call VecGetArrayF90(X(1), xx, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
-  do i=1,nx
-     do idim=1,3
-        xx((i-1)*3 + idim) = XSurf(idim, i)
-     end do
-  end do
-
-  call VecRestoreArrayF90(X(1), xx, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
 
   ! Compute the inital 'Radius' value, radius0
   call computeR(X(1), radius0)
@@ -40,6 +22,7 @@ subroutine run3D
   ! the length of the off-wall direction and the initial spacing, we
   ! find the gridRatio that will satifiy these two conditions.
   call calcGridRatio(N, s0, radius0*rMin, gridRatio)
+
   if (myid == 0) then
      write(*,"(a)", advance="no") '#--------------------#'
      print "(1x)"  
@@ -91,7 +74,7 @@ subroutine run3D
      end if
   end do marchLoop
 
- end subroutine run3D
+end subroutine runHyperbolic
 
 subroutine computeVolumes
   !***DESCRIPTION
@@ -124,97 +107,82 @@ subroutine computeVolumes
   real(kind=realType) :: ll(3), ul(3), lr(3), ur(3)
   real(kind=realType) :: v1(3), v2(3), s(3), areadS
   real(kind=realType) :: c1,c2,c3,c4, dist
-
-  VBar = zero
-  cratio = zero
-
-  call VecScatterBegin(rootScatter, XL, XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-  call VecScatterEnd(rootScatter, XL, XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
+  real(kind=realType) :: Vbar_local, cratio_local
+  
   call VecZeroEntries(volume, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
-  if (myid == 0) then
-     call VecGetArrayF90(XLocal, xx, ierr)
-     call EChk(ierr,__FILE__,__LINE__)
+  call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
+  call VecGhostGetLocalForm(XL, XL_local, ierr)
+  call VecGetArrayF90(VolumeLocal, Vptr, ierr)
+  call VecGetArrayF90(XL_local, xx, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  cRatio_local = zero
+  vBar_local = zero
 
-     ! Loop over the patch faces:
-     do iPatch=1,nPatch
-        ! Loop over faces on patch
-        do j=1,patches(iPatch)%jl-1
-           do i=1,patches(iPatch)%il-1
+  ! Loop over the owned faces:
+  do i=1, nLocalFace
+  
+     ! Extract the coordinates of the 4 corners
+     n1 = conn(1, i)
+     ll = xx(3*n1-2:3*n1) ! lower-left
+              
+     n2 = conn(4, i)
+     ul = xx(3*n2-2:3*n2) ! upper-left
+     
+     n3 = conn(2, i)
+     lr = xx(3*n3-2:3*n3) ! lower-right
+              
+     n4 = conn(3, i)
+     ur = xx(3*n4-2:3*n4) ! upper-right
+              
+     ! Compute the area
+     v1(:) = ur - ll
+     v2(:) = ul - lr
 
-              ! Extract the coordinates of the 4 corners
-              n1 = patches(iPatch)%l_index(i  , j  )
-              ll = xx(3*n1-2:3*n1) ! lower-left
-              
-              n2= patches(iPatch)%l_index(i  , j+1)
-              ul = xx(3*n2-2:3*n2) ! upper-left
-              
-              n3 = patches(iPatch)%l_index(i+1, j  )
-              lr = xx(3*n3-2:3*n3) ! lower-right
-              
-              n4 = patches(iPatch)%l_index(i+1, j+1)
-              ur = xx(3*n4-2:3*n4) ! upper-right
-              
-              ! Compute the area
-              v1(:) = ur - ll
-              v2(:) = ul - lr
+     ! Cross Product
+     s(1) = (v1(2)*v2(3) - v1(3)*v2(2))
+     s(2) = (v1(3)*v2(1) - v1(1)*v2(3))
+     s(3) = (v1(1)*v2(2) - v1(2)*v2(1))
+     
+     areadS = fourth*deltaS*half*sqrt(s(1)*s(1) + s(2)*s(2) + s(3)*s(3))
 
-              ! Cross Product
-              s(1) = (v1(2)*v2(3) - v1(3)*v2(2))
-              s(2) = (v1(3)*v2(1) - v1(1)*v2(3))
-              s(3) = (v1(1)*v2(2) - v1(2)*v2(1))
-           
-              ! Fourth of Area times deltaS 
-              areadS = fourth*deltaS*half*sqrt(s(1)*s(1) + s(2)*s(2) + s(3)*s(3))
-              
-              ! Scatter back to the nodes. 
-              call VecSetValue(volume, n1-1, areadS, ADD_VALUES, ierr)
-               call EChk(ierr,__FILE__,__LINE__)
-              call VecSetValue(volume, n2-1, areadS, ADD_VALUES, ierr)
-              call EChk(ierr,__FILE__,__LINE__)
-              call VecSetValue(volume, n3-1, areadS, ADD_VALUES, ierr)
-              call EChk(ierr,__FILE__,__LINE__)
-              call VecSetValue(volume, n4-1, areadS, ADD_VALUES, ierr)
-              call EChk(ierr,__FILE__,__LINE__)
-              
-              VBar = vBar + areadS*four
+     ! Scatter back to the nodes. 
+     vPtr(n1) = vPtr(n1) + areadS
+     vPtr(n2) = vPtr(n2) + areadS
+     vPtr(n3) = vPtr(n3) + areadS
+     vPtr(n4) = vPtr(n4) + areadS
+     
+     vBar_local = vBar_local + areadS*four
 
-              ! Also compute edge lengths
-              c1 = deltaS/dist(ll,lr)
-              c2 = deltaS/dist(ul,ur)
-              c3 = deltaS/dist(ll,ul)
-              c4 = deltaS/dist(lr,ur)
-              
-              cRatio = max(cRatio,c1,c2,c2,c4)
+     ! Also compute edge lengths
+     c1 = deltaS/dist(ll,lr)
+     c2 = deltaS/dist(ul,ur)
+     c3 = deltaS/dist(ll,ul)
+     c4 = deltaS/dist(lr,ur)
 
-           end do
-        end do
-     end do
-     VBar = VBar / nXGlobal
-  end if
+     cRatio_local = max(cRatio_local, c1, c2, c2, c4)
+  end do
 
-  ! Finish volume assembly and update globally
-  call VecAssemblyBegin(volume, ierr)
+  ! Restore everything
+  call VecRestoreArrayF90(VolumeLocal, Vptr, ierr)
+  call VecRestoreArrayF90(XL_local, xx, ierr)
+  call VecGhostRestoreLocalForm(Volume, VolumeLocal, ierr)
+  call VecGhostRestoreLocalForm(XL, XL_local, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call MPI_allreduce(vBar_local, vBar, 1, MPI_DOUBLE, MPI_SUM, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
-  call VecAssemblyEnd(volume, ierr)
+
+  call MPI_allreduce(cRatio_local, cRatio, 1, MPI_DOUBLE, MPI_MAX, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
+
+  VBar = VBar / nXGlobal
 
   call VecGhostUpdateBegin(volume, INSERT_VALUES, SCATTER_FORWARD, ierr)
   call EChk(ierr,__FILE__,__LINE__)
   call VecGhostUpdateEnd(volume, INSERT_VALUES,SCATTER_FORWARD, ierr)
   call EChk(ierr,__FILE__,__LINE__)
-
-  ! We also need to know what vBar and cRatio are so bcast:
-  call MPI_Bcast(vBar, 1, MPI_DOUBLE, 0, hyp_comm_world, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
-  call MPI_Bcast(cRatio, 1, MPI_DOUBLE, 0, hyp_comm_world, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
 end subroutine computeVolumes
 
 subroutine volumeSmooth
@@ -350,8 +318,13 @@ subroutine initialGuess(Xnew)
 
      call VecCopy(X(1), XLm1, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-  end if
 
+     call VecGhostUpdateBegin(XL, INSERT_VALUES, SCATTER_FORWARD, ierr)
+     call VecGhostUpdateEnd(XL, INSERT_VALUES,SCATTER_FORWARD, ierr)
+     call VecGhostUpdateBegin(XLm1, INSERT_VALUES, SCATTER_FORWARD, ierr)
+     call VecGhostUpdateEnd(XLm1, INSERT_VALUES,SCATTER_FORWARD, ierr)
+
+  end if
   keepGoing = .True.
   nsubIter = 0
   do while (keepGoing) 
@@ -359,7 +332,6 @@ subroutine initialGuess(Xnew)
 
      ! Compute volumes pased on deltaS
      call computeVolumes
-     
      ! Adjsut deltaS if necessary
      if (cratio > cmax) then 
         deltaS = deltas*(cmax/cratio)
@@ -375,7 +347,11 @@ subroutine initialGuess(Xnew)
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual()
 
+#if PETSC_VERSION_MINOR > 4
+     call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
+#else
      call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+#endif
      call EChk(ierr, __FILE__, __LINE__)
      
      ! Now solve the system
@@ -804,17 +780,20 @@ subroutine create3DPetscVars
   !          Linearized Hyperbolic System Variables
   ! ----------------------------------------------------------
   if (.not. three_d_vars_allocated) then
+     
      ! Lets to things in the proper way, create the Mat first
      allocate(onProc(nx), offProc(nx), stat=ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     onProc(:) = 50
-     offProc(:) = 50
-     
+     do i=1,nx
+        onProc(i) = min(50, nx)
+        offProc(i) = min(nxglobal-nx, 50)
+     end do
+
      ! Create a blocked matrix
      bs = 3
 #if PETSC_VERSION_MINOR < 3
      call MatCreateMPIBAIJ(hyp_comm_world, bs, &
-          nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
+          nx*bs, nx*bs, PETS_DETERMINE, PETSC_DETERMINE, &
           0, onProc, 0, offProc, hypMat, ierr)
 #else
      call MatCreateBAIJ(hyp_comm_world, bs, &
@@ -824,7 +803,7 @@ subroutine create3DPetscVars
      call EChk(ierr, __FILE__, __LINE__)
      deallocate(onProc, offProc, stat=ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     
+
      ! This must be set to allow passing in blocks in native fortran
      ! ordering
      call MatSetOption(hypMat, MAT_ROW_ORIENTED, PETSC_FALSE, ierr)
@@ -872,7 +851,7 @@ subroutine create3DPetscVars
    
      ! Loop over each "vec" in the X/metric arrays:
      do i=1,N
-        call VecDuplicate(hypDelta, X(i), ierr)
+        call VecDuplicate(XL, X(i), ierr)
 
         if (writeMetrics) then
            do j=1,nMetric
@@ -894,6 +873,12 @@ subroutine create3DPetscVars
      call PetscOptionsSetValue("-pc_factor_levels", "1", ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
+     call PetscOptionsSetValue("-pc_type", "asm", ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+     
+     call PetscOptionsSetValue("-pc_asm_overlap", "1", ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+
      ! Create the KSP object
      call KSPCreate(petsc_comm_world, hypKSP, ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -903,9 +888,11 @@ subroutine create3DPetscVars
      
      call KSPGMRESSetRestart(hypKSP, kspSubspacesize, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     
-     call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-     call EChk(ierr, __FILE__, __LINE__)
+#if PETSC_VERSION_MINOR > 4
+  call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
+#else
+  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+#endif
      
      call KSPSetTolerances(hypKSP, kspRelTol, 1e-16, 1e5, kspMaxIts, ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -913,3 +900,4 @@ subroutine create3DPetscVars
      three_d_vars_allocated = .True.
   end if
 end subroutine create3DPetscVars
+
