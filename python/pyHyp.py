@@ -21,11 +21,8 @@ History
 # =============================================================================
 # Imports
 # =============================================================================
-import sys
 import os
 import numpy
-import tempfile
-import time
 from mpi4py import MPI
 from . import MExt
 
@@ -79,9 +76,6 @@ class pyHyp(object):
             # ---------------------------
             #        Input Information
             # ---------------------------
-            # One of '3d' or '2d'
-            'dimension':'3d',
-
             # Input file
             'inputFile':'default.fmt',
 
@@ -104,6 +98,10 @@ class pyHyp(object):
             # nodeTol: Tolerance for nodes to be treated as identical.
             'nodeTol':1e-8,
 
+            # symTol: Tolerance for nodes next to the symmetry
+            # plane. If less than 0, node tol is used.
+            'symTol':-1,
+
             # mirror: Possible mirroring of mesh. Use 'x', 'y', 'z'
             # if grid needs to be mirrored or None otherwise.
             'mirror':None,
@@ -112,6 +110,29 @@ class pyHyp(object):
             # parameter usually doesn't need to be changed.
             'panelEps':1e-6,
             
+            # ---------------------------
+            #   Elliptic Parameters
+            # ---------------------------
+            # panelEps: Distance source panels are "below" nodes. This
+            # parameter usually doesn't need to be changed.
+            'panelEps':1e-8,
+
+            # farFieldTolerance: The multiple of the panel length
+            # cutoff to use the approximation formula
+            'farFieldTolerance': 4.0,
+
+            # useMatrixFree: Use matrix-free solution
+            # technique. (Always matrix free when evalMode is 'fast'.)
+            'useMatrixFree': True,
+
+            # evalMode: Type of panel evaluation routine: One of
+            # exact, slow or fast. 
+            'evalMode': 'fast',
+
+            # sourceStrengthFile: File to use to load/save the source
+            # strengths on the surface. 
+            'sourceStrengthFile':'panelStrength.source',
+
             # ------------------------------------------
             #   Pseudo Grid Parameters (Hyperbolic only)
             # ------------------------------------------
@@ -168,9 +189,6 @@ class pyHyp(object):
             # Maximum number of iterations to run for linear system
             'kspMaxIts': 500, 
 
-            # Preconditioner Lag (Hyperbolic only)
-            'preConLag': 10, 
-
             'kspSubspaceSize':50, 
 
             # ---------------------------
@@ -204,38 +222,20 @@ class pyHyp(object):
         self.gridGenerated = False
 
         # Initialize the problem based on dimension
-        if self.options['dimension'] == '2d':
-            self._init2d()
-        else:
-            self._init3d2()
-            
-        if self.comm.rank == 0:
-            print('Problem successfully setup!')
-
-    def _init3d2(self, **kwargs):
-        """Main initialization routine"""
-        if 'xMirror' in kwargs or 'yMirror' in kwargs or 'zMirror' in kwargs:
-            raise Error("Mirror specification must be now done in the "
-                        "options dictionary using: 'mirror':'z' for "
-                        "example.")
-        mirror = self.hyp.hypdata.nomirror
-        if self.options['mirror'] == 'x':
-            mirror = self.hyp.hypdata.xmirror
-        elif self.options['mirror'] == 'y':
-            mirror = self.hyp.hypdata.ymirror
-        elif self.options['mirror'] == 'z':
-            mirror = self.hyp.hypdata.zmirror
-            
-        self.hyp.setup3d(self.options['inputFile'], mirror)
+        self.hyp.setup(self.options['inputFile'])
 
     def run(self):
         """
         Run given using the options given
         """
-        if self.options['dimension'] == '2d':
-            self.hyp.run2d(self.X.T)
+        if self.options['mode'].lower() == 'hyperbolic':
+            self.hyp.runhyperbolic()
+        elif self.options['mode'].lower() == 'elliptic':
+            self.hyp.setuppanels()
+            self.hyp.runelliptic()
         else:
-            self.hyp.run3d()
+            raise Error("Invalid parameter value for mode. Must be one "
+                        "of 'elliptic' or 'hyperbolic'")
         self.gridGenerated = True
 
     def writePlot3D(self, fileName):
@@ -243,10 +243,7 @@ class pyHyp(object):
         file for the user to look at"""
         
         if self.gridGenerated:
-            if self.options['dimension'] == '2d':
-                self.hyp.writeplot3d_2d(fileName)
-            else:
-                self.hyp.writeplot3d_3d(fileName)
+            self.hyp.writeplot3d(fileName)
         else:
             raise Error("No grid has been generated! Run the run() "
                         "command before trying to write the grid!")
@@ -256,15 +253,8 @@ class pyHyp(object):
         formatted 1-Cell wide CGNS file suitable for running in SUmb."""
 
         if self.gridGenerated:
-            if self.options['dimension'] == '2d':
-                self.hyp.writecgns_2d(fileName)
-            else:
-                self.hyp.writecgns_3d(fileName)
-                # Possibly zero mirror plane for mirrored geometries
-                # if self.symNodes is not None:
-                #     mirrorDims = {'x':1, 'y':2, 'z':3}
-                #     mirrorDim = mirrorDims[self.options['mirror']]
-                #     self.hyp.zeromirrorplane(fileName, self.symNodes, mirrorDim)
+            self.hyp.writecgns(fileName)
+            self.hyp.zeromirrorplane(fileName)
         else:
             raise Error("No grid has been generated! Run the run() "
                         "command before trying to write the grid!")
@@ -286,13 +276,30 @@ class pyHyp(object):
         self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
         self.hyp.hypinput.kspreltol = self.options['kspRelTol']
         self.hyp.hypinput.kspmaxits = self.options['kspMaxIts']
-        self.hyp.hypinput.preconlag = self.options['preConLag']
         self.hyp.hypinput.nonlinear = self.options['nonLinear']
         self.hyp.hypinput.kspsubspacesize = self.options['kspSubspaceSize']
         self.hyp.hypinput.writemetrics = self.options['writeMetrics']
-        self.hyp.hypinput.eps = 1e-8
-        self.hyp.hypinput.farfieldtol = 10.0
         self.hyp.hypinput.nodetol = self.options['nodeTol']
+        self.hyp.hypinput.symtol = self.options['symTol']
+        self.hyp.hypinput.farfieldtol = self.options['farFieldTolerance']
+        self.hyp.hypinput.usematrixfree = self.options['useMatrixFree']
+        modes = {'exact':self.hyp.hypinput.eval_exact, 
+                 'slow':self.hyp.hypinput.eval_slow,
+                 'fast':self.hyp.hypinput.eval_fast}
+        self.hyp.hypinput.evalmode = modes[self.options['evalMode'].lower()]
+        self.hyp.hypinput.sourcestrengthfile[:] = ''
+        f = self.options['sourceStrengthFile']
+        self.hyp.hypinput.sourcestrengthfile[0:len(f)] = f
+
+        mirror = self.hyp.hypinput.nomirror
+        if self.options['mirror'] == 'x':
+            mirror = self.hyp.hypinput.xmirror
+        elif self.options['mirror'] == 'y':
+            mirror = self.hyp.hypinput.ymirror
+        elif self.options['mirror'] == 'z':
+            mirror = self.hyp.hypinput.zmirror
+        self.hyp.hypinput.mirrortype = mirror
+
     def _checkOptions(self):
         """
         Check the solver options against the default ones
@@ -333,29 +340,63 @@ class pyHyp(object):
         else:
             self.hyp.writelayerfe(fileName, layer, partitions)
 
+    def freezeEdge(self, blockID, edge, dstar):
+        """
+        Specifiy an edge that will be frozen. 
+        
+        Parameters
+        ----------
+        blockID : integer
+            Index of block IN ONE BASED ORDERING.
+        edge : str
+            String specified for edge. One of 'ilow', 'ihigh', 'jlow', 'jhigh'
+        dstart : float
+            How much these nodes will influence points around it. 
+        """
+        assert edge.lower() in ['ilow', 'ihigh', 'jlow', 'jhigh']
+        self.hyp.freezeedge(blockID, edge, dstar)
 
-    # def writeFEMesh(self, fileName):
-    #     """ Ouput a tecplot FE mesh of the surface. Useful for
-    #     debugging numberings.
+    def freezeFaces(self, blockIDs, dstar):
+        """
+        Specifiy one or more faces (blocks) that will be frozen
+        
+        Parameters
+        ----------
+        blockIDs : integer or list
+            Index of block(s) IN ONE BASED ORDERING.
+        dstart : float
+            How much these nodes will influence points around it. 
+        """
+        blockIDs = numpy.array(blockIDs).astype('intc')
+        self.hyp.freezefaces(blockIDs, dstar)
 
-    #     Parameters
-    #     ----------
-    #     fileName : str
-    #         Filename of tecplot file. Should have .dat extension.
-    #     """
-    #     X = self.hyp.hypdata.xsurf.T
-    #     conn = self.hyp.hypdata.conn.T
-    #     nNodes = len(X)
-    #     nElem = len(conn)
-    #     f = open(fileName, 'w')
-    #     f.write("FE Data\n")
-    #     f.write('VARIABLES = \"X\", \"Y\", \"z\" \n')
-    #     f.write("ZONE NODES=%d, ELEMENTS=%d, DATAPACKING=POINT, "
-    #             "ZONETYPE=FEQUADRILATERAL\n"%(nNodes, nElem))
-    #     for i in xrange(nNodes):
-    #         f.write('%f %f %f\n'%(X[i, 0], X[i, 1], X[i, 2]))
-    #     for i in xrange(len(conn)):
-    #         f.write('%d %d %d %d\n'%(conn[i][0], conn[i][1], 
-    #                                  conn[i][2], conn[i][3]))
-    #     f.close()
-      
+    
+    def surfaceSmooth(self, nIter, stepSize, surfFile=None):
+        """
+        Run smoothing iterations on the body surface
+
+        Parameters
+        ----------
+        nIter : int
+            Number of iterations to run
+        stepSize : float
+            Size of step. Must be < 1. Usually less than 0.1 for stability
+            reasons. 
+        """
+        
+        if surfFile is not None:
+            try:
+                from pygeo import pyGeo
+            except:
+                raise Error("pyGeo must be available to use the surface "
+                            "reprojection object. Try again without specifying "
+                            "the surfFile option.")
+        
+            geoSurf = pyGeo('iges', fileName=surfFile)
+            self.hyp.allocatesurfaces(geoSurf.nSurf)
+            for iSurf in range(geoSurf.nSurf):
+                surf = geoSurf.surfs[iSurf]
+                self.hyp.setsurface(iSurf+1, surf.ku, surf.kv, surf.tu, surf.tv, surf.coef.T)
+
+        self.hyp.smoothwrap(nIter, stepSize)
+    

@@ -15,40 +15,32 @@ python module hyp ! in
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
             real(kind=realtype) :: kspreltol
-            logical :: writemirror
             logical :: nonlinear
             logical :: writemetrics
             integer(kind=inttype) :: kspmaxits, preconlag, kspsubspacesize
             real(kind=realtype) :: rmin
             real(kind=realtype) :: cmax
-            real(kind=realtype) :: eps
-            real(kind=realtype) :: farfieldtol
             real(kind=realtype) :: nodetol
+            real(kind=realtype) :: symtol
+            integer(kind=inttype) :: mirrortype
+            integer(kind=inttype), parameter :: nomirror = 0
+            integer(kind=inttype), parameter :: xmirror = 1
+            integer(kind=inttype), parameter :: ymirror = 2
+            integer(kind=inttype), parameter :: zmirror = 3
+            logical :: usematrixfree
+            real(kind=realtype) :: farfieldtol
+            integer(kind=inttype) :: evalmode
+            integer(kind=inttype), parameter,optional :: eval_slow=1
+            integer(kind=inttype), parameter,optional :: eval_fast=2
+            integer(kind=inttype), parameter,optional :: eval_exact=0
+            character(len=512) :: sourcestrengthfile
         end module hypinput
-
-        module hypdata
-          use precision
-          integer(kind=inttype) :: nx, nxglobal, nghost
-          real(kind=realtype), dimension(:, :), allocatable :: xsurf
-          real(kind=realtype), dimension(:, :), allocatable :: xsurfglobal
-          integer(kind=inttype), dimension(:, :), allocatable :: lnptr
-          integer(kind=inttype), dimension(:, :), allocatable :: gnptr
-          integer(kind=inttype), dimension(:, :), allocatable :: cptr
-          integer(kind=inttype), dimension(:, :), allocatable :: conn
-          integer(kind=inttype), dimension(:), allocatable :: ghost
-          integer(kind=inttype) :: npglobal
-          integer(kind=inttype), parameter :: nomirror = 0
-          integer(kind=inttype), parameter :: xmirror = 1
-          integer(kind=inttype), parameter :: ymirror = 2
-          integer(kind=inttype), parameter :: zmirror = 3
-        end module hypdata
 
         subroutine releasememory
         end subroutine releasememory
 
-        subroutine setup(filename, mirror)
+        subroutine setup(filename)
           character*(*) :: filename
-          integer(kind=inttype), intent(in) :: mirror
         end subroutine setup
         
         subroutine setuppanels
@@ -60,21 +52,29 @@ python module hyp ! in
         subroutine runelliptic
         end subroutine runelliptic
 
-        subroutine surfacesmooth(layer, nsteps, stepsize)
-          integer(kind=inttype) :: layer
+        subroutine smoothwrap(nsteps, stepsize)
           integer(kind=inttype) :: nsteps
           real(kind=realtype) :: stepsize
-        end subroutine surfacesmooth
+        end subroutine smoothwrap
 
         subroutine writecgns(filename) 
-            character*(*) :: filename
-          end subroutine writecgns
+          character*(*) :: filename
+        end subroutine writecgns
 
-        subroutine zeromirrorplane(filename,mirrorlist,mirrordim,nmirror) ! in :test:writeCGNS_3d.F90
+        subroutine freezeedge(blockid,edge,dstar) ! in :test:smoothing.F90
+          integer(kind=inttype) intent(in) :: blockid
+          character*(*) :: edge
+          real(kind=realtype) intent(in) :: dstar
+        end subroutine freezeedge
+
+        subroutine freezefaces(blockids,nblockids,dstar) ! in :test:smoothing.F90
+          integer(kind=inttype) dimension(nblockids),intent(in) :: blockids
+          integer(kind=inttype), optional,intent(in),check(len(blockids)>=nblockids),depend(blockids) :: nblockids=len(blockids)
+          real(kind=realtype) intent(in) :: dstar
+        end subroutine freezefaces
+
+        subroutine zeromirrorplane(filename)
           character*(*) intent(in) :: filename
-          integer(kind=inttype) dimension(nmirror,3),intent(in) :: mirrorlist
-          integer(kind=inttype) intent(in) :: mirrordim
-          integer(kind=inttype), optional,intent(in),check(shape(mirrorlist,0)==nmirror),depend(mirrorlist) :: nmirror=shape(mirrorlist,0)
         end subroutine zeromirrorplane
 
         subroutine initpetsc(comm)
@@ -89,11 +89,27 @@ python module hyp ! in
           character*(*) :: filename
           integer(kind=inttype) :: layer
         end subroutine writelayerplot3d
+
         subroutine writelayerfe(filename, layer, partitions)
           character*(*) :: filename
           integer(kind=inttype) :: layer
           logical :: partitions
         end subroutine writelayerfe
+
+        subroutine allocatesurfaces(nsurf) ! in :test:reproject.f90
+            integer(kind=inttype) intent(in) :: nsurf
+        end subroutine allocatesurfaces
+        subroutine setsurface(isurf,ku,kv,tu,tv,coef,nctlu,nctlv) ! in :test:reproject.f90
+            integer(kind=inttype) intent(in) :: isurf
+            integer(kind=inttype) intent(in) :: ku
+            integer(kind=inttype) intent(in) :: kv
+            real(kind=realtype) dimension(nctlu+ku),intent(in),depend(ku,nctlu) :: tu
+            real(kind=realtype) dimension(nctlv+kv),intent(in),depend(kv,nctlv) :: tv
+            real(kind=realtype) dimension(3,nctlv,nctlu),intent(in) :: coef
+            integer(kind=inttype), optional,intent(in),check(shape(coef,2)==nctlu),depend(coef) :: nctlu=shape(coef,2)
+            integer(kind=inttype), optional,intent(in),check(shape(coef,1)==nctlv),depend(coef) :: nctlv=shape(coef,1)
+        end subroutine setsurface
+
      end interface
 end python module hyp
 

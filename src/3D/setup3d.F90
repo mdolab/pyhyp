@@ -1,4 +1,4 @@
-subroutine setup(fileName, mirror)
+subroutine setup(fileName)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -20,16 +20,15 @@ subroutine setup(fileName, mirror)
 
   ! Input Arguments
   character*(*), intent(in) :: fileName
-  integer(kind=intType), intent(in) :: mirror
 
   ! Working parameters
-  real(kind=realType), dimension(:, :), allocatable :: uniquePts
+  real(kind=realType), dimension(:, :), allocatable :: uniquePts, allNodes
   real(kind=realType), dimension(3) :: mask, tmp
   real(kind=realType) :: tol2
 
   integer(kind=intType), dimension(:), allocatable :: link, ptInd, nFace, localFace
   integer(kind=intType), dimension(:), allocatable :: nte, ntePtr
-  integer(kind=intType), dimension(:, :), allocatable :: fullnPtr, fullcPtr
+  integer(kind=intType), dimension(:, :), allocatable :: fullnPtr
   integer(kind=intType), dimension(:, :), allocatable :: patchSizes
 
   integer(kind=intType) :: nBlocks, nUnique
@@ -62,7 +61,7 @@ subroutine setup(fileName, mirror)
      read(7, *) nBlocks
 
      ! Allocate space for the patch sizes and patches
-     if (mirror == noMirror) then 
+     if (mirrorType == noMirror) then 
         nPatch = nBlocks
      else
         nPatch = nBlocks*2
@@ -88,6 +87,8 @@ subroutine setup(fileName, mirror)
         ! Allocate space for the grid coordinates on the patch and read
         allocate(patches(ii)%X(3, patches(ii)%il, patches(ii)%jl))
         allocate(patches(ii)%l_index(patches(ii)%il, patches(ii)%jl))
+        allocate(patches(ii)%weights(patches(ii)%il, patches(ii)%jl))
+        patches(ii)%weights(:, :) = zero
 
         read(7, *) (( patches(ii)%X(1, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
         read(7, *) (( patches(ii)%X(2, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
@@ -97,19 +98,24 @@ subroutine setup(fileName, mirror)
 
      ! All the reading is done
      close(7)
+
      ! Need to do more work if we are mirroring
-     mirrorCheck: if (mirror /= noMirror) then
+     mirrorCheck: if (mirrorType /= noMirror) then
 
         ! Just check each node is within tolerance of the sym plane
         mask(:) = one
-        if (mirror == xmirror) then
+        if (mirrorType == xmirror) then
            mask(1) = zero
-        else if (mirror == ymirror) then
+        else if (mirrorType == ymirror) then
            mask(2) = zero
-        else if (mirror == zmirror) then
+        else if (mirrorType == zmirror) then
            mask(3) = zero
         end if
-        tol2 = nodeTol ** 2
+        if (symTol < zero ) then
+           tol2 = nodeTol ** 2
+        else
+           tol2 = symTol ** 2
+        end if
         do ii=1,nBlocks
            patches(ii)%nSym = 0
            ! First do a pass to count:
@@ -118,6 +124,7 @@ subroutine setup(fileName, mirror)
                  tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
                  if (dot_product(tmp, tmp) < tol2) then
                     patches(ii)%nSym = patches(ii)%nSym + 1
+                    patches(ii)%X(:, i, j) = patches(iI)%X(:, i, j)*mask
                  end if
               end do
            end do
@@ -138,22 +145,25 @@ subroutine setup(fileName, mirror)
 
         ! Now we can finish mirroring the mesh:
         mask(:) = one
-        if (mirror == xmirror) then
+        if (mirrorType == xmirror) then
            mask(1) = -one
-        else if (mirror == ymirror) then
+        else if (mirrorType == ymirror) then
            mask(2) = -one
-        else if (mirror == zmirror) then
+        else if (mirrorType == zmirror) then
            mask(3) = -one
         end if
 
         do ii=1,nBlocks
            allocate(patches(ii+nBlocks)%X(3, patches(ii)%il, patches(ii)%jl))
            allocate(patches(ii+nBlocks)%l_index(patches(ii)%il, patches(ii)%jl))
+           allocate(patches(ii+nBlocks)%weights(patches(ii)%il, patches(ii)%jl))
+           patches(ii+nBlocks)%weights(:, :) = zero
+
            patches(ii+nBlocks)%il = patches(ii)%il
            patches(ii+nBlocks)%jl = patches(ii)%jl
            do j=1,patches(ii)%jl
               do i=1,patches(ii)%il
-                 patches(ii+nBlocks)%X(:, i, patches(ii)%jl - j + 1) = &
+                 patches(ii+nBlocks)%X(:, i, j) = &
                       patches(ii)%X(:, i, j)*mask
               end do
            end do
@@ -167,55 +177,101 @@ subroutine setup(fileName, mirror)
         faceTotal = faceTotal + (patches(ii)%il-1)*(patches(ii)%jl-1)
      end do
 
-     allocate(xsurfglobal(3, nodeTotal), uniquePts(3, nodeTotal), link(nodeTotal))
+     allocate(allNodes(3, nodeTotal), uniquePts(3, nodeTotal), link(nodeTotal))
      iNode = 0
      do ii=1, nPatch
-        do j=1, patches(ii)%jl
+        do j=1, patches(ii)%jl, patches(ii)%jl-1
            do i=1, patches(ii)%il
               iNode = iNode + 1
-              xsurfglobal(:, iNode) = patches(ii)%X(:, i, j)
+              allNodes(:, iNode) = patches(ii)%X(:, i, j)
+           end do
+        end do
+        do i=1, patches(ii)%il, patches(ii)%il-1
+           do j=2, patches(ii)%jl-1
+              iNode = iNode + 1
+              allNodes(:, iNode) = patches(ii)%X(:, i, j)
            end do
         end do
      end do
 
-     call pointReduce(xsurfglobal, nodeTotal, nodeTol, uniquePts, link, nUnique)
+     call pointReduce(allNodes, iNode, nodeTol, uniquePts, link, nUnique)
 
-     ! Dump back into l_index
-     allocate(ptInd(nUnique))
-     ptInd(:) = 0
-     nodeCounter = 0
+     ! Dump edge/cornder into l_index
      iNode = 0
      do ii=1,nPatch
-        do j=1, patches(ii)%jl
+        do j=1, patches(ii)%jl, patches(ii)%jl-1
            do i=1, patches(ii)%il
-              nodeCounter = nodeCounter + 1
-              ind = link(nodeCounter)
-              if (ptInd(ind) == 0) then
-                 iNode = iNode + 1
-                 ptInd(ind) = iNode
-              end if
-              patches(ii)%l_index(i, j) = ind
+              iNode = iNode + 1
+              patches(ii)%l_index(i, j) = link(iNode)
+           end do
+        end do
+
+        do i=1, patches(ii)%il, patches(ii)%il-1
+           do j=2, patches(ii)%jl-1
+              iNode = iNode + 1
+              patches(ii)%l_index(i, j) = link(iNode)
            end do
         end do
      end do
+     
+     ! Now fill in the interior points into uniquePts/l_index
+     iNode = nUnique
+     do ii=1,nPatch
+        do j=2, patches(ii)%jl-1
+           do i=2, patches(ii)%il-1
+              iNode = iNode + 1
+              uniquePts(:, iNode) = patches(ii)%X(:, i, j)
+              patches(ii)%l_index(i, j) = iNode
+           end do
+        end do
+     end do
+     nUnique = iNode
+
+     write(*,"(a)", advance="no") '#--------------------#'
+     print "(1x)"  
+     write(*,"(a)", advance="no") " Total Nodes: "
+     write(*,"(I7,1x)",advance="no") nodeTotal
+     print "(1x)"  
+     write(*,"(a)", advance="no") " Unique Nodes:"
+     write(*,"(I7,1x)",advance="no") nUnique
+     print "(1x)"  
+     write(*,"(a)", advance="no") " Total Faces: " 
+     write(*,"(I7,1x)",advance="no") faceTotal
+     print "(1x)" 
+     write(*,"(a)", advance="no") '#--------------------#'
+     print "(1x)"   
 
      ! Free up all allocated memory up to here:
-     deallocate(ptInd, link)
+     deallocate(link, allNodes)
 
      ! Create the conn array
      allocate(fullConn(4, faceTotal))
      jj = 0
      do ii=1,nPatch
-        do j=1, patches(ii)%jl-1
-           do i=1, patches(ii)%il-1
-              jj = jj + 1
-              fullConn(:, jj) = (/&
-                   patches(ii)%l_index(i,   j), &
-                   patches(ii)%l_index(i+1, j), &
-                   patches(ii)%l_index(i+1, j+1), &
-                   patches(ii)%l_index(i,   j+1)/)
+        if (mirrorType==noMirror .or. ii <= nPatch/2) then
+           do j=1, patches(ii)%jl-1
+              do i=1, patches(ii)%il-1
+                 jj = jj + 1
+                 fullConn(:, jj) = (/&
+                      patches(ii)%l_index(i,   j), &
+                      patches(ii)%l_index(i+1, j), &
+                      patches(ii)%l_index(i+1, j+1), &
+                      patches(ii)%l_index(i,   j+1)/)
+              end do
            end do
-        end do
+        else
+           ! Patches are flipped orientation
+           do j=1, patches(ii)%jl-1
+              do i=1, patches(ii)%il-1
+                 jj = jj + 1
+                 fullConn(:, jj) = (/&
+                      patches(ii)%l_index(i,   j), &
+                      patches(ii)%l_index(i, j+1), &
+                      patches(ii)%l_index(i+1, j+1), &
+                      patches(ii)%l_index(i+1, j)/)
+              end do
+           end do
+        end if
      end do
 
      ! Determine the number of number of faces around each node:
@@ -308,7 +364,7 @@ subroutine setup(fileName, mirror)
            jj = -1
            findNextElement: do while (.not. found)
               jj = jj + 1
-
+            
               ! Find the next face
               faceToCheck = nte(ntePtr(iNode) + jj*2)
               if (faceToCheck /= nextElemID) then
@@ -327,7 +383,6 @@ subroutine setup(fileName, mirror)
      deallocate(nte, ntePtr)
   end if rootProc
 
-
   ! Now we can broadcast the required infomation to everyone. In fact
   ! all we need is the fullnPtr, fullcPtr and the full connectivity list
   call MPI_Bcast(nUnique, 1, MPI_INTEGER, 0, hyp_comm_world, ierr)
@@ -340,6 +395,9 @@ subroutine setup(fileName, mirror)
   call EChk(ierr,__FILE__,__LINE__)
 
   call MPI_Bcast(faceTotal, 1, MPI_INTEGER, 0, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  call MPI_Bcast(nPatch, 1, MPI_INTEGER, 0, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
   ! Allocate space on all procs EXCEPT the root:
@@ -484,11 +542,6 @@ subroutine setup(fileName, mirror)
   nx = isize
   nxglobal = nUnique
 
-  allocate(xsurf(3, nx))
-  do i=1,nx
-     xsurf(:, i) = uniquePts(:, i+istart-1)
-  end do
-
   call create3DPetscVars
 
   ! Copy X-surf into the first grid slot
@@ -497,7 +550,7 @@ subroutine setup(fileName, mirror)
 
   do i=1,nx
      do idim=1,3
-        xx((i-1)*3 + idim) = XSurf(idim, i)
+        xx((i-1)*3 + idim) = uniquePts(idim, i+istart-1)
      end do
   end do
 
@@ -509,7 +562,7 @@ subroutine setup(fileName, mirror)
   call VecGhostUpdateEnd(X(1), INSERT_VALUES,SCATTER_FORWARD, ierr)
 
   ! Finally finished with the full set of information so deallocate
-  deallocate(fullnPtr, fullcPtr,  link, localFace, uniquePts)
+  deallocate(fullnPtr, link, localFace, uniquePts)
 
 end subroutine setup
 

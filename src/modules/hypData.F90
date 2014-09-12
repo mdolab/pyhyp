@@ -7,10 +7,6 @@ module hypData
   ! This module contains the data and data structures required for
   ! running the hyperbolic grid generator
 
-  ! Data for the 2D generator:
-  real(kind=realType), dimension(:, :, :), allocatable, target :: grid2D
-  real(kind=realType), dimension(:, :), allocatable :: X0, X1, Xm1
-
   ! -------------------------------------
   !         Surface Patch Data
   ! -------------------------------------
@@ -28,6 +24,9 @@ module hypData
      ! zeroed as such when writing the mesh
      integer(kind=intType) :: nSym
      integer(kind=intType), dimension(:, :), allocatable :: symNodes
+
+     ! Array determining the freezing weights of the nodes. 
+     real(kind=realType), dimension(:, :), allocatable :: weights
      
   end type patchType
 
@@ -64,12 +63,9 @@ module hypData
   ! ordering for assembly. 
   integer(kind=intType), dimension(:, :), allocatable :: gnPtr
   integer(kind=intType), dimension(:, :), allocatable :: lnPtr
-  integer(kind=intType), dimension(:, :), allocatable :: cPtr
+  integer(kind=intType), dimension(:, :), allocatable :: cPtr, fullcPtr
   integer(kind=intType), dimension(:, :), allocatable :: conn, fullConn
   integer(kind=intTYpe) :: nLocalFace
-
-  ! The (local) initial surface nodes 
-  real(kind=realType), dimension(:, :), allocatable :: xSurf
 
   ! The indices of the ghost nodes this processor requires
   integer(kind=intType) :: nGhost
@@ -77,15 +73,12 @@ module hypData
 
   ! The "nodal volume" of each local node
   Vec Volume, VolumeLocal
-  real(kind=realType), dimension(:), pointer :: Vptr
-
-  ! The global set of nodes that all procs have:
-  real(kind=realType), dimension(:,:), allocatable :: XsurfGlobal
+  real(kind=realType), dimension(:), pointer :: Vptr, dptr
 
   ! ---------------------------------------
   !    Marching Iteration/Monitoring Data
   ! ---------------------------------------
-  real(kind=realType) :: timeStart
+  double precision :: timeStart
   real(kind=realType) :: scaleDist
   real(kind=realType) :: gridRatio
   real(kind=realType) :: gridSensorMax, gridSensorMin, minQuality, deltaS, minR
@@ -98,7 +91,6 @@ module hypData
   !    Miscellaneous Variables
   ! ---------------------------------------
   logical :: three_d_vars_allocated = .False.
-  logical :: two_d_vars_allocated = .False.
 
   ! -------------------------------------
   !         PETSc Linear System Variables
@@ -107,12 +99,18 @@ module hypData
   Vec hypDelta, hypRHS, hypRes
   KSP hypKSP
   VecScatter rootScatter
+  VecScatter allScatter
+  Vec allGlobalNodes
 
   Mat ellipMat, ellipPCMat
   Vec ellipRHS, ellipSol, localSol
   KSP ellipKSP
   PC pc
-  VecScatter ellipScatter
+  VecScatter ellipScatter, ellipDeltaScatter
+  PetscFortranAddr ctx(1)
+  Vec ellipDelta,  ellipDeltaLocal
+  Vec ellipNorm,   ellipNormLocal
+  Vec ellipLayer,  ellipLayerLocal
 
   ! ------------------------------------------------------
   !         Variables for Storing Metrics (for debugging)
@@ -127,10 +125,4 @@ module hypData
   integer(kind=intType), parameter :: iVhist = 7
   integer(kind=intType), parameter :: nMetric = 7
   logical :: metricsAllocated = .False.
-
-  integer(kind=intType), parameter :: nomirror = 0
-  integer(kind=intType), parameter :: xmirror = 1
-  integer(kind=intType), parameter :: ymirror = 2
-  integer(kind=intType), parameter :: zmirror = 3
-
 end module hypData

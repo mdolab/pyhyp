@@ -5,14 +5,14 @@ module panel
   use precision
   implicit none
   save
-  integer(kind=intType), parameter :: NNodesMax = 8
+  integer(kind=intType), parameter :: NNodesMax = 4
   type panelType
      ! Data for actual panel
      integer(kind=intType) :: N
-     real(kind=realType), dimension(3, NNodesMax) :: X
+     real(kind=realType), dimension(3, NNodesMax+1) :: X
+     real(kind=realType), dimension(3, NNodesMax+1) :: pts
      real(kind=realType), dimension(3) :: normal
-     real(kind=realType), dimension(3, 3) :: C
-     real(kind=realType), dimension(3, 3) :: CT
+     real(kind=realType), dimension(3, 3) :: C, CT
 
      ! Common data
      real(kind=realType) :: area

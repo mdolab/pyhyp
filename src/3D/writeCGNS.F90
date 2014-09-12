@@ -58,12 +58,13 @@ subroutine writeCGNS(fileName)
      call cg_base_write_f(cg,"Base#1", Celldim, Physdim, base, ierr)
      if (ierr .eq. CG_ERROR) call cg_error_exit_f
   end if
-  if (writeMirror) then
+
+  if (mirrorType == noMirror) then 
      nPatchToWrite = nPatch
   else
      nPatchToWrite = nPatch/2
   end if
- 
+
   do iPatch=1, nPatchToWrite
      if (myid == 0) then
         ! Write the single zone
@@ -196,32 +197,19 @@ subroutine writeCGNS(fileName)
     end subroutine writeVar
   end subroutine writeCGNS
 
-subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
+subroutine zeroMirrorPlane(fileName)
 
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
   !
   !     Abstract: zeroMirrorPlane supplies EXACT zero coordinates to
-  !               the mirror plane. It uses the inital topology to
-  !               determine which edges (which have become faces) to
-  !               zero. The mirrorList is and nx2 array containint the
-  !               faceID and edgeID (in pySpline/pyGeo ordering) to
-  !               zero. We will open the previously written CGNS file,
-  !               read, the correct dimension, zero the correct
-  !               plane, and the rewrite. 
+  !               the mirror plane. 
   !
   !     Parameters
   !     ----------
   !     fileName : Character array
   !        The name of the cgns file to modify
-  !     mirrorList : integer array, size(nMirror, 3)
-  !        The list of faces and node indices (on surface) to mirror
-  !     mirrorDim : int 
-  !        Dimension to mirror, 1 for x, 2 for y, 3 for z.
-  !     nMirror : integer
-  !        The number of faces to modify.
-  !
   !     Notes
   !     -----
   !     Since this uses file-i/o it should only be called on the root
@@ -229,22 +217,24 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
 
   use hypInput
   use hypData
+  use communication
   implicit none
   include 'cgnslib_f.h'
 
   ! Input Arguments
   character*(*), intent(in) :: fileName
-  integer(kind=intType), intent(in) :: mirrorList(nMirror, 3)
-  integer(kind=intType), intent(in) :: mirrorDim, nMirror
 
   ! Working Variables
-  integer(kind=intType) :: cg, ierr, base, nzones, ii, zone, zonesize(9)
-  integer(kind=intType) :: coordID, start(3), zoneType, loadedZone 
+  integer(kind=intType) :: cg, ierr, base, nzones, ii, zonesize(9), i
+  integer(kind=intType) :: coordID, start(3), zoneType, loadedZone, nPatchToWrite
   character*32 zonename
   real(kind=realType), dimension(:, :, :), allocatable :: coor
 
-  ! Don't do anything if no mirror nodes
-  if (nMirror == 0) then
+  if (mirrorType == noMirror) then
+     return
+  end if
+
+  if (myid /= 0) then
      return
   end if
 
@@ -259,93 +249,52 @@ subroutine zeroMirrorPlane(fileName, mirrorList, mirrorDim, nMirror)
   call cg_nzones_f(cg, base, nzones, ierr)
   if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-  loadedZone = -1
-  do ii = 1,nMirror 
-     ! Extract zone from the mirror list
-     zone = mirrorList(ii, 1)
-
-     if (zone .ne. loadedZone) then
-        ! We need to switch zones. This can happen for two reasons: It
-        ! is either the first zone or we just switched zones:
-
-        if (loadedZone == -1) then ! First Pass:
-           ! Read data for this one
-           call cg_zone_read_f(cg, base, zone, zonename, zonesize, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-           call cg_zone_type_f(cg, base, zone, zonetype, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-           ! Allocate enough space for one coordiante
-           allocate(coor(zonesize(1),zonesize(2),zonesize(3)))
-
-           ! Read the correct coordinate, based on mirrorDim which was
-           ! passed in.
-           start(:) = 1
-           if (mirrorDim == 1) then
-              call cg_coord_read_f(cg,base,zone,'CoordinateX',RealDouble,start,zonesize,coor,ierr)
-           else if(mirrorDim == 2) then
-              call cg_coord_read_f(cg,base,zone,'CoordinateY',RealDouble,start,zonesize,coor,ierr)
-           else
-              call cg_coord_read_f(cg,base,zone,'CoordinateZ',RealDouble,start,zonesize,coor,ierr)
-           end if
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-           loadedZone = zone
-        else ! switching zones, write the current one and read the next:
-           ! We need to write the data back for current zone:
-           if (mirrorDim == 1) then
-              call cg_coord_write_f(cg,base,loadedZone,RealDouble,"CoordinateX",coor,coordID,ierr)
-           else if(mirrorDim == 2) then
-              call cg_coord_write_f(cg,base,loadedZone,RealDouble,"CoordinateY",coor,coordID,ierr)
-           else 
-              call cg_coord_write_f(cg,base,loadedZone,RealDouble,"CoordinateZ",coor,coordID,ierr)
-           end if
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-           deallocate(coor)
-
-           ! And read the new zone:
-           ! Read data for this one
-           call cg_zone_read_f(cg, base, zone, zonename, zonesize, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-           call cg_zone_type_f(cg, base, zone, zonetype, ierr)
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-
-           ! Allocate enough space for one coordiante
-           allocate(coor(zonesize(1),zonesize(2),zonesize(3)))
-
-           ! Read the correct coordinate, based on mirrorDim which was
-           ! passed in.
-           start(:) = 1
-           if (mirrorDim == 1) then
-              call cg_coord_read_f(cg,base,zone,'CoordinateX',RealDouble,start,zonesize,coor,ierr)
-           else if(mirrorDim == 2) then
-              call cg_coord_read_f(cg,base,zone,'CoordinateY',RealDouble,start,zonesize,coor,ierr)
-           else
-              call cg_coord_read_f(cg,base,zone,'CoordinateZ',RealDouble,start,zonesize,coor,ierr)
-           end if
-           if (ierr .eq. CG_ERROR) call cg_error_exit_f
-           loadedZone = zone
-        end if
-     end if
-
-     ! Now mirror the line based on mirro list
-     coor(mirrorList(ii, 2), mirrorList(ii, 3), :) = zero
-  end do
-
-  ! Finally write the last zone:
-  ! We need to write the data back for current zone:
-  if (mirrorDim == 1) then
-     call cg_coord_write_f(cg,base,loadedZone,RealDouble,"CoordinateX",coor,coordID,ierr)
-  else if(mirrorDim == 2) then
-     call cg_coord_write_f(cg,base,loadedZone,RealDouble,"CoordinateY",coor,coordID,ierr)
-  else 
-     call cg_coord_write_f(cg,base,loadedZone,RealDouble,"CoordinateZ",coor,coordID,ierr)
+  if (mirrorType == noMirror) then 
+     nPatchToWrite = nPatch
+  else
+     nPatchToWrite = nPatch/2
   end if
-  if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
-  ! Deallocate the coord array:
-  deallocate(coor)
-  call cg_close_f(cg, ierr)
-  if (ierr .eq. CG_ERROR) call cg_error_exit_f
+  do ii=1, nPatchToWrite
+     if (patches(ii)%nSym /= 0) then
 
+        call cg_zone_read_f(cg, base, ii, zonename, zonesize, ierr)
+        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+        call cg_zone_type_f(cg, base, ii, zonetype, ierr)
+        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+        ! Allocate enough space for one coordiante
+        allocate(coor(zonesize(1),zonesize(2),zonesize(3)))
+
+        ! Read the correct coordinate, based on mirrorDim which was
+        ! passed in.
+        start(:) = 1
+        if (mirrorType == xMirror) then
+           call cg_coord_read_f(cg,base,ii,'CoordinateX',RealDouble,start,zonesize,coor,ierr)
+        else if(mirrorType == yMirror) then
+           call cg_coord_read_f(cg,base,ii,'CoordinateY',RealDouble,start,zonesize,coor,ierr)
+        else
+           call cg_coord_read_f(cg,base,ii,'CoordinateZ',RealDouble,start,zonesize,coor,ierr)
+        end if
+        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+        ! Loop over the mirror nodes and zero out the "lines" in k
+        ! Now mirror the line based on mirro list
+        do i=1, patches(ii)%nSym
+           coor(patches(ii)%symNodes(1, i), patches(ii)%symNodes(2, i), :) = zero
+        end do
+
+        if (mirrorType == xMirror) then
+           call cg_coord_write_f(cg,base,ii,RealDouble,"CoordinateX",coor,coordID,ierr)
+        else if(mirrorType == yMirror) then
+           call cg_coord_write_f(cg,base,ii,RealDouble,"CoordinateY",coor,coordID,ierr)
+        else 
+           call cg_coord_write_f(cg,base,ii,RealDouble,"CoordinateZ",coor,coordID,ierr)
+        end if
+        
+        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+        deallocate(coor)
+        
+     end if
+  end do
 end subroutine zeroMirrorPlane

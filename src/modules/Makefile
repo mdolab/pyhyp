@@ -19,7 +19,9 @@ FF90_OBJECTS_1 = precision.o\
 FF90_OBJECTS_2 =	communication.o\
 			hypInput.o\
 			hypData.o\
-			panel.o
+			panel.o\
+			kd_tree.o\
+			bspline.o\
 
 default: all
 

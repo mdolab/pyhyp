@@ -13,7 +13,7 @@ subroutine runHyperbolic
 
   ! Working parameters
   integer(kind=intType) :: i, ierr, idim, l, reason
-
+  real(kind=realType) :: tmp
   ! Compute the inital 'Radius' value, radius0
   call computeR(X(1), radius0)
 
@@ -44,7 +44,7 @@ subroutine runHyperbolic
   nSubIterPrev = 0
   desiredS = zero
   ! Determine starting CPU Time
-  timeStart = mpi_wtime()
+  timeStart = dble(mpi_wtime())
 
   ! This is the master marching direction loop
   marchLoop: do marchIter=2, N
@@ -55,8 +55,8 @@ subroutine runHyperbolic
      ! 'linear' mode this is all that is done. This function computes
      ! the next step, X(L). It may take multiple sub-steps to get there
      ! which is fine. 
-     call initialGuess(X(L)) 
-
+     call initialGuess(X(L))
+     
      ! Compute the max radius of the current level, X(L)
      call computeMinR(X(L), Radius)
 
@@ -291,11 +291,11 @@ subroutine initialGuess(Xnew)
   use communication
   use hypData, only : nx, deltas, X, XLm1, XL, marchIter, volume
   use hypData, only : cRatio, hypKSP, hypMat, hypRHS, hypDelta, scaleDist
-  use hypData, only : kspIts, nsubiter, nsubiterprev, gridRatio, desiredS
+  use hypData, only : kspIts, nsubiter, nsubiterprev, gridRatio, desiredS, radius0
 
   use hypInput
   implicit none
-
+  real(kind=realType) :: sl
 #include "include/finclude/petsc.h"
 #include "finclude/petscvec.h90"
 
@@ -374,6 +374,11 @@ subroutine initialGuess(Xnew)
      ! Now we need to check if we have gone far enough for the next
      ! desired grid level. If so, we compute the factor between xxm1
      ! and xx and set. 
+     if ( marchIter > 20) then
+
+        sl = (scaleDist/(radius0*rMin))**slExp
+        call surfaceSmooth(XL, 10+10*(marchIter-20), .01)
+     end if
 
      if (scaleDist >= desiredS) then
      
@@ -838,7 +843,7 @@ subroutine create3DPetscVars
      call EChk(ierr, __FILE__, __LINE__)
      call VecDuplicate(XL, XLm1, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-
+     
      ! The volume array also needs to be ghosted.
      if (nGhost == 0) then
         call VecCreateGhost(hyp_comm_world, nx, PETSC_DETERMINE, &
@@ -866,7 +871,7 @@ subroutine create3DPetscVars
      call VecScatterCreateToZero(X(1), rootScatter, XLocal, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
-     call vecDuplicate(Xlocal, Xlocalm1, ierr)
+     call vecDuplicate(xLocal, Xlocalm1, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      ! This should come as a option, but we'll put it here for now.
