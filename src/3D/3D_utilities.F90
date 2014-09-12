@@ -595,8 +595,7 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
   ! duplicates, (to within tol) return a list of the nUnqiue
   ! uniquePoints of points and a link array of length N, that points
   ! into the unique list
-
-  use precision 
+  use precision
   implicit none
 
   ! Input Parameters
@@ -612,15 +611,15 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
   ! Working Parameters
   real(kind=realType), allocatable, dimension(:) :: dists, tmp
   integer(kind=intType), allocatable, dimension(:) :: ind
-  integer(kind=intType) :: i, j, nTmp, link_counter, ii
+  integer(kind=intType) :: i, j, nTmp, link_counter, ii, nSubUnique
   logical cont, cont2
-  integer(kind=intType) :: tmpInd(N), subLink(N), nSubUnique
-  real(kind=realType) :: subPts(3, N), subUniquePts(3, N)
+  integer(kind=intType), dimension(:), allocatable :: tmpInd, subLInk
+  real(kind=realType), dimension(:, :), allocatable :: subPts, subUniquePts
+  integer(kind=intType) :: maxSubUnique
   interface
      subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
        use precision
        implicit none
-
        real(kind=realType), dimension(:, :) :: pts
        integer(kind=intType), intent(in) :: N
        real(kind=realType), intent(in) :: tol
@@ -630,13 +629,13 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
      end subroutine pointReduceBruteForce
 
   end interface
-
+  maxSubUnique = 10
   ! Allocate dists, and the ind pointer
-  allocate(dists(N), tmp(N), ind(N))
+  allocate(dists(N), tmp(N), ind(N), tmpInd(maxSubUnique), subLink(maxSubUnique), &
+       subPts(3, maxSubUnique), subUniquePts(3, maxSubUnique))
 
   ! Compute distances of all points from the origin
   do i=1, N
-     !dists(i) = sqrt((pts(1,i)-pts(1,1))**2 + (pts(2,i)-pts(2,1))**2 + (pts(3, i)-pts(3,1))**2)
      dists(i) = sqrt(pts(1,i)**2 + pts(2,i)**2 + pts(3, i)**2)
      tmp(i) = dists(i)
      ind(i) = i
@@ -652,14 +651,11 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 
   do while(cont)
      cont2 = .True.
-
      j = i
      nTmp = 0
      do while(cont2)
         if (abs(dists(ind(i))-dists(ind(j))) < tol) then
            nTmp = nTmp + 1
-
-           tmpInd(nTmp) = ind(j)
            j = j + 1
            if (j == N+1) then ! Overrun check
               cont2 = .False.
@@ -669,10 +665,19 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
         end if
      end do
 
+     ! Not enough space...deallocate and reallocate
+     if (ntmp > maxSubUnique) then
+        deallocate(tmpInd, subLink, subPts, subUniquePts)
+        maxSubUnique = nTmp
+        allocate(tmpInd(maxSubUnique), subLink(maxSubUnique), &
+             subPts(3, maxSubUnique), subUniquePts(3, maxSubUnique))
+     end if
+
      ! Copy the points that have the same distance into subPts. Note
      ! these may NOT be the same, since two points can have the same
-     ! distnace, but not be co-incident (ie (1,0,0), (-1,0,0))
+     ! distance, but not be co-incident (ie (1,0,0), (-1,0,0))
      do ii=1,nTmp
+        tmpInd(ii) = ind(j - nTmp + ii - 1)
         subPts(:, ii) = pts(:, tmpInd(ii))
      end do
 
@@ -695,7 +700,7 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
         cont = .False.
      end if
   end do
-  deallocate(dists, tmp, ind)
+  deallocate(dists, tmp, ind, tmpInd, subLink, subPts, subUniquePts)
 
 end subroutine pointReduce
 

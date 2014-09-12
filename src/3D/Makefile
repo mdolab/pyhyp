@@ -16,6 +16,7 @@ vpath %.o $(HYP_OBJDIR)
 FF90_OBJECTS =	3D_code.o\
 		3D_utilities.o\
 		3D_elliptic.o\
+		reproject.o\
 		setup3d.o\
 		smoothing.o\
 		writePlot3d.o\
