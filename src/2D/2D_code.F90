@@ -403,11 +403,7 @@ subroutine assembleAndSolve(X0, X1, Xm1, Area1)
 
   ! Set the operator so PETSc knows to refactor
   !if (mod(marchIter,10) == 0) then
-#if PETSC_VERSION_MINOR > 4
   call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
-#else
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-#endif
   call EChk(ierr, __FILE__, __LINE__)
   !end if
   ! Now solve the system
@@ -487,7 +483,12 @@ subroutine create2DPetscVars
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Then use getVecs to get the vectors we want
+
+#if PETSC_VERSION_MINOR > 5
+  call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
+#else
   call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
+#endif
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Create the KSP Object
@@ -496,11 +497,7 @@ subroutine create2DPetscVars
 
   call KSPSetFromOptions(hypKSP, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-#if PETSC_VERSION_MINOR > 4
   call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
-#else
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-#endif
   call EChk(ierr, __FILE__, __LINE__)
 
   call KSPSetTolerances(hypKSP, 1e-12, 1e-16, 1e5, 50, ierr)
