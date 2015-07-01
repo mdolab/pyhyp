@@ -140,8 +140,14 @@ subroutine computeVolumes
   use hypData, only : nPatch, patches, nx, deltaS, xx, volume, nptr, vBar, cratio
   implicit none
 
+
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
 #include "include/finclude/petsc.h"
-#include "finclude/petscvec.h90"
+#include "include/finclude/petscvec.h90"
+#endif
 
   ! Working Variables
   integer(kind=intType) :: i, j, ipatch, ierr
@@ -227,9 +233,15 @@ subroutine volumeSmooth
   use hypInput
   use hypData, only : nx, nPtr, volume, marchIter, vBar
   implicit none
-#include "finclude/petsc.h"
-#include "finclude/petscvec.h90"
 
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
+#include "include/finclude/petsc.h"
+#include "include/finclude/petscvec.h90"
+#endif
   ! Working Parameters
   real(kind=realType) :: factor, Vtmp(nx), oneOvrNNeighbour
   integer(kind=intType) :: i, ii, iter, ierr
@@ -292,8 +304,14 @@ subroutine initialGuess(Xnew)
   use hypInput
   implicit none
 
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
 #include "include/finclude/petsc.h"
-#include "finclude/petscvec.h90"
+#include "include/finclude/petscvec.h90"
+#endif
 
   ! Output Parameters
   Vec :: Xnew
@@ -337,11 +355,7 @@ subroutine initialGuess(Xnew)
      
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual(.True., .False., saveMetrics)
-#if PETSC_VERSION_MINOR > 4
-  call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
-#else
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-#endif
+     call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
      
      ! Now solve the system
      call KSPSolve(hypKSP, hypRHS, hypDelta, ierr)
@@ -395,8 +409,16 @@ subroutine formFunction(snes, xVec, rVec, ctx, ierr)
   use precision
   use hypData, only : xxtmp, rrtmp, xx, rr, nx, marchIter
   implicit none
-#include "finclude/petsc.h"
-#include "finclude/petscvec.h90"
+
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
+#include "include/finclude/petsc.h"
+#include "include/finclude/petscvec.h90"
+#endif
+
   ! PETSc Variables
   SNES snes
   Vec xVec, rVec
@@ -448,8 +470,16 @@ subroutine formJacobian(snes, xVec, Jac, B, flag, ctx, ierr)
   use hypData, only : xx, xxtmp, nx, marchIter
   use hypInput 
   implicit none
+
+
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
 #include "include/finclude/petsc.h"
-#include "finclude/petscvec.h90"
+#include "include/finclude/petscvec.h90"
+#endif
 
   ! Input (Petsc) Variables
   SNES snes
@@ -947,15 +977,9 @@ subroutine create3DPetscVars
 
   ! Create a blocked matrix
   bs = 3
-#if PETSC_VERSION_MINOR < 3
-  call MatCreateMPIBAIJ(PETSC_COMM_WORLD, bs, &
-       nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
-       0, onProc, 0, offProc, hypMat, ierr)
-#else
   call MatCreateBAIJ(PETSC_COMM_WORLD, bs, &
        nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
        0, onProc, 0, offProc, hypMat, ierr)
-#endif
   call EChk(ierr, __FILE__, __LINE__)
   deallocate(onProc, offProc, stat=ierr)
   call EChk(ierr, __FILE__, __LINE__)
@@ -966,7 +990,13 @@ subroutine create3DPetscVars
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Then use getVecs to get the vectors we want
+  
+#if PETSC_VERSION_MINOR > 5
+  call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
+#else
   call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
+#endif
+
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Create the extra state-sized vectors
@@ -1025,11 +1055,7 @@ subroutine create3DPetscVars
 
   call KSPGMRESSetRestart(hypKSP, kspSubspacesize, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-#if PETSC_VERSION_MINOR > 4
   call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
-#else
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-#endif
   call EChk(ierr, __FILE__, __LINE__)
 
   call KSPSetTolerances(hypKSP, kspRelTol, 1e-16, 1e5, kspMaxIts, ierr)

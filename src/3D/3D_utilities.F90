@@ -349,8 +349,14 @@ subroutine computeR(xVec, R)
   use hypData, only : nx, xAvg
   implicit none
 
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
+#endif
 
   ! Input parameters
   Vec, intent(in) :: xVec
@@ -404,9 +410,14 @@ subroutine computeMinR(xVec, R)
   use hypData, only : nx, xAvg
   implicit none
 
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
-
+#endif
   ! Input parameters
   Vec, intent(in) :: xVec
 

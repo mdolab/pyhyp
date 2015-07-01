@@ -6,7 +6,12 @@ subroutine EChk(ierr, file, line)
 
   implicit none
 
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#else
 #include "include/finclude/petsc.h"
+#endif
 
   integer(kind=intType),intent(in) :: ierr
   character*(*),intent(in) :: file
