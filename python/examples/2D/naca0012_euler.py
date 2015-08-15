@@ -1,3 +1,8 @@
+"""
+This script uses the NACA 0012 airfoil equation to generate 2D Euler mesh. 
+This mesh has a sharp trailing edge.
+"""
+
 from pyhyp import pyHyp
 import numpy
 options= {
@@ -46,4 +51,4 @@ for i in xrange(len(x)):
 X = numpy.hstack([[x,y]]).T
 hyp = pyHyp.pyHyp('2d',X=X, options=options, flip=True)
 hyp.run()
-hyp.writeCGNS('naca0012.cgns')
+hyp.writeCGNS('naca0012_euler.cgns')
