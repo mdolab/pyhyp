@@ -293,7 +293,7 @@ subroutine initialGuess(Xnew)
   use hypInput
   implicit none
   real(kind=realType) :: sl
-
+#include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
 #include "petsc/finclude/petscvec.h90"
@@ -771,7 +771,7 @@ subroutine create3DPetscVars
   use hypData
 
   implicit none
-  
+#include "include/petscversion.h"  
   ! Working Variables
   integer(kind=intType) :: ierr, i, j, idim, bs, dummy(1)
   integer(kind=intType), dimension(:), allocatable :: onProc, offProc
@@ -805,7 +805,11 @@ subroutine create3DPetscVars
      call EChk(ierr, __FILE__, __LINE__)
 
      ! Then use getVecs to get the vectors we want
-     call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
+#if PETSC_VERSION_MINOR > 5
+     call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
+#else
+   call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
+#endif
      call EChk(ierr, __FILE__, __LINE__)
 
      ! Create the extra state-sized vectors

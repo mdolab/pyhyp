@@ -412,7 +412,7 @@ subroutine generateSolution
   use hypInput
   use panel
   implicit none
-
+#include "include/petscversion.h"
   ! Working parameters
   integer(kind=intType) :: i, j, k, info, ierr, iLow, iHigh, nPLocal
   integer(kind=intType), dimension(:), allocatable :: onProc, offProc
@@ -425,8 +425,12 @@ subroutine generateSolution
      call MatCreateDense(hyp_comm_world, PETSC_DETERMINE, PETSC_DETERMINE, &
           nPGlobal, nPGlobal, PETSC_NULL_SCALAR, ellipMat, ierr)
      call EChk(ierr, __FILE__, __LINE__)
+#if PETSC_VERSION_MINOR > 5
+     call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
+#else
+   call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
+#endif
 
-     call MatGetVecs(ellipMat, ellipSol, ellipRHS, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      assembleMat = .True.
   else
@@ -437,8 +441,11 @@ subroutine generateSolution
 
      call MatMFFDSetFunction(ellipMat,  formFunction_mf, ctx, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-
-     call MatGetVecs(ellipMat, ellipSol, ellipRHS, ierr)
+#if PETSC_VERSION_MINOR > 5
+     call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
+#else
+   call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
+#endif
      call EChk(ierr, __FILE__, __LINE__)
 
      call MatMFFDSetBase(ellipMat, ellipSol, PETSC_NULL_OBJECT, ierr)
@@ -496,11 +503,7 @@ subroutine generateSolution
   call KSPGMRESSetRestart(ellipKSP, kspSubspacesize, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-#if PETSC_VERSION_MINOR > 4
-     call KSPSetOperators(ellipKSP, ellipMat, ellipPCMat, ierr)
-#else
-     call KSPSetOperators(ellipKSP, ellipMat, ellipPCMat, DIFFERENT_NONZERO_PATTERN, ierr)
-#endif
+  call KSPSetOperators(ellipKSP, ellipMat, ellipPCMat, ierr)
 
   call KSPSetTolerances(ellipKSP, kspRelTol, 1e-16, 1e20, kspMaxIts, ierr)
   call EChk(ierr, __FILE__, __LINE__)
