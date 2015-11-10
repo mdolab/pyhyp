@@ -17,7 +17,7 @@ CGNS_LINKER_FLAGS=-L$(HOME)/packages/cgnslib_3.2.1/src -lcgns
 FF90_GEN_FLAGS = -fPIC
 CC_GEN_FLAGS   = -fPIC
 
-FF90_OPT_FLAGS   =  -fPIC -fdefault-real-8 -O2
+FF90_OPT_FLAGS   =  -fPIC -fdefault-real-8 -O2 -fdefault-double-8
 CC_OPT_FLAGS     = -O2
 
 # ------- Define Linker Flags ------------------------------------------
