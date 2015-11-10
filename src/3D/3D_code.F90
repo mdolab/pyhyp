@@ -99,14 +99,8 @@ subroutine computeVolumes
   use hypData
   implicit none
 
-
-#if PETSC_VERSION_MINOR > 5
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
-#endif
+! #include "include/finclude/petsc.h"
+! #include "finclude/petscvec.h90"
 
   ! Working Variables
   integer(kind=intType) :: i, j, ipatch, ierr, n1, n2, n3, n4 
@@ -215,14 +209,6 @@ subroutine volumeSmooth
   use hypData
   implicit none
 
-#include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
-#endif
   ! Working Parameters
   real(kind=realType) :: factor, oneOvrNNeighbour
   integer(kind=intType) :: i, iSize, iter, ierr, ii,jj
@@ -361,7 +347,11 @@ subroutine initialGuess(Xnew)
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual()
 
+#if PETSC_VERSION_MINOR > 4
      call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
+#else
+     call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+#endif
      call EChk(ierr, __FILE__, __LINE__)
      
      ! Now solve the system
@@ -802,10 +792,15 @@ subroutine create3DPetscVars
 
      ! Create a blocked matrix
      bs = 3
+#if PETSC_VERSION_MINOR < 3
+     call MatCreateMPIBAIJ(hyp_comm_world, bs, &
+          nx*bs, nx*bs, PETS_DETERMINE, PETSC_DETERMINE, &
+          0, onProc, 0, offProc, hypMat, ierr)
+#else
      call MatCreateBAIJ(hyp_comm_world, bs, &
           nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
           0, onProc, 0, offProc, hypMat, ierr)
-
+#endif
      call EChk(ierr, __FILE__, __LINE__)
      deallocate(onProc, offProc, stat=ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -900,8 +895,11 @@ subroutine create3DPetscVars
      
      call KSPGMRESSetRestart(hypKSP, kspSubspacesize, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-
+#if PETSC_VERSION_MINOR > 4
   call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
+#else
+  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
+#endif
      
      call KSPSetTolerances(hypKSP, kspRelTol, 1e-30, 1e5, kspMaxIts, ierr)
      call EChk(ierr, __FILE__, __LINE__)
