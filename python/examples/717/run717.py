@@ -2,16 +2,26 @@ from pyhyp import pyHyp
 from pygeo import pyBlock, DVGeometry
 from pyspline import pySpline
 import numpy
+
 # Define params here:
 ffd_file = 'mdo_tutorial_ffd.fmt'
+fileName = '717_small.fmt'
+#fileName = '717_large.fmt'
 
 options= {
-   # ---------------------------
+
+    # ---------------------------
+    #        Input File
+    # ---------------------------
+    'inputFile':fileName,
+
+    # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 65,#145,#73, 
-    's0':5e-6, #5e-6
+    'N': 65,
+    's0':5e-6,
     'rMin':23.2,
+    'mirror':'z',
 
     # ---------------------------
     #   Pseudo Grid Parameters
@@ -33,7 +43,7 @@ options= {
     # ---------------------------
     #   Solution Parameters
     # ---------------------------
-    'kspRelTol': 1e-5,
+    'kspRelTol': 1e-10,
     'kspMaxIts': 500,
     'preConLag': 5,
     'kspSubspaceSize':50,
@@ -43,8 +53,8 @@ def winglet(val, geo):
 
     # Move the last point on ref axis:
 
-    C = geo.extractCoef(0)
-    s = geo.refAxis.curves[0].s
+    C = geo.extractCoef('wing')
+    s = geo.extractS('wing')
 
     C[-1,0] += val[0]
     C[-1,1] += val[1]
@@ -52,23 +62,28 @@ def winglet(val, geo):
 
     # Also need to get "dihedreal" angle for this section
     theta = numpy.arctan(val[1]/(C[-1,2] - C[-2,2]))
-    geo.rot_x[0].coef[-1] = -theta*180/numpy.pi
+    geo.rot_x['wing'].coef[-1] = -theta*180/numpy.pi
 
-    geo.restoreCoef(C, 0)
+    geo.restoreCoef(C, 'wing')
 
     # Set the chord as well
-    geo.scale[0].coef[-1] = val[3]
+    geo.scale['wing'].coef[-1] = val[3]
 
-    geo.restoreCoef(C, 0)
+# Create the hyp object
+hyp = pyHyp(options=options)
 
-    return
+coords = hyp.getSurfaceCoordinates()
+nx = len(coords)
+ind = []
+for i in xrange(nx):
+    if coords[i][2] < 0:
+        coords[i][2] = -coords[i][2]
+        ind.append(i)
 
-# -> Define the volume ID's that coorespond to the wing and tail:
-wing_vols = [0]
-FFD = pyBlock.pyBlock('plot3d', file_name=ffd_file, 
-                      file_type='ascii', order='f', FFD=True)
+DVGeo = DVGeometry(ffd_file)
+coef = DVGeo.FFD.vols[0].coef.copy()
 
-coef = FFD.vols[0].coef.copy()
+# First determine the reference chord lengths:                                                                                                                                        
 nSpan = coef.shape[2]
 ref = numpy.zeros((nSpan,3))
 
@@ -80,35 +95,20 @@ for k in xrange(nSpan):
     ref[k,1] = numpy.average(coef[:,:,k,1])
     ref[k,2] = numpy.average(coef[:,:,k,2])
 
-c0 = pySpline.curve(X=ref,k=2)
+c0 = pySpline.Curve(X=ref,k=2)
+DVGeo.addRefAxis('wing', c0)
 
-# Create the hyp object
-#hyp = pyHyp.pyHyp('3d',fileName='717_large.fmt', options=options, zMirror=True)
-hyp = pyHyp.pyHyp('3d',fileName='717_small.fmt', options=options, zMirror=True)
+DVGeo.addGeoDVGlobal('winglet',[0,0,0,1], winglet, lower=-5, upper=5)
+DVGeo.setDesignVars({'winglet': [1.5,2.5,-2.0,.60]})
 
-coords = hyp.X.copy()
-nx = len(hyp.X)
-ind = []
-for i in xrange(len(hyp.X)):
-    if coords[i][2] < 0:
-        coords[i][2] = -coords[i][2]
-        ind.append(i)
+DVGeo.addPointSet(coords, 'coords')
+newCoords = DVGeo.update('coords')
 
-DVGeo = DVGeometry.DVGeometry([coords], [c0], vol_list=[wing_vols],
-                              axis = ['x'],FFD=FFD,rot_type=5,
-                              names=['warp_coords'])
-
-
-DVGeo.addGeoDVGlobal('winglet',[0,0,0,1],-5,5,winglet)
-DVGeo.setValues('winglet',[1.5,2.5,-2.0,.60],scaled=False) # Large, good
-
-newCoords = DVGeo.update('warp_coords')
 for i in xrange(len(ind)):
     newCoords[ind[i]][2] = -newCoords[ind[i]][2]
 
 # Set the 'new' coordinates in the hypObject. If you want the
 # undeflected wing, comment out the line below.
-hyp.X = newCoords
+hyp.setSurfaceCoordinates(newCoords)
 hyp.run()
 hyp.writeCGNS('717.cgns')
-#hyp.writeCGNSOrig('717Orig.cgns')

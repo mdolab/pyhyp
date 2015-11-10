@@ -1,6 +1,4 @@
-    -*- f90 -*-
-! Note: the context of this file is case sensitive.
-
+!    -*- f90 -*-
 python module hyp ! in 
     interface  ! in :hyp
         module hypinput ! in :hyp:hypInput.f90
@@ -17,85 +15,113 @@ python module hyp ! in
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
             real(kind=realtype) :: kspreltol
-            logical :: writemirror
             logical :: nonlinear
             logical :: writemetrics
             integer(kind=inttype) :: kspmaxits, preconlag, kspsubspacesize
             real(kind=realtype) :: rmin
             real(kind=realtype) :: cmax
+            real(kind=realtype) :: nodetol
+            real(kind=realtype) :: symtol
+            integer(kind=inttype) :: mirrortype
+            integer(kind=inttype), parameter :: nomirror = 0
+            integer(kind=inttype), parameter :: xmirror = 1
+            integer(kind=inttype), parameter :: ymirror = 2
+            integer(kind=inttype), parameter :: zmirror = 3
+            logical :: usematrixfree
+            real(kind=realtype) :: farfieldtol
+            integer(kind=inttype) :: evalmode
+            integer(kind=inttype), parameter,optional :: eval_slow=1
+            integer(kind=inttype), parameter,optional :: eval_fast=2
+            integer(kind=inttype), parameter,optional :: eval_exact=0
+            character(len=512) :: sourcestrengthfile
         end module hypinput
+
+        module hypdata
+          integer(kind=inttype) :: nx
+        end module hypdata
 
         subroutine releasememory
         end subroutine releasememory
 
-        ! Run Commands
-        subroutine run2d(xin,nx) ! in :test:2D_code.F90
-          real(kind=realtype) dimension(2,nx) :: xin
-            integer(kind=inttype), optional,check(shape(xin,1)==nx),depend(xin) :: nx=shape(xin,1)
-        end subroutine run2d
+        subroutine setup(filename)
+          character*(*) :: filename
+        end subroutine setup
+        
+        subroutine setuppanels
+        end subroutine setuppanels
+ 
+        subroutine runhyperbolic
+        end subroutine runhyperbolic
 
-        subroutine init3d(sizes,nn,nptr_in,lmax,nnodes) ! in :test:3D_code.F90
-            use hypdata
-            use hypinput
-            integer(kind=inttype) dimension(nn,2),intent(in) :: sizes
-            integer(kind=inttype), optional,intent(in),check(shape(sizes,0)==nn),depend(sizes) :: nn=shape(sizes,0)
-            integer(kind=inttype) dimension(lmax,nnodes),intent(in) :: nptr_in
-            integer(kind=inttype), optional,intent(in),check(shape(nptr_in,0)==lmax),depend(nptr_in) :: lmax=shape(nptr_in,0)
-            integer(kind=inttype), optional,intent(in),check(shape(nptr_in,1)==nnodes),depend(nptr_in) :: nnodes=shape(nptr_in,1)
-        end subroutine init3d
+        subroutine runelliptic
+        end subroutine runelliptic
 
-        subroutine setlindex(ind_in,nnx,nny,ipatch) ! in :test:3D_code.F90
-            integer(kind=inttype) dimension(nnx,nny),intent(in) :: ind_in
-            integer(kind=inttype), optional,intent(in),check(shape(ind_in,0)==nnx),depend(ind_in) :: nnx=shape(ind_in,0)
-            integer(kind=inttype), optional,intent(in),check(shape(ind_in,1)==nny),depend(ind_in) :: nny=shape(ind_in,1)
-            integer(kind=inttype) intent(in) :: ipatch
-        end subroutine setlindex
+        subroutine smoothwrap(nsteps, stepsize)
+          integer(kind=inttype) :: nsteps
+          real(kind=realtype) :: stepsize
+        end subroutine smoothwrap
 
-        subroutine run3d(xin,nnodes) ! in :test:3D_code.F90
-          real(kind=realtype) dimension(3,nnodes) :: xin
-          integer(kind=inttype), optional,check(shape(xin,1)==nnodes),depend(xin) :: nnodes=shape(xin,1)
-        end subroutine run3d
+        subroutine writecgns(filename) 
+          character*(*) :: filename
+        end subroutine writecgns
 
-        subroutine pointreducewrap(pts,n,tol,uniquepts,link,nunique) ! in :test:3D_utilities.F90
-          use precision
-          real(kind=realtype) dimension(3,n),intent(in) :: pts
-          integer(kind=inttype), optional,intent(in),check(shape(pts,1)==n),depend(pts) :: n=shape(pts,1)
-          real(kind=realtype) intent(in) :: tol
-          real(kind=realtype) dimension(3,n),intent(out),depend(n) :: uniquepts
-          integer(kind=inttype) dimension(n),intent(out),depend(n) :: link
-          integer(kind=inttype) intent(out) :: nunique
-        end subroutine pointreducewrap
+        subroutine freezeedge(blockid,edge,dstar) ! in :test:smoothing.F90
+          integer(kind=inttype) intent(in) :: blockid
+          character*(*) :: edge
+          real(kind=realtype) intent(in) :: dstar
+        end subroutine freezeedge
 
-        ! grid output functions
-        subroutine writecgns_2d(filename) 
-            character*(*) :: filename
-        end subroutine writecgns_2d
+        subroutine freezefaces(blockids,nblockids,dstar) ! in :test:smoothing.F90
+          integer(kind=inttype) dimension(nblockids),intent(in) :: blockids
+          integer(kind=inttype), optional,intent(in),check(len(blockids)>=nblockids),depend(blockids) :: nblockids=len(blockids)
+          real(kind=realtype) intent(in) :: dstar
+        end subroutine freezefaces
 
-        subroutine writeplot3d_2d(filename) 
-            character*(*) :: filename
-        end subroutine writeplot3d_2d
-
-        subroutine writecgns_3d(filename) 
-            character*(*) :: filename
-        end subroutine writecgns_3d
-
-        subroutine zeromirrorplane(filename,mirrorlist,mirrordim,nmirror) ! in :test:writeCGNS_3d.F90
+        subroutine zeromirrorplane(filename)
           character*(*) intent(in) :: filename
-          integer(kind=inttype) dimension(nmirror,3),intent(in) :: mirrorlist
-          integer(kind=inttype) intent(in) :: mirrordim
-          integer(kind=inttype), optional,intent(in),check(shape(mirrorlist,0)==nmirror),depend(mirrorlist) :: nmirror=shape(mirrorlist,0)
         end subroutine zeromirrorplane
 
-        subroutine initpetsc
+        subroutine initpetsc(comm)
+          integer(kind=intType) :: comm
         end subroutine initpetsc
-        ! subroutine writecgns_3dorig(filename) 
-        !   character*(*) :: filename
-        ! end subroutine writecgns_3dorig
-
-        subroutine writeplot3d_3d(filename) 
+        
+        subroutine writeplot3d(filename) 
             character*(*) :: filename
-        end subroutine writeplot3d_3d
+          end subroutine writeplot3d
 
+        subroutine writelayerplot3d(filename, layer)
+          character*(*) :: filename
+          integer(kind=inttype) :: layer
+        end subroutine writelayerplot3d
+
+        subroutine writelayerfe(filename, layer, partitions)
+          character*(*) :: filename
+          integer(kind=inttype) :: layer
+          logical :: partitions
+        end subroutine writelayerfe
+
+        subroutine allocatesurfaces(nsurf) ! in :test:reproject.f90
+            integer(kind=inttype) intent(in) :: nsurf
+        end subroutine allocatesurfaces
+        subroutine setsurface(isurf,ku,kv,tu,tv,coef,nctlu,nctlv) ! in :test:reproject.f90
+            integer(kind=inttype) intent(in) :: isurf
+            integer(kind=inttype) intent(in) :: ku
+            integer(kind=inttype) intent(in) :: kv
+            real(kind=realtype) dimension(nctlu+ku),intent(in),depend(ku,nctlu) :: tu
+            real(kind=realtype) dimension(nctlv+kv),intent(in),depend(kv,nctlv) :: tv
+            real(kind=realtype) dimension(3,nctlv,nctlu),intent(in) :: coef
+            integer(kind=inttype), optional,intent(in),check(shape(coef,2)==nctlu),depend(coef) :: nctlu=shape(coef,2)
+            integer(kind=inttype), optional,intent(in),check(shape(coef,1)==nctlv),depend(coef) :: nctlv=shape(coef,1)
+        end subroutine setsurface
+
+        subroutine getsurfacecoordinates(coords,n) ! in :test:3D_utilities.F90
+          real(kind=realtype) dimension(n),intent(inout) :: coords
+            integer(kind=inttype), optional,intent(in),check(len(coords)>=n),depend(coords) :: n=len(coords)
+        end subroutine getsurfacecoordinates
+        subroutine setsurfacecoordinates(coords,n) ! in :test:3D_utilities.F90
+          real(kind=realtype) dimension(n),intent(in) :: coords
+          integer(kind=inttype), optional,intent(in),check(len(coords)>=n),depend(coords) :: n=len(coords)
+        end subroutine setsurfacecoordinates
      end interface
 end python module hyp
 
