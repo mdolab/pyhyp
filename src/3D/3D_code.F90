@@ -347,11 +347,7 @@ subroutine initialGuess(Xnew)
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual()
 
-#if PETSC_VERSION_MINOR > 4
      call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
-#else
-     call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-#endif
      call EChk(ierr, __FILE__, __LINE__)
      
      ! Now solve the system
@@ -792,15 +788,10 @@ subroutine create3DPetscVars
 
      ! Create a blocked matrix
      bs = 3
-#if PETSC_VERSION_MINOR < 3
-     call MatCreateMPIBAIJ(hyp_comm_world, bs, &
-          nx*bs, nx*bs, PETS_DETERMINE, PETSC_DETERMINE, &
-          0, onProc, 0, offProc, hypMat, ierr)
-#else
      call MatCreateBAIJ(hyp_comm_world, bs, &
           nx*bs, nx*bs, PETSC_DETERMINE, PETSC_DETERMINE, &
           0, onProc, 0, offProc, hypMat, ierr)
-#endif
+
      call EChk(ierr, __FILE__, __LINE__)
      deallocate(onProc, offProc, stat=ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -895,12 +886,10 @@ subroutine create3DPetscVars
      
      call KSPGMRESSetRestart(hypKSP, kspSubspacesize, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-#if PETSC_VERSION_MINOR > 4
-  call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
-#else
-  call KSPSetOperators(hypKSP, hypMat, hypMat, SAME_NONZERO_PATTERN, ierr)
-#endif
-     
+
+     call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+
      call KSPSetTolerances(hypKSP, kspRelTol, 1e-30, 1e5, kspMaxIts, ierr)
      call EChk(ierr, __FILE__, __LINE__)
      
