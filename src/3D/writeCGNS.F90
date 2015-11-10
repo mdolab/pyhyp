@@ -19,9 +19,15 @@ subroutine writeCGNS(fileName)
   use hypData, only : nPatch, patches, xx, metrics, ix_ksi, ix_eta, ix_zeta, iX_eta_eta, iX_ksi_ksi, iX_diss
 
   implicit none
-  include 'cgnslib_f.h'
+  include "cgnslib_f.h"
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
 #include "include/finclude/petsc.h"
-#include "finclude/petscvec.h90"
+#include "include/finclude/petscvec.h90"
+#endif
 
   ! Input Arguments
   character*(*) :: fileName
@@ -219,7 +225,7 @@ subroutine zeroMirrorPlane(fileName)
   use hypData
   use communication
   implicit none
-  include 'cgnslib_f.h'
+  include "cgnslib_f.h"
 
   ! Input Arguments
   character*(*), intent(in) :: fileName

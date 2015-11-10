@@ -99,9 +99,6 @@ subroutine computeVolumes
   use hypData
   implicit none
 
-! #include "include/finclude/petsc.h"
-! #include "finclude/petscvec.h90"
-
   ! Working Variables
   integer(kind=intType) :: i, j, ipatch, ierr, n1, n2, n3, n4 
   real(kind=realType) :: ll(3), ul(3), lr(3), ur(3)
@@ -296,8 +293,14 @@ subroutine initialGuess(Xnew)
   use hypInput
   implicit none
   real(kind=realType) :: sl
+
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
 #include "include/finclude/petsc.h"
-#include "finclude/petscvec.h90"
+#include "include/finclude/petscvec.h90"
+#endif
 
   ! Output Parameters
   Vec :: Xnew
