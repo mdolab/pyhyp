@@ -1,6 +1,15 @@
 from pyhyp import pyHyp
+fileName = 'even_sphere.fmt'
+#fileName = 'uneven_sphere.fmt'
+#fileName = 'uneven_sphere_large.fmt'
 
 options= {
+
+    # ---------------------------
+    #        Input File
+    # ---------------------------
+    'inputFile':fileName,
+
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
@@ -34,10 +43,7 @@ options= {
     'kspSubspaceSize':50,
     }
 
-#hyp = pyHyp.pyHyp('3d',fileName='even_sphere.fmt', options=options)
-#hyp = pyHyp.pyHyp('3d',fileName='uneven_sphere.fmt', options=options)
-hyp = pyHyp.pyHyp('3d',fileName='uneven_sphere_large.fmt', options=options)
-
+hyp = pyHyp(options=options)
 hyp.run()
 hyp.writeCGNS('sphere.cgns')
 
