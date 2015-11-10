@@ -50,7 +50,7 @@ subroutine runElliptic
   use hypInput
   use panel
   implicit none
-#include 'cgnslib_f.h'
+#include "cgnslib_f.h"
   ! Working parameters
   integer(kind=intType) :: i, j, ierr
   real(kind=realType), dimension(100) :: targets
@@ -695,7 +695,7 @@ subroutine saveSolution(sigma)
      open(unit=9,file=trim(sourceStrengthFile), status='replace')
      ! Format is pretty simple: A single interger with the number of
      ! panels, followed by that number of floats. 
-5    format (8I)
+5    format (I8)
 6    format (g22.14)
 
      write(9, 5) nPGlobal
@@ -1249,7 +1249,7 @@ subroutine setupPanels
   if (myid==0) then
      open(unit=9,file='test_fortran.dat', status='old')
 5    format (a)
-6    format (g, g, g)
+6    format (g20.15, g20.15, g20.15)
      write(9, 5) "variables= x y z"
      
      do i=1,nPglobal
