@@ -1,11 +1,12 @@
-import sys, os, time
-from mdo_import_helper import import_modules, MPI, mpiPrint
-import pyHyp
-import petsc4py
-petsc4py.init(sys.argv)
-from petsc4py import PETSc
+from pyhyp import pyHyp
 
 options= {
+
+    # ---------------------------
+    #        Input File
+    # ---------------------------
+    'inputFile':'dpw.fmt',
+
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
@@ -13,11 +14,11 @@ options= {
     's0':1e-3,
     'gridRatio':1.20,
     'rMin':5,
-
+    'mirror':'y',
+    'symTol':1e-6,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    'NMax':400,
     'ps0':1e-3,
     'pGridRatio':1.15,
 
@@ -34,14 +35,13 @@ options= {
    # ---------------------------
     #   Solution Parameters
     # ---------------------------
-    'kspRelTol': 1e-5,
+    'kspRelTol': 1e-10,
     'kspMaxIts': 500,
     'preConLag': 10,
     'kspSubspaceSize':50,
     }
 
-
-hyp = pyHyp.pyHyp('3d',fileName='dpw.fmt', options=options, mirror=True)
+hyp = pyHyp(options=options, debug=True)
 hyp.run()
 hyp.writeCGNS('dpw.cgns')
-hyp.writeCGNSOrig('dpwOrig.cgns')
+

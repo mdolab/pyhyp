@@ -1,21 +1,20 @@
-from pyhypellip import pyHyp
+from pyhyp import pyHyp
+fileName = 'm6_small.fmt'
+#fileName = 'm6_large.fmt'
+#fileName = 'm6_tiny.fmt'
 
 options= {
     # ---------------------------
-    #        Input Information
+    #        Input File
     # ---------------------------
-    'dimension':'3d',
-    #'inputFile':'m6_small.fmt',
-    #'inputFile':'m6_large.fmt',
-    'inputFile':'m6_tiny.fmt',
-    'mode':'hyperbolic',
+    'inputFile':fileName,
     
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 33,
-    's0':1.5e-4,
-    'rMin':1,
+    'N': 65,
+    's0':1.5e-5,
+    'rMin':25,
     'mirror':'z',
     
     # ---------------------------
@@ -42,13 +41,11 @@ options= {
     'kspMaxIts': 500,
     'preConLag': 10,
     'kspSubspaceSize':50,
-    'writeMetrics': True,
+    'writeMetrics': False,
     }
 
 hyp = pyHyp(options=options)
-#hyp.writeFEMesh('test.dat')
 hyp.run()
-# hyp.hyp.run3delliptic()
 hyp.writeCGNS('m6.cgns')
 hyp.writePlot3D('m6.p3d')
 

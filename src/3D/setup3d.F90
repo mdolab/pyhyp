@@ -169,6 +169,7 @@ subroutine setup(fileName)
            end do
         end do
      end if mirrorCheck
+
      ! Now we can create the final connectivity
      nodeTotal = 0
      faceTotal = 0
@@ -462,7 +463,7 @@ subroutine setup(fileName)
         iCell = fullcPtr(j+1, i) ! 
         do k=1, 4
            ind = fullConn(k, iCell)
-
+           
            ghostNode: if (ind < istart .or. ind > iend) then
 
               notAlreadyUsed: if (link(ind) == 0) then

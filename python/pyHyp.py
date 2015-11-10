@@ -259,6 +259,17 @@ class pyHyp(object):
             raise Error("No grid has been generated! Run the run() "
                         "command before trying to write the grid!")
 
+    def getSurfaceCoordinates(self):
+        """Return the surface coordinates on this processor"""
+        coords = numpy.zeros((self.hyp.hypdata.nx, 3))
+        self.hyp.getsurfacecoordinates(numpy.ravel(coords))
+
+        return coords
+
+    def setSurfaceCoordinates(self, coords):
+        """Set the surface coordinates on this processor"""
+        self.hyp.setsurfacecoordinates(numpy.ravel(coords))
+
     def _setOptions(self):
         """Internal function to set the options in pyHyp"""
         self.hyp.hypinput.n = self.options['N']

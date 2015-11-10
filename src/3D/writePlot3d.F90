@@ -36,11 +36,8 @@ subroutine writePlot3d(fileName)
      end do
 6    format(I5, I5, I5)
   end if
-  ! Loop over each patch and write
-  call VecView(X(1), PETSC_VIEWER_STDOUT_WORLD, ierr)
 
   do iPatch = 1, nPatch
-     print *, patches(iPatch)%l_index
      do idim=1,3
         do k=1, N
 

@@ -36,6 +36,10 @@ python module hyp ! in
             character(len=512) :: sourcestrengthfile
         end module hypinput
 
+        module hypdata
+          integer(kind=inttype) :: nx
+        end module hypdata
+
         subroutine releasememory
         end subroutine releasememory
 
@@ -110,6 +114,14 @@ python module hyp ! in
             integer(kind=inttype), optional,intent(in),check(shape(coef,1)==nctlv),depend(coef) :: nctlv=shape(coef,1)
         end subroutine setsurface
 
+        subroutine getsurfacecoordinates(coords,n) ! in :test:3D_utilities.F90
+          real(kind=realtype) dimension(n),intent(inout) :: coords
+            integer(kind=inttype), optional,intent(in),check(len(coords)>=n),depend(coords) :: n=len(coords)
+        end subroutine getsurfacecoordinates
+        subroutine setsurfacecoordinates(coords,n) ! in :test:3D_utilities.F90
+          real(kind=realtype) dimension(n),intent(in) :: coords
+          integer(kind=inttype), optional,intent(in),check(len(coords)>=n),depend(coords) :: n=len(coords)
+        end subroutine setsurfacecoordinates
      end interface
 end python module hyp
 

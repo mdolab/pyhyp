@@ -1,13 +1,19 @@
 from pyhyp import pyHyp
-
+fileName = 'bwb.fmt'
 options= {
+    # ---------------------------
+    #        Input File
+    # ---------------------------
+    'inputFile':fileName,
+
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 65, 
+    'N': 65,
     's0':4e-6,
     'rMin':25,
-
+    'mirror':'z',
+    
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
@@ -24,17 +30,18 @@ options= {
     'volCoef': .16,
     'volBlend': 0.0001,
     'volSmoothIter': 20,
-
+    
     # ---------------------------
     #   Solution Parameters
     # ---------------------------
-    'kspRelTol': 1e-5,
+    'kspRelTol': 1e-10,
     'kspMaxIts': 500,
     'preConLag': 5,
     'kspSubspaceSize':50,
+    'writeMetrics': False,
     }
 
-hyp = pyHyp.pyHyp('3d',fileName='bwb.fmt', options=options, zMirror=True)
+hyp = pyHyp(options=options)
 hyp.run()
 hyp.writeCGNS('bwb.cgns')
 
