@@ -412,8 +412,8 @@ subroutine calcResidual
   integer(kind=intType) :: iLow, iHigh
   real(kind=realType), dimension(3) :: r_zeta, r_ksi, r_eta, sigma, t, tau
   real(kind=realType), dimension(3) :: r_ksi_ksi, r_eta_eta
-  real(kind=realType), dimension(3) :: rplusj, rminusj, rplusk, rminusk, r0, rmmr0
-  real(kind=realType), dimension(3) :: rplusjhat, rpluskhat, nhat, G, PinvG
+  real(kind=realType), dimension(3) :: rMinusjHat, rMinuskHat, r0, rmmr0
+  real(kind=realType), dimension(3) :: rPlusjHat, rPluskHat, nhat, G, PinvG
   real(kind=realType), dimension(3,3) :: Q1, Q2, P, eye, PinvQ1, PinvQ2, Pinv
   real(kind=realType) :: a_ksi, a_eta, De(3), factor, alpha, beta, ovrSum1, ovrSum2
   real(kind=realType) :: d_ksi, d_eta, tmp1, tmp2, tmp, thetam, Rksi, Reta, N_ksi, N_eta
@@ -522,9 +522,10 @@ subroutine calcResidual
      
      ! Compute the auxiluary variables sigma, t and tau which are
      ! the three cross products of the vectors
-     sigma(1) = r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3)
-     sigma(2) = r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3)
-     sigma(3) = r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2)
+     call cross_prod(r_ksi, r_eta, sigma) !Defined in 3D_utilities
+     !sigma(1) = r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3)
+     !sigma(2) = r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3)
+     !sigma(3) = r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2)
 
      if (.not. nonLinear) then
         detC = &
@@ -539,13 +540,15 @@ subroutine calcResidual
         r_zeta(3) = deltaVovrDetC*(r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2))
      end if
      
-     t(1) = r_eta(2)*r_zeta(3) - r_zeta(2)*r_eta(3)
-     t(2) = r_zeta(1)*r_eta(3) - r_eta(1)*r_zeta(3)
-     t(3) = r_eta(1)*r_zeta(2) - r_zeta(1)*r_eta(2)
+     call cross_prod(r_eta, r_zeta, t) !Defined in 3D_utilities
+     !t(1) = r_eta(2)*r_zeta(3) - r_zeta(2)*r_eta(3)
+     !t(2) = r_zeta(1)*r_eta(3) - r_eta(1)*r_zeta(3)
+     !t(3) = r_eta(1)*r_zeta(2) - r_zeta(1)*r_eta(2)
 
-     tau(1) = r_zeta(2)*r_ksi(3) - r_ksi(2)*r_zeta(3)
-     tau(2) = r_ksi(1)*r_zeta(3) - r_zeta(1)*r_ksi(3)
-     tau(3) = r_zeta(1)*r_ksi(2) - r_ksi(1)*r_zeta(2)
+     call cross_prod(r_zeta, r_ksi, tau) !Defined in 3D_utilities
+     !tau(1) = r_zeta(2)*r_ksi(3) - r_ksi(2)*r_zeta(3)
+     !tau(2) = r_ksi(1)*r_zeta(3) - r_zeta(1)*r_ksi(3)
+     !tau(3) = r_zeta(1)*r_ksi(2) - r_ksi(1)*r_zeta(2)
 
      Q1(1, :) = r_zeta
      Q1(2, :) = zero
@@ -577,8 +580,40 @@ subroutine calcResidual
      !             Explicit Smoothing 
      ! ============================================
 
-     a_ksi = one
-     a_eta = one
+     if (abs(lnptr(1, i)) == 4) then !We have the usual 4 neighbors
+
+        ! Equation 6.9
+        rPlusjHat = (xx(3*jp1-2:3*jp1) - xx(3*i-2:3*i))/dist(xx(3*jp1-2:3*jp1), xx(3*i-2:3*i))
+        rMinusjHat = (xx(3*jm1-2:3*jm1) - xx(3*i-2:3*i))/dist(xx(3*jm1-2:3*jm1), xx(3*i-2:3*i))
+
+        rPluskHat = (xx(3*kp1-2:3*kp1) - xx(3*i-2:3*i))/dist(xx(3*kp1-2:3*kp1), xx(3*i-2:3*i))
+        rMinuskHat = (xx(3*km1-2:3*km1) - xx(3*i-2:3*i))/dist(xx(3*km1-2:3*km1), xx(3*i-2:3*i))
+
+        ! Equation 6.10 (cross_prod defined in 3D_utilities.F90)
+        call cross_prod(rPlusjHat-rMinusjHat,rPluskHat-rMinuskHat, nhat)
+        nhat = nhat/norm2(nhat)
+
+        ! Equation 6.11
+        alpha = acos(dot_product(nhat,rPlusjHat))
+        beta = acos(dot_product(nhat,rPluskHat))
+
+        ! Equation 6.12
+        if (alpha < 3.1415/2.0) then
+           a_ksi = one/(one - cos(alpha)*cos(alpha))
+        else
+           a_ksi = one
+        end if
+
+        if (beta < 3.1415/2.0) then
+           a_eta = one/(one - cos(beta)*cos(beta))
+        else
+           a_eta = one
+        end if
+
+     else ! We don't have 4 neighbors
+        a_ksi = one
+        a_eta = one
+     end if
      
      ! ------------------------------------
      ! Combine into 'R_ksi' and 'R_eta' (Equation 6.4)

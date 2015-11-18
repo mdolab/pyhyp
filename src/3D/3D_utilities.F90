@@ -166,6 +166,25 @@ subroutine three_by_three_inverse(Jac, Jinv)
 
 end subroutine three_by_three_inverse
 
+subroutine cross_prod(a,b,c)
+
+  ! Written by Ney Secco, 2015
+  ! This function computes the cross-product between a and b
+
+  use precision
+
+  ! Inputs
+  real(kind=realType), dimension(3), intent(in) :: a,b
+
+  ! Outputs
+  real(kind=realType), dimension(3), intent(out) :: c
+
+  c(1) = a(2) * b(3) - a(3) * b(2)
+  c(2) = a(3) * b(1) - a(1) * b(3)
+  c(3) = a(1) * b(2) - a(2) * b(1)
+
+end subroutine cross_prod
+
 subroutine writeHeader
   !***DESCRIPTION
   !
@@ -871,3 +890,48 @@ subroutine setSurfaceCoordinates(coords, n)
   call EChk(ierr,__FILE__,__LINE__)
 
 end subroutine setSurfaceCoordinates
+
+subroutine assignNode2NodeConn(nodeConn, node1, node2)
+
+  ! This subroutine assigns connection from node 1 to node 2
+  ! in the nodeConn matrix. If this connection is already assigned
+  ! then we should flag this node as this indicates flipped normals
+
+  use precision
+  implicit none
+
+  ! Input variables
+  integer(kind=intType), intent(in) :: node1, node2
+
+  ! Input/Output variables
+  integer(kind=intType), dimension(:,:), intent(inout) :: nodeConn
+
+  ! Working variables
+  integer(kind=intType) :: i, numConn
+
+  ! BEGIN EXECUTION
+
+  ! Get the total number of connections allowed
+  numConn = size(nodeConn,1)
+
+  do i=1,numConn
+
+     ! Check if node1 to node2 connection already exists
+     if (nodeConn(i, node1) .eq. node2) then
+        ! Flag this node by setting all connections to -1
+        nodeConn(:,node1) = -1
+        ! Get out of this loop
+        exit
+
+     else if (nodeConn(i, node1) .eq. 0) then
+        ! If we reach 0, then we already checked all connections
+        ! and we can assign the new one without problems
+        nodeConn(i, node1) = node2
+        ! Get out of this loop
+        exit
+
+     end if
+
+  end do
+
+end subroutine assignNode2NodeConn
