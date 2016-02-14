@@ -30,9 +30,10 @@ subroutine setup(fileName)
   integer(kind=intType), dimension(:), allocatable :: nte, ntePtr
   integer(kind=intType), dimension(:, :), allocatable :: fullnPtr
   integer(kind=intType), dimension(:, :), allocatable :: patchSizes
+  integer(kind=intType), dimension(:, :), allocatable :: nodeConn
 
   integer(kind=intType) :: nBlocks, nUnique
-  integer(kind=intType) :: nodeTotal
+  integer(kind=intType) :: nodeTotal, node1, node2, node3, node4
   integer(kind=intType) :: nodeCounter, iNode, evenNodes
   integer(kind=intType) :: NODE_MAX, CELL_MAX
   integer(kind=intType) :: nFaceNeighbours, firstID, nodeID, nextElemID
@@ -52,11 +53,19 @@ subroutine setup(fileName)
        integer(kind=intType), dimension(:) :: link
        integer(kind=intType) :: nUnique
      end subroutine pointReduce
+
+     subroutine assignNode2NodeConn(nodeConn, node1, node2)
+       use precision
+       implicit none
+       integer(kind=intType), intent(in) :: node1, node2
+       integer(kind=intType), dimension(:,:), intent(inout) :: nodeConn
+     end subroutine assignNode2NodeConn
+
   end interface
   ! Only the root processor reads the mesh and does the initial processing:
   rootProc: if (myid == 0) then 
 
-     ! Open file and read number of patces
+     ! Open file and read number of patches
      open(unit=7, form='formatted', file=fileName)
      read(7, *) nBlocks
 
@@ -124,10 +133,23 @@ subroutine setup(fileName)
                  tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
                  if (dot_product(tmp, tmp) < tol2) then
                     patches(ii)%nSym = patches(ii)%nSym + 1
-                    patches(ii)%X(:, i, j) = patches(iI)%X(:, i, j)*mask
+                    patches(ii)%X(:, i, j) = patches(ii)%X(:, i, j)*mask
                  end if
               end do
            end do
+
+           ! Check if the symmetry plane applies along the entire edge of the patch
+           if ((patches(ii)%nSym .ne. 0) .and. &
+                (patches(ii)%nSym .ne. patches(ii)%il) .and. & 
+                (patches(ii)%nSym .ne. patches(ii)%jl)) then
+              print *,'WARNING: Possible symmetry nodes extrapolate symmetry plane tolerance'
+              print *,'         Increase nodeTol option or check if nodes are too far from'
+              print *,'         the symmetry plane. Check the block with following coordinates:'
+              print *,patches(ii)%X(:, 1, 1)
+              print *,patches(ii)%X(:, 1, patches(ii)%jl)
+              print *,patches(ii)%X(:, patches(ii)%il, patches(ii)%jl)
+              print *,patches(ii)%X(:, patches(ii)%il, 1)
+           end if
 
            ! Now allocate and store
            allocate(patches(ii)%symNodes(2, patches(ii)%nSym))
@@ -275,6 +297,60 @@ subroutine setup(fileName)
         end if
      end do
 
+     ! NORMAL ORIENTATION CHECK
+     
+     ! Print what we are doing
+     print *,'Normal orientation check ...'
+
+     ! Allocate and initialize matrix that stores nodal connectivity directions
+     ! I'm assuming that the maximum number of connections of a single node
+     ! is 10
+     allocate(nodeConn(10, nodeTotal))
+     nodeConn(:,:) = 0
+
+     ! Loop over each face and increment elementes from the connectivity
+     ! matrix acording to the connectivity direction.
+     do jj=1,faceTotal
+
+        ! Get nodes indices for this face
+        node1 = fullConn(1, jj)
+        node2 = fullConn(2, jj)
+        node3 = fullConn(3, jj)
+        node4 = fullConn(4, jj)
+
+        ! Assign connections acording to their orientations
+        ! The assignNode2NodeConn subroutine is defined in
+        ! 3D_utilities.F90
+        call assignNode2NodeConn(nodeConn, node1, node2)
+        call assignNode2NodeConn(nodeConn, node2, node3)
+        call assignNode2NodeConn(nodeConn, node3, node4)
+        call assignNode2NodeConn(nodeConn, node4, node1)
+
+     end do
+
+     ! Now check if we flagged any node during the assignments
+     if (minval(nodeConn) .eq. -1) then
+
+        ! Say that the normals are wrong
+        print *,' ERROR: Normal directions may be wrong'
+        print *,'        Check the following coordinates:'
+
+        ! Print coordinates of nodes were the problem occurs
+        do i=1,nodeTotal
+           if (nodeConn(1,i) .eq. -1) then
+              print *,uniquePts(:, i)
+           end if
+        end do
+
+        ! Halt program execution
+        stop
+
+     end if
+
+     print *,'Normals seem correct!'
+
+     ! END OF NORMAL ORIENTATION CHECK
+
      ! Determine the number of number of faces around each node:
      allocate(nFace(nUnique))
      nFace(:) = 0
@@ -325,7 +401,7 @@ subroutine setup(fileName)
      nodeLoop: do iNode=1, nUnique
         nFaceNeighbours = (ntePtr(iNode+1)-ntePtr(iNode))/2
 
-        ! Regular nodes get 4 neightbours, others get double
+        ! Regular nodes get 4 neighbours, others get double
         if (nFaceNeighbours == 2) then
            fullnPtr(1, iNode) = nFaceNeighbours*2
         else if (nFaceNeighbours == 3) then

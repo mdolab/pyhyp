@@ -42,10 +42,10 @@ module hypData
   !         Grid Data
   ! ----------------------------
 
-  ! The gloabl (total) number of nodes
+  ! The global (total) number of nodes
   integer(kind=intType) :: nXGlobal
 
-  ! The gloabl (total) number of panels
+  ! The global (total) number of panels
   integer(kind=intType) :: faceTotal, nPGlobal
 
   ! The local number of nodes
