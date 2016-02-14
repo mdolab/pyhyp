@@ -626,6 +626,7 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
   logical cont, cont2
   integer(kind=intType), dimension(:), allocatable :: tmpInd, subLInk
   real(kind=realType), dimension(:, :), allocatable :: subPts, subUniquePts
+  real(kind=realType), dimension(3) :: Xavg
   integer(kind=intType) :: maxSubUnique
   interface
      subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
@@ -645,9 +646,13 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
   allocate(dists(N), tmp(N), ind(N), tmpInd(maxSubUnique), subLink(maxSubUnique), &
        subPts(3, maxSubUnique), subUniquePts(3, maxSubUnique))
 
+  Xavg(1) = sum(pts(:, 1))/N
+  Xavg(2) = sum(pts(:, 2))/N
+  Xavg(3) = sum(pts(:, 3))/N
+
   ! Compute distances of all points from the origin
   do i=1, N
-     dists(i) = sqrt(pts(1,i)**2 + pts(2,i)**2 + pts(3, i)**2)
+     dists(i) = sqrt((pts(1,i)-Xavg(1))**2 + (pts(2,i)-Xavg(2))**2 + (pts(3, i)-Xavg(3))**2)
      tmp(i) = dists(i)
      ind(i) = i
   end do
