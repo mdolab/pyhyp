@@ -1,50 +1,52 @@
 from pyhyp import pyHyp
-fileName = 'even_sphere.fmt'
-#fileName = 'uneven_sphere.fmt'
-#fileName = 'uneven_sphere_large.fmt'
+
+fileName = 'face_splay.cgns'
+fileType = 'CGNS'
 
 options= {
-
     # ---------------------------
     #        Input File
     # ---------------------------
     'inputFile':fileName,
-    'fileType':'Plot3d',
+    'fileType':fileType,
 
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 73, 
-    's0':1e-4,
-    'rMin':10,
- 
+    'N': 65, 
+    's0':1e-6,
+    'rMin':2.5,#0.001
+    'mirror':False,
+    'nodeTol':1e-8,
+
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    'ps0':1e-4,
-    'pGridRatio':1.1,
-    'cMax': 5,
-    
+    'ps0':1e-6,
+    'pGridRatio':1.15,
+    'cMax':5,
+
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------
-    'epsE': 1.0,
+    'epsE': 1.0,#4.0
     'epsI': 2.0,
-    'theta': 3.0,
-    'volCoef': .16,
+    'theta': 0.0,
+    'volCoef': .3,#0.3
     'volBlend': 0.0001,
-    'volSmoothIter': 20,
+    'volSmoothIter': 0,
 
-    # ---------------------------
+   # ---------------------------
     #   Solution Parameters
     # ---------------------------
-    'kspRelTol': 1e-10,
+    'kspRelTol': 1e-15,
     'kspMaxIts': 1500,
-    'preConLag': 5,
+    'preConLag': 10,
     'kspSubspaceSize':50,
+    'writeMetrics': False,
     }
+
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS('sphere.cgns')
-
+hyp.writeCGNS('face3D.cgns')

@@ -14,6 +14,8 @@ python module hyp ! in
             real(kind=realtype) :: slexp
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
+            real(kind=realtype) :: sigmasplay
+            real(kind=realtype) :: nusplay
             real(kind=realtype) :: kspreltol
             logical :: nonlinear
             logical :: writemetrics
@@ -43,8 +45,9 @@ python module hyp ! in
         subroutine releasememory
         end subroutine releasememory
 
-        subroutine setup(filename)
+        subroutine setup(filename,filetype)
           character*(*) :: filename
+          integer(kind=inttype) :: filetype
         end subroutine setup
         
         subroutine setuppanels

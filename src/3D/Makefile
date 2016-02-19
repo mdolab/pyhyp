@@ -17,6 +17,7 @@ FF90_OBJECTS =	3D_code.o\
 		3D_utilities.o\
 		3D_elliptic.o\
 		reproject.o\
+		readCGNS.o\
 		setup3d.o\
 		smoothing.o\
 		writePlot3d.o\
@@ -27,7 +28,7 @@ all:
 	$(PMAKE)  src
 
 clean:
-	@echo "        Making clean in 2D... "
+	@echo "        Making clean in 3D... "
 	rm -f $(MAKE_CLEAN_ARGUMENTS)
 
 src:	$(FF90_OBJECTS)

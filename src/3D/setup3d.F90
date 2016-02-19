@@ -1,4 +1,4 @@
-subroutine setup(fileName)
+subroutine setup(fileName,fileType)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -8,21 +8,26 @@ subroutine setup(fileName)
   !     is the filename of an ascii-formatted plot3d file and
   !     information about a possible mirror. 
   !    
+  !     Ney Secco (2015-2016): Added boundary conditions and CGNS interface
+  !
   !     Description of Arguments
   !     Input:
   !     fileName : char* array : Filename of plot3d file. Usually has .fmt extension. 
-  !     mirror : integer : Specifies if body must be mirrored before extrusion. 
+  !     fileType : integer : 1-CGNS 2-Plot3d
 
   use communication
   use hypData
   use hypInput
+  use readCGNS
   implicit none
 
   ! Input Arguments
   character*(*), intent(in) :: fileName
+  integer, intent(in) :: fileType
 
   ! Working parameters
-  real(kind=realType), dimension(:, :), allocatable :: uniquePts, allNodes
+
+  real(kind=realType), dimension(:, :), allocatable :: uniquePts, allEdgeNodes
   real(kind=realType), dimension(3) :: mask, tmp
   real(kind=realType) :: tol2
 
@@ -31,16 +36,23 @@ subroutine setup(fileName)
   integer(kind=intType), dimension(:, :), allocatable :: fullnPtr
   integer(kind=intType), dimension(:, :), allocatable :: patchSizes
   integer(kind=intType), dimension(:, :), allocatable :: nodeConn
+  integer(kind=intType), dimension(:, :), allocatable :: uniqueBCs
+
+  ! Uncomment if we remove the elliptic generator and the definition in hyData.F90
+  !integer(kind=intType) :: nPatch
+  !type(patchType), dimension(:), allocatable :: patches
 
   integer(kind=intType) :: nBlocks, nUnique
   integer(kind=intType) :: nodeTotal, node1, node2, node3, node4
   integer(kind=intType) :: nodeCounter, iNode, evenNodes
   integer(kind=intType) :: NODE_MAX, CELL_MAX
-  integer(kind=intType) :: nFaceNeighbours, firstID, nodeID, nextElemID
-  integer(kind=intType) :: nodeToAdd, faceToCheck, nodeToFind
+  integer(kind=intType) :: nFaceNeighbours, firstElemID, nodeID, nextElemID
+  integer(kind=intType) :: nodeToAdd, faceToCheck, nodeToFind, nextNode, startNode, startNodeID
   integer(kind=intType) :: i, j, k, ii, jj, iii, jjj, ierr, iStart, iEnd
-  integer(kind=intType) :: isize, ind, icell
-  logical :: found
+  integer(kind=intType) :: isize, ind, icell, iNeighbor, iBC, neighborID
+  integer(kind=intType) :: currNeighbors(maxBCneighbors), nextNeighbors(maxBCneighbors)
+  integer(kind=intType) :: neighbor_i, neighbor_j, lastFaceIncrement
+  logical :: found, keepSearching, closedSurface
   integer(kind=intType) :: nNode, nElem, shp2(2), shp1(1), idim
   interface 
      subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
@@ -65,133 +77,148 @@ subroutine setup(fileName)
   ! Only the root processor reads the mesh and does the initial processing:
   rootProc: if (myid == 0) then 
 
-     ! Open file and read number of patches
-     open(unit=7, form='formatted', file=fileName)
-     read(7, *) nBlocks
+     if (fileType .eq. 1) then ! We have a CGNS file
 
-     ! Allocate space for the patch sizes and patches
-     if (mirrorType == noMirror) then 
-        nPatch = nBlocks
-     else
-        nPatch = nBlocks*2
-     end if
+        ! call the CGNS reader (defined in readCGNS.F90)
+        call readGrid(fileName, patches)
 
-     allocate(patchSizes(3, nPatch), patches(nPatch))
+        ! get the number of patches
+        nPatch = size(patches)
 
-     read(7,*) (patchSizes(1, i), patchSizes(2, i), patchSizes(3, i), i=1, nBlocks)
+     else if (fileType .eq. 2) then ! We have a Plot3d file
 
-     ! Make sure that ALL k-index patch sizes are 1
-     do ii=1, nBlocks
-        if (patchSizes(3, ii) /= 1) then
-           print *,'Plot3d Read Error: k-dimension of all blocks must be precisely 1'
-           stop
-        end if
-     end do
+        ! Open file and read number of patches
+        open(unit=7, form='formatted', file=fileName)
+        read(7, *) nBlocks
 
-     ! Now allocate and read all the blocks from the plot3d file
-     do  ii=1, nBlocks
-        patches(ii)%il = patchSizes(1, ii)
-        patches(ii)%jl = patchSizes(2, ii)
-
-        ! Allocate space for the grid coordinates on the patch and read
-        allocate(patches(ii)%X(3, patches(ii)%il, patches(ii)%jl))
-        allocate(patches(ii)%l_index(patches(ii)%il, patches(ii)%jl))
-        allocate(patches(ii)%weights(patches(ii)%il, patches(ii)%jl))
-        patches(ii)%weights(:, :) = zero
-
-        read(7, *) (( patches(ii)%X(1, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-        read(7, *) (( patches(ii)%X(2, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-        read(7, *) (( patches(ii)%X(3, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-     enddo
-     deallocate(patchSizes)
-
-     ! All the reading is done
-     close(7)
-
-     ! Need to do more work if we are mirroring
-     mirrorCheck: if (mirrorType /= noMirror) then
-
-        ! Just check each node is within tolerance of the sym plane
-        mask(:) = one
-        if (mirrorType == xmirror) then
-           mask(1) = zero
-        else if (mirrorType == ymirror) then
-           mask(2) = zero
-        else if (mirrorType == zmirror) then
-           mask(3) = zero
-        end if
-        if (symTol < zero ) then
-           tol2 = nodeTol ** 2
+        ! Allocate space for the patch sizes and patches
+        if (mirrorType == noMirror) then 
+           nPatch = nBlocks
         else
-           tol2 = symTol ** 2
+           nPatch = nBlocks*2
         end if
-        do ii=1,nBlocks
-           patches(ii)%nSym = 0
-           ! First do a pass to count:
-           do j=1, patches(ii)%jl
-              do i=1, patches(ii)%il
-                 tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
-                 if (dot_product(tmp, tmp) < tol2) then
-                    patches(ii)%nSym = patches(ii)%nSym + 1
-                    patches(ii)%X(:, i, j) = patches(ii)%X(:, i, j)*mask
-                 end if
+
+        allocate(patchSizes(3, nPatch), patches(nPatch))
+
+        read(7,*) (patchSizes(1, i), patchSizes(2, i), patchSizes(3, i), i=1, nBlocks)
+
+        ! Make sure that ALL k-index patch sizes are 1
+        do ii=1, nBlocks
+           if (patchSizes(3, ii) /= 1) then
+              print *,'Plot3d Read Error: k-dimension of all blocks must be precisely 1'
+              stop
+           end if
+        end do
+
+        ! Now allocate and read all the blocks from the plot3d file
+        do  ii=1, nBlocks
+           patches(ii)%il = patchSizes(1, ii)
+           patches(ii)%jl = patchSizes(2, ii)
+
+           ! Allocate space for the grid coordinates on the patch and read
+           allocate(patches(ii)%X(3, patches(ii)%il, patches(ii)%jl))
+           allocate(patches(ii)%l_index(patches(ii)%il, patches(ii)%jl))
+           allocate(patches(ii)%weights(patches(ii)%il, patches(ii)%jl))
+           patches(ii)%weights(:, :) = zero
+
+           ! Initialize BC arrays
+           allocate(patches(ii)%BCnodes(patches(ii)%il,patches(ii)%jl,1+2*maxBCneighbors))
+           patches(ii)%BCnodes = zero
+
+           read(7, *) (( patches(ii)%X(1, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
+           read(7, *) (( patches(ii)%X(2, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
+           read(7, *) (( patches(ii)%X(3, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
+        enddo
+        deallocate(patchSizes)
+
+        ! All the reading is done
+        close(7)
+
+        ! Need to do more work if we are mirroring
+        mirrorCheck: if (mirrorType /= noMirror) then
+
+           ! Just check each node is within tolerance of the sym plane
+           mask(:) = one
+           if (mirrorType == xmirror) then
+              mask(1) = zero
+           else if (mirrorType == ymirror) then
+              mask(2) = zero
+           else if (mirrorType == zmirror) then
+              mask(3) = zero
+           end if
+           if (symTol < zero ) then
+              tol2 = nodeTol ** 2
+           else
+              tol2 = symTol ** 2
+           end if
+           do ii=1,nBlocks
+              patches(ii)%nSym = 0
+              ! First do a pass to count:
+              do j=1, patches(ii)%jl
+                 do i=1, patches(ii)%il
+                    tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
+                    if (dot_product(tmp, tmp) < tol2) then
+                       patches(ii)%nSym = patches(ii)%nSym + 1
+                       patches(ii)%X(:, i, j) = patches(ii)%X(:, i, j)*mask
+                    end if
+                 end do
+              end do
+
+              ! Check if the symmetry plane applies along the entire edge of the patch
+              if ((patches(ii)%nSym .ne. 0) .and. &
+                   (patches(ii)%nSym .ne. patches(ii)%il) .and. & 
+                   (patches(ii)%nSym .ne. patches(ii)%jl)) then
+                 print *,'WARNING: Possible symmetry nodes extrapolate symmetry plane tolerance'
+                 print *,'         Increase nodeTol option or check if nodes are too far from'
+                 print *,'         the symmetry plane. Check the block with following coordinates:'
+                 print *,patches(ii)%X(:, 1, 1)
+                 print *,patches(ii)%X(:, 1, patches(ii)%jl)
+                 print *,patches(ii)%X(:, patches(ii)%il, patches(ii)%jl)
+                 print *,patches(ii)%X(:, patches(ii)%il, 1)
+              end if
+
+              ! Now allocate and store
+              allocate(patches(ii)%symNodes(2, patches(ii)%nSym))
+              iNode = 0
+              do j=1, patches(ii)%jl
+                 do i=1, patches(ii)%il
+                    tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
+                    if (dot_product(tmp, tmp) < tol2) then
+                       iNode = iNode + 1
+                       patches(ii)%symNodes(:, iNode) = (/i, j/)
+                    end if
+                 end do
               end do
            end do
 
-           ! Check if the symmetry plane applies along the entire edge of the patch
-           if ((patches(ii)%nSym .ne. 0) .and. &
-                (patches(ii)%nSym .ne. patches(ii)%il) .and. & 
-                (patches(ii)%nSym .ne. patches(ii)%jl)) then
-              print *,'WARNING: Possible symmetry nodes extrapolate symmetry plane tolerance'
-              print *,'         Increase nodeTol option or check if nodes are too far from'
-              print *,'         the symmetry plane. Check the block with following coordinates:'
-              print *,patches(ii)%X(:, 1, 1)
-              print *,patches(ii)%X(:, 1, patches(ii)%jl)
-              print *,patches(ii)%X(:, patches(ii)%il, patches(ii)%jl)
-              print *,patches(ii)%X(:, patches(ii)%il, 1)
+           ! Now we can finish mirroring the mesh:
+           mask(:) = one
+           if (mirrorType == xmirror) then
+              mask(1) = -one
+           else if (mirrorType == ymirror) then
+              mask(2) = -one
+           else if (mirrorType == zmirror) then
+              mask(3) = -one
            end if
 
-           ! Now allocate and store
-           allocate(patches(ii)%symNodes(2, patches(ii)%nSym))
-           iNode = 0
-           do j=1, patches(ii)%jl
-              do i=1, patches(ii)%il
-                 tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
-                 if (dot_product(tmp, tmp) < tol2) then
-                    iNode = iNode + 1
-                    patches(ii)%symNodes(:, iNode) = (/i, j/)
-                 end if
+           do ii=1,nBlocks
+              allocate(patches(ii+nBlocks)%X(3, patches(ii)%il, patches(ii)%jl))
+              allocate(patches(ii+nBlocks)%l_index(patches(ii)%il, patches(ii)%jl))
+              allocate(patches(ii+nBlocks)%weights(patches(ii)%il, patches(ii)%jl))
+              patches(ii+nBlocks)%weights(:, :) = zero
+
+              patches(ii+nBlocks)%il = patches(ii)%il
+              patches(ii+nBlocks)%jl = patches(ii)%jl
+              do j=1,patches(ii)%jl
+                 do i=1,patches(ii)%il
+                    patches(ii+nBlocks)%X(:, i, j) = &
+                         patches(ii)%X(:, i, j)*mask
+                 end do
               end do
            end do
-        end do
+        end if mirrorCheck
 
-        ! Now we can finish mirroring the mesh:
-        mask(:) = one
-        if (mirrorType == xmirror) then
-           mask(1) = -one
-        else if (mirrorType == ymirror) then
-           mask(2) = -one
-        else if (mirrorType == zmirror) then
-           mask(3) = -one
-        end if
-
-        do ii=1,nBlocks
-           allocate(patches(ii+nBlocks)%X(3, patches(ii)%il, patches(ii)%jl))
-           allocate(patches(ii+nBlocks)%l_index(patches(ii)%il, patches(ii)%jl))
-           allocate(patches(ii+nBlocks)%weights(patches(ii)%il, patches(ii)%jl))
-           patches(ii+nBlocks)%weights(:, :) = zero
-
-           patches(ii+nBlocks)%il = patches(ii)%il
-           patches(ii+nBlocks)%jl = patches(ii)%jl
-           do j=1,patches(ii)%jl
-              do i=1,patches(ii)%il
-                 patches(ii+nBlocks)%X(:, i, j) = &
-                      patches(ii)%X(:, i, j)*mask
-              end do
-           end do
-        end do
-     end if mirrorCheck
-
+     end if
      ! Now we can create the final connectivity
      nodeTotal = 0
      faceTotal = 0
@@ -200,26 +227,30 @@ subroutine setup(fileName)
         faceTotal = faceTotal + (patches(ii)%il-1)*(patches(ii)%jl-1)
      end do
 
-     allocate(allNodes(3, nodeTotal), uniquePts(3, nodeTotal), link(nodeTotal))
+     allocate(allEdgeNodes(3, nodeTotal), uniquePts(3, nodeTotal), link(nodeTotal))
+
+     ! Assign edge nodes to allEdgeNodes
      iNode = 0
      do ii=1, nPatch
         do j=1, patches(ii)%jl, patches(ii)%jl-1
            do i=1, patches(ii)%il
               iNode = iNode + 1
-              allNodes(:, iNode) = patches(ii)%X(:, i, j)
+              allEdgeNodes(:, iNode) = patches(ii)%X(:, i, j)
            end do
         end do
         do i=1, patches(ii)%il, patches(ii)%il-1
            do j=2, patches(ii)%jl-1
               iNode = iNode + 1
-              allNodes(:, iNode) = patches(ii)%X(:, i, j)
+              allEdgeNodes(:, iNode) = patches(ii)%X(:, i, j)
            end do
         end do
      end do
 
-     call pointReduce(allNodes, iNode, nodeTol, uniquePts, link, nUnique)
+     ! Now we will call pointReduce to remove repeated edge nodes.
+     ! link maps from allEdgeNodes to uniquePts
+     call pointReduce(allEdgeNodes, iNode, nodeTol, uniquePts, link, nUnique)
 
-     ! Dump edge/cornder into l_index
+     ! Dump edge/corner into l_index
      iNode = 0
      do ii=1,nPatch
         do j=1, patches(ii)%jl, patches(ii)%jl-1
@@ -236,9 +267,9 @@ subroutine setup(fileName)
            end do
         end do
      end do
-     
+
      ! Now fill in the interior points into uniquePts/l_index
-     iNode = nUnique
+     iNode = nUnique !Up to here nUnique only has the number of unique edge nodes
      do ii=1,nPatch
         do j=2, patches(ii)%jl-1
            do i=2, patches(ii)%il-1
@@ -248,7 +279,108 @@ subroutine setup(fileName)
            end do
         end do
      end do
-     nUnique = iNode
+     nUnique = iNode ! Now nUnique has the number of unique edge and interior nodes
+
+     ! Allocate BC array
+     allocate(uniqueBCs(nUnique,1+maxBCneighbors))
+     ! The following structure is used:
+     ! uniqueBCs(nodeID,:) = (\ bcType, neighbor1, neighbor2, neighbor3 \)
+     ! Remember that maxBCneighbors is defined in modules/hypData.F90
+     !
+     ! uniqueBCs will always store the nodes acording to orientation
+     ! used to setup patches%BCnodes (check readCGNS.F90)
+     !
+     ! Another pass to assign boundary conditions on the edges...
+     ! In the end we will have a 2d array uniqueBCs, which contains
+     ! the BC type and the global indices of the neighbors of every node
+     uniqueBCs = 0
+     iNode = 0
+     do ii=1,nPatch
+
+        ! Do for the j-edges first
+        do j=1, patches(ii)%jl, patches(ii)%jl-1
+           do i=1, patches(ii)%il
+              iNode = iNode + 1
+              ! Check the dominant BC and update if necesasry
+              if (uniqueBCs(link(iNode),1) .lt. patches(ii)%BCnodes(i,j,1)) then
+                 ! Update the BC type
+                 uniqueBCs(link(iNode),1) = patches(ii)%BCnodes(i,j,1)
+                 ! Update neighbors
+                 do iNeighbor = 1,maxBCneighbors
+                    neighbor_i = patches(ii)%BCnodes(i,j,2*iNeighbor)
+                    neighbor_j = patches(ii)%BCnodes(i,j,2*iNeighbor+1)
+                    ! Check if we got null entries as some BCs do not
+                    ! use all neighbors slots
+                    if (neighbor_i + neighbor_j .gt. 0) then
+                       uniqueBCs(link(iNode),iNeighbor+1) = patches(ii)%l_index(neighbor_i, neighbor_j)
+                    end if
+                 end do
+                 
+              else if (uniqueBCs(link(iNode),1) .eq. patches(ii)%BCnodes(i,j,1)) then
+                 ! We may have a corner that is shared between two blocks.
+                 ! Thus it is not a corner at all and we should check for that.
+
+                 ! Store the current neighbors
+                 currNeighbors = uniqueBCs(link(iNode),2:)
+
+                 ! Read the new neighbors and convert from i,j to global node indices
+                 do iNeighbor = 1,maxBCneighbors
+                    neighbor_i = patches(ii)%BCnodes(i,j,2*iNeighbor)
+                    neighbor_j = patches(ii)%BCnodes(i,j,2*iNeighbor+1)
+                    if (neighbor_i + neighbor_j .gt. 0) then
+                       nextNeighbors(iNeighbor) = patches(ii)%l_index(neighbor_i, neighbor_j)
+                    else ! The BC does not exist
+                       nextNeighbors(iNeighbor) = 0
+                    end if
+                 end do
+
+                 ! The problem is that each BC has a specific neighbor ordering
+                 ! so the check is BCtype-dependant
+
+                 ! Check BC type
+                 if (patches(ii)%BCnodes(i,j,1) .eq. SplayBCindex) then
+
+                    ! If the first current neighbor is equal to the last next neighbor,
+                    ! or vice-versa, then we have an indication of a node shared between
+                    ! two blocks. Then it is not an actual corner
+                    if (currNeighbors(1) .eq. nextNeighbors(3)) then
+                       currNeighbors(1:3) = (/ nextNeighbors(1), nextNeighbors(3), currNeighbors(3)/)
+                    else if (currNeighbors(3) .eq. nextNeighbors(1)) then
+                       currNeighbors(1:3) = (/ currNeighbors(1), currNeighbors(3), nextNeighbors(3)/)
+                    end if
+
+                    ! Save back the modified neighbors
+                    uniqueBCs(link(iNode),2:) = currNeighbors
+
+                 end if
+
+              end if
+           end do
+        end do
+
+        ! Now check the i-edges
+        do i=1, patches(ii)%il, patches(ii)%il-1
+           do j=2, patches(ii)%jl-1
+              iNode = iNode + 1
+              ! Check the dominant BC and update if necesasry
+              if (uniqueBCs(link(iNode),1) .lt. patches(ii)%BCnodes(i,j,1)) then
+                 ! Update the BC type
+                 uniqueBCs(link(iNode),1) = patches(ii)%BCnodes(i,j,1)
+                 ! Update neighbors
+                 do iNeighbor = 1,maxBCneighbors
+                    neighbor_i = patches(ii)%BCnodes(i,j,2*iNeighbor)
+                    neighbor_j = patches(ii)%BCnodes(i,j,2*iNeighbor+1)
+                    ! Check if we got a null entries as some BCs do not
+                    ! use all neighbors slots
+                    if (neighbor_i + neighbor_j .gt. 0) then
+                       uniqueBCs(link(iNode),iNeighbor+1) = patches(ii)%l_index(neighbor_i, neighbor_j)
+                    end if
+                 end do
+              end if
+           end do
+        end do
+
+     end do
 
      write(*,"(a)", advance="no") '#--------------------#'
      print "(1x)"  
@@ -265,7 +397,7 @@ subroutine setup(fileName)
      print "(1x)"   
 
      ! Free up all allocated memory up to here:
-     deallocate(link, allNodes)
+     deallocate(link, allEdgeNodes)
 
      ! Create the conn array
      allocate(fullConn(4, faceTotal))
@@ -367,6 +499,15 @@ subroutine setup(fileName)
         ntePtr(i+1) = ntePtr(i) + nFace(i)*2
      end do
 
+     ! The nte stucture is like this:
+     !
+     !  ntePtr(i)
+     !     |
+     !     V
+     ! | face 1 | position of node i on face 1 | face 2 | position of node i on face 2 | ...
+     !
+     ! This is why ntePtr is 2*sum(nFace) long
+
      ! Now fill-up the array
      nFace(:) = 0
      do i=1, faceTotal
@@ -399,37 +540,103 @@ subroutine setup(fileName)
      allocate(fullnPtr(NODE_MAX+1, nUnique), fullcPtr(CELL_MAX+1, nUnique))
 
      nodeLoop: do iNode=1, nUnique
+
+        ! Get the number of neighbor faces
         nFaceNeighbours = (ntePtr(iNode+1)-ntePtr(iNode))/2
 
-        ! Regular nodes get 4 neighbours, others get double
-        if (nFaceNeighbours == 2) then
-           fullnPtr(1, iNode) = nFaceNeighbours*2
-        else if (nFaceNeighbours == 3) then
-           fullnPtr(1, iNode) = nFaceNeighbours*2
-        else
-           fullnPtr(1, iNode) = nFaceNeighbours
-        end if
+        ! Store the number of neighbor cells
         fullcPtr(1, iNode) = nFaceNeighbours
 
-        firstID = nte(ntePtr(iNode))
+        ! This gives ID of first neighboring face
+        firstElemID = nte(ntePtr(iNode))
+
+        ! nodeID is the position (1-4) of the node after iNode on the first face
+        startNodeID = mod(nte(ntePtr(iNode)+1), 4) + 1
+        startNode = fullConn(startNodeID, firstElemID)
+
+        ! now we need to find if the faces form a closed neighborhood or if
+        ! we have a free edge. The idea is that we will try to loop around the faces
+        ! and try to come back to the first node
+        ! Initialize variables
+        closedSurface = .False.
+        keepSearching = .True.
+        nodeID = startNodeID
+        nextElemID = firstElemID
+
+        closedSearch: do while (keepSearching)
+
+           ! Append the node along the next edge of the element:
+           nextNode = fullConn(mod(nodeID+1,4)+1, nextElemID)
+
+           ! Check if the next node is the starting one
+           if (nextNode .eq. startNode) then
+              keepSearching = .False.
+              closedSurface = .True.
+           end if
+
+           ! Otherwise we move to the cell that contains the next node
+           found = .False.
+           jj = -1
+           findNextElement: do while ((.not. found) .and. (jj .lt. nFaceNeighbours-1))
+              jj = jj + 1
+              ! Find the next face
+              faceToCheck = nte(ntePtr(iNode) + jj*2)
+              if (faceToCheck /= nextElemID) then
+                 !  Check the 4 nodes on this face 
+                 do ii=1, 4
+                    if (fullConn(ii, faceToCheck) == nextNode) then
+                       ! Update values
+                       nextElemID = faceToCheck
+                       nodeID = ii
+                       ! Stop iteration
+                       found = .True.
+                    end if
+                 end do
+              end if
+           end do findNextElement
+
+           if (.not. found) then ! We probably found a boundary edge
+              keepSearching = .False.
+              closedSurface = .False.
+           end if
+
+        end do closedSearch
+
+        ! If we assume that the node belongs to the interior of the mesh, then the number of
+        ! neighbors will be the number of faces.
+        ! The first value of fullnPtr stores the number of neighbor nodes
+        ! We have a special case for 3 neighbors because we will store the diagonals as well
+        if (nFaceNeighbours == 3 .and. closedSurface) then
+           fullnPtr(1, iNode) = 6
+        else if (closedSurface) then
+           fullnPtr(1, iNode) = nFaceNeighbours
+        else
+           fullnPtr(1, iNode) = nFaceNeighbours+1 !Open surface has extra node
+        end if
+
+        firstElemID = nte(ntePtr(iNode)) ! This gives ID of first neighboring face
+        ! nodeID is the position (1-4) of the node after iNode on the first face
         nodeID = mod(nte(ntePtr(iNode)+1), 4) + 1
         nextElemID = -1
         iii = 2
         jjj = 2
 
-        nodeLoopCycle: do while (nextElemID /= firstID)
-           if (nextElemID == -1) &
-                nextElemID = firstID
+        ! Initialize last face increment
+        lastFaceIncrement = 0
 
-           ! Append the next node along that edge:
-           nodeToAdd = fullConn(mod(nodeID-1, 4)+1, nextElemID)  
-           fullnPtr(iii, iNode) = nodeToAdd 
+        nodeLoopCycle: do while (nextElemID /= firstElemID)
+           if (nextElemID == -1) &
+                nextElemID = firstElemID
+
+           ! Append the next node along the edge of the element:
+           nodeToAdd = fullConn(nodeID, nextElemID)
+           fullnPtr(iii, iNode) = nodeToAdd ! The first iteration connects iNode to the next node on the face
            fullcPtr(jjj, iNode) = nextElemID
            iii = iii + 1
            jjj = jjj + 1
 
-           ! Add the diagonal if not regular node
-           if (nFaceNeighbours == 3 .or. nFaceNeighbours == 2) then
+           ! Add the diagonal if not regular node, which is the next node on the same face
+           if (nFaceNeighbours == 3 .and. closedSurface) then
               fullnPtr(iii, iNode) =  fullConn(mod(nodeID, 4)+1, nextElemID)
               iii = iii + 1
            end if
@@ -439,9 +646,10 @@ subroutine setup(fileName)
 
            found = .False.
            jj = -1
-           findNextElement: do while (.not. found)
+
+           findNextElement2: do while ((.not. found) .and. (jj .lt. nFaceNeighbours-1))
               jj = jj + 1
-            
+
               ! Find the next face
               faceToCheck = nte(ntePtr(iNode) + jj*2)
               if (faceToCheck /= nextElemID) then
@@ -449,16 +657,62 @@ subroutine setup(fileName)
                  do ii=1, 4
                     if (fullConn(ii, faceToCheck) == nodeToFind) then
                        nextElemID = faceToCheck
+                       lastFaceIncrement = jj
                        nodeID = ii
                        found = .True.
                     end if
                  end do
               end if
-           end do findNextElement
+           end do findNextElement2
+
+           if (.not. found) then ! We probably found a boundary edge
+              ! Add the last node to the connectivity
+              fullnPtr(iii, iNode) = nodeToFind
+              iii = iii + 1
+              if (lastFaceIncrement+1 .lt. nFaceNeighbours) then ! There are missing faces
+                 ! Jump to next face
+                 nextElemID = nte(ntePtr(iNode) + 2*(lastFaceIncrement+1))
+                 nodeID = mod(nte(ntePtr(iNode) + 2*(lastFaceIncrement+1)+1), 4) + 1
+              else ! We already scanned all faces and we should leave the loop
+                 ! Force loop exit
+                 nextElemID = firstElemID
+              end if
+           end if
+
         end do nodeLoopCycle
+
      end do nodeLoop
      deallocate(nte, ntePtr)
+
   end if rootProc
+
+  ! ii = 1
+  ! do i=1, patches(ii)%il
+  !    print *,patches(ii)%l_index(i,   :)
+  ! end do
+
+  ! ii = 1
+  ! do i=1, patches(ii)%il
+  !    print *,patches(ii)%BCnodes(i,:,1)
+  ! end do
+
+  !ii =  2
+  ! do i=1, patches(ii)%il
+  !    print *,patches(ii)%l_index(i,   :)
+  ! end 
+  !do
+
+  ! do i = 1,nUnique
+  !    print *,i
+  !    print *,fullnPtr(:,i)
+  ! end do
+
+  !do i = 1,nUnique
+  !   print *,i
+  !   print *,uniqueBCs(i,:)
+  !end do
+
+  !stop
 
   ! Now we can broadcast the required infomation to everyone. In fact
   ! all we need is the fullnPtr, fullcPtr and the full connectivity list
@@ -483,6 +737,7 @@ subroutine setup(fileName)
      allocate(fullnPtr(NODE_MAX+1, nUnique))
      allocate(fullcPtr(CELL_MAX+1, nUnique))
      allocate(uniquePts(3, nUnique))
+     allocate(uniqueBCs(nUnique, 1+maxBCneighbors))
   end if
 
   ! Actual broadcasts
@@ -498,7 +753,10 @@ subroutine setup(fileName)
   call MPI_Bcast(uniquePts, 3*nUnique, MPI_DOUBLE, 0, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
-  ! We now do "partitioning". It is essentially tries to diviy up the
+  call MPI_Bcast(uniqueBCs, nUnique*(1+maxBCneighbors), MPI_INTEGER, 0, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  ! We now do "partitioning". It is essentially tries to divide up the
   ! nodes as evenly as possible (which is always possible up to the
   ! number of procs) without any regard to the number of cuts or
   ! communication costs. 
@@ -572,6 +830,11 @@ subroutine setup(fileName)
      end do
   end do
 
+  !do i=1, isize
+  !   print *,i
+  !   print *,lnPtr(:,i)
+  !end do
+
   ! Determine now many local faces we will have, (faces surrounding owned nodes)
   allocate(localFace(faceTotal))
   localFace(:) = 0
@@ -638,8 +901,31 @@ subroutine setup(fileName)
   call VecGhostUpdateBegin(X(1), INSERT_VALUES, SCATTER_FORWARD, ierr)
   call VecGhostUpdateEnd(X(1), INSERT_VALUES,SCATTER_FORWARD, ierr)
 
+  ! Allocate local BC neighbors (declared in hypData.F90)
+  allocate(BCneighborsLocal(nx,1+maxBCneighbors))
+  allocate(BCneighborsGlobal(nx,1+maxBCneighbors))
+
+  ! Store BC information
+  do i=1,nx
+     BCneighborsGlobal(i,:) = uniqueBCs(i+istart-1,:)
+     BCneighborsLocal(i,:) = uniqueBCs(i+istart-1,:)
+     ! Adjust the local indices
+     do j = 2,maxBCneighbors+1
+        ! Get the current index
+        ind = BCneighborsLocal(i,j)
+        ! Check if we have a valid node
+        if (BCneighborsLocal(i,j) .ne. 0) then
+           if (ind < istart .or. ind > iend) then
+              BCneighborsLocal(i,j) = link(ind) + iSize ! Use ghost value from link
+           else
+              BCneighborsLocal(i,j) = ind - istart + 1 ! Local node
+           end if
+        end if
+     end do
+  end do
+
   ! Finally finished with the full set of information so deallocate
-  deallocate(fullnPtr, link, localFace, uniquePts)
+  deallocate(fullnPtr, link, localFace, uniquePts, uniqueBCs)
 
 end subroutine setup
 

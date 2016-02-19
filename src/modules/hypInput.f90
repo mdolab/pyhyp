@@ -13,6 +13,7 @@ module hypInput
   real(kind=realType) :: epsE, volCoef, volBlend, epsI, theta
   real(kind=realType) :: kspRelTol,rMin, cmax
   real(kind=realType) :: nodeTol, symTol
+  real(kind=realType) :: sigmaSplay, nuSplay
 
   integer(kind=intType) :: N
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize

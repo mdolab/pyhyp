@@ -79,6 +79,9 @@ class pyHyp(object):
             # Input file
             'inputFile':'default.fmt',
 
+            # Input file type
+            'fileType':'CGNS',
+
             # Type of extrusion: hyperbolic or elliptic
             'mode':'hyperbolic',
 
@@ -180,9 +183,19 @@ class pyHyp(object):
             # smoothing iterations
             'volSmoothIter': 10, 
 
+            # ----------------------------------------
+            #   Solution Parameters (Hyperbolic only)
+            # ----------------------------------------
+
+            # sigmaSplay: Splay BC spreading factor
+            'sigmaSplay': 0.4,
+
+            # nuSplay: Splay BC averaging factor (increase to prevent corner issues)
+            'nuSplay': 0.9, 
+
             # -------------------------------
             #   Solution Parameters (Common)
-            # ------------------------------
+            # -------------------------------
             # kspRelTol: Solution tolerance for linear system
             'kspRelTol': 1e-8, 
             
@@ -221,8 +234,12 @@ class pyHyp(object):
         self._setOptions()
         self.gridGenerated = False
 
+        # Convert file type to integer
+        fileType_dict = {'cgns':1,'plot3d':2}
+        fileType_int = fileType_dict[self.options['fileType'].lower()]
+
         # Initialize the problem based on dimension
-        self.hyp.setup(self.options['inputFile'])
+        self.hyp.setup(self.options['inputFile'], fileType_int)
 
     def run(self):
         """
@@ -285,6 +302,8 @@ class pyHyp(object):
         self.hyp.hypinput.volblend = self.options['volBlend']
         self.hyp.hypinput.cmax = self.options['cMax']
         self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
+        self.hyp.hypinput.sigmasplay = self.options['sigmaSplay']
+        self.hyp.hypinput.nusplay = self.options['nuSplay']
         self.hyp.hypinput.kspreltol = self.options['kspRelTol']
         self.hyp.hypinput.kspmaxits = self.options['kspMaxIts']
         self.hyp.hypinput.nonlinear = self.options['nonLinear']

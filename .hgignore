@@ -9,7 +9,6 @@ syntax: glob
 *.orig
 *.mod
 *.pyf
-*.cgns
 *.a
 doc/*
 *.dat
