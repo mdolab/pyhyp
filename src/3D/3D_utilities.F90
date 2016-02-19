@@ -79,8 +79,8 @@ subroutine calcGridRatio(N, s0, S, ratio)
   integer(kind=intType) :: i, M
   real(kind=realType) ::  r, a,b, c, f, fa, fb
 
-  ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 i
-  ! sinitial ratio and r is the grid ratio. 
+  ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
+  ! initial ratio and r is the grid ratio. 
 
   M = N-1
 
@@ -200,20 +200,22 @@ subroutine writeHeader
 
   ! Write the first line of '-'
   write(*,"(a)",advance="no") "#"
-  do i=2,125
+  do i=2,140
      write(*,"(a)",advance="no") "-"
   enddo
   print "(1x)"
   write(*,"(a)",advance="no") "# Grid  |     CPU    | Sub  | KSP  |     Sl     |"
-  write(*,"(a)",advance="no") " Grid       | Grid       |     Min    |   deltaS   |    cMax   |   min R   | "
+  write(*,"(a)",advance="no") " Grid       | Grid       |     Min    |   deltaS   |"
+  write(*,"(a)",advance="no") "    cMax    |    min R   |    max     | "
   print "(1x)"
   write(*,"(a)",advance="no") "# Level |     Time   | Iter | Its  |            |"
-  write(*,"(a)",advance="no") " Sensor Max | Sensor Min |  Quality   |            |           |           | "
+  write(*,"(a)",advance="no") " Sensor Max | Sensor Min |  Quality   |            |"
+  write(*,"(a)",advance="no") "            |            |  KStretch  | "
   print "(1x)"
 
   ! Write the Last line of '-'
   write(*,"(a)",advance="no") "#"
-  do i=2,125
+  do i=2,140
      write(*,"(a)",advance="no") "-"
   enddo
   print "(1x)"
@@ -228,44 +230,63 @@ subroutine writeIteration
   !     Writes the information pertaining to the curent iteration to
   !     the screen
   !
+  use communication
   use hypData
 
   implicit none
 
-  ! Iteration Count
-  write(*,"(i8,1x)",advance="no") marchIter
+  ! Working variables
+  real(kind=realType) :: gridSensorMaxRed, gridSensorMinRed
+  integer(kind=intType) :: ierr
 
-  ! CPU time
-  write(*,"(e12.5,1x)",advance="no") dble(mpi_wtime()) - timeStart
+  ! Reduce all mins/maxes
+  CALL MPI_REDUCE(gridSensorMax, gridSensorMaxRed, 1, MPI_DOUBLE, MPI_MAX, 0, hyp_comm_world, ierr)
+  CALL MPI_REDUCE(gridSensorMin, gridSensorMinRed, 1, MPI_DOUBLE, MPI_MIN, 0, hyp_comm_world, ierr)
 
-  ! Sub Iteration
-  write(*,"(i6,1x)",advance="no") nSubIter
+  ! Only root proc prints stuff
+  if (myid == 0) then
 
-  ! KSP ITerations
-  write(*,"(i6,1x)",advance="no") kspIts
+     ! Iteration Count
+     write(*,"(i8,1x)",advance="no") marchIter
 
-  ! Modified Sl factor from Steger and Chan
-  write(*,"(e12.5,1x)",advance="no") Sl
+     ! CPU time
+     write(*,"(e12.5,1x)",advance="no") dble(mpi_wtime()) - timeStart
 
-  ! maximum Grid convergence sensor
-  write(*,"(e12.5,1x)",advance="no") gridSensorMax
+     ! Sub Iteration
+     write(*,"(i6,1x)",advance="no") nSubIter
 
-  ! minimum Grid convergence sensor
-  write(*,"(e12.5,1x)",advance="no") gridSensorMin
+     ! KSP ITerations
+     write(*,"(i6,1x)",advance="no") kspIts
 
-  ! minimum grid quality for new layer
-  write(*,"(e12.5,1x)",advance="no") minQuality
+     ! Modified Sl factor from Steger and Chan
+     write(*,"(e12.5,1x)",advance="no") Sl
 
-  ! marching step size for this iteration
-  write(*,"(e12.5,1x)",advance="no") deltaS
+     ! maximum Grid convergence sensor
+     write(*,"(e12.5,1x)",advance="no") gridSensorMaxRed
 
-  ! marching step size for this iteration
-  write(*,"(e12.5,1x)",advance="no") cRatio
+     ! minimum Grid convergence sensor
+     write(*,"(e12.5,1x)",advance="no") gridSensorMinRed
 
-  ! approximate minimim distance to body
-  minR = zero
-  write(*,"(e12.5,e12.5,e12.5,1x)",advance="no") scaleDist/radius0
-  print "(1x)"
+     ! minimum grid quality for new layer
+     write(*,"(e12.5,1x)",advance="no") minQuality ! This was reduced already
+
+     ! marching step size for this iteration
+     write(*,"(e12.5,1x)",advance="no") deltaS
+
+     ! marching step size for this iteration
+     write(*,"(e12.5,1x)",advance="no") cRatio
+
+     ! approximate minimim distance to body
+     minR = zero
+     write(*,"(e12.5,1x)",advance="no") scaleDist/radius0
+
+     ! maximum stretch ratio in K-direction
+     write(*,"(e12.5,1x)",advance="no") maxKStretch
+
+     ! Jump to next line
+     print "(1x)"
+
+  end if
 
 end subroutine writeIteration
 
@@ -622,7 +643,7 @@ end function dist
 subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 
   ! Given a list of N points (pts) in three space, with possible
-  ! duplicates, (to within tol) return a list of the nUnqiue
+  ! duplicates, (to within tol) return a list of the nUnique
   ! uniquePoints of points and a link array of length N, that points
   ! into the unique list
   use precision
@@ -859,12 +880,12 @@ subroutine getSurfaceCoordinates(coords, n)
   real(kind=realType), intent(inout), dimension(n) :: coords
   integer(kind=intType) :: ierr
 
-  call VecGetArrayF90(X(1), xx, ierr)
+  call VecGetArrayF90(X(n), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
   ! Just copy
   coords = xx
-  call VecRestoreArrayF90(X(1), xx, ierr)
+  call VecRestoreArrayF90(X(n), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
 end subroutine getSurfaceCoordinates
@@ -880,13 +901,13 @@ subroutine setSurfaceCoordinates(coords, n)
   real(kind=realType), intent(in), dimension(n) :: coords
   integer(kind=intType) :: ierr
 
-  call VecGetArrayF90(X(1), xx, ierr)
+  call VecGetArrayF90(X(n), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
   ! Just copy
   xx = coords
 
-  call VecRestoreArrayF90(X(1), xx, ierr)
+  call VecRestoreArrayF90(X(n), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
 end subroutine setSurfaceCoordinates
@@ -935,3 +956,310 @@ subroutine assignNode2NodeConn(nodeConn, node1, node2)
   end do
 
 end subroutine assignNode2NodeConn
+
+subroutine extrapolatePoint(x1,x2,x3)
+
+  ! This subroutine extrapolates the line connecting points x1 and x2
+  ! to find x3. x2 will be the middle point between x1 and x3
+
+  use precision
+  implicit none
+
+  ! Input variables
+  real(kind=realType), intent(in) :: x1(3), x2(3)
+
+  ! Output variables
+  real(kind=realType), intent(out) :: x3(3)
+
+  ! BEGIN EXECUTION
+
+  x3 = 2*x2 - x1
+
+end subroutine extrapolatePoint
+
+subroutine cellArea(x1,x2,x3,x4,S)
+
+  ! This subroutine computes the cell area defined by the nodes x1, x2, x3, x4.
+  !
+  !   ========
+  !  |x1    x2|
+  !  |        |
+  !  |x4    x3|
+  !   ========
+
+
+  use precision
+  implicit none
+
+  ! Input variables
+  real(kind=realType), intent(in) :: x1(3), x2(3), x3(3), x4(3)
+
+  ! Output variables
+  real(kind=realType), intent(out) :: S
+
+  ! Working variables
+  real(kind=realType) :: v1(3), v2(3), v3(3)
+
+  ! BEGIN EXECUTION
+
+  ! Compute diagonal vectors
+  v1(:) = x3 - x1
+  v2(:) = x4 - x2
+
+  ! Cross Product
+  call cross_prod(v1,v2,v3)
+  
+  ! Compute area
+  S = half*sqrt(v3(1)*v3(1) + v3(2)*v3(2) + v3(3)*v3(3))
+
+end subroutine cellArea
+
+subroutine extrapolateArea(x1,x2,x3,x4,side,areaRatio)
+
+  ! This subroutine computes the ratio of the extrapolated area to the
+  ! initial cell area defined by the nodes x1, x2, x3, x4.
+  !
+  !   ==========================
+  !  |        |        |        |
+  !  |   5    |   2    |   6    |
+  !  |        |        |        |
+  !   ==========================
+  !  |        |x1    x2|        |
+  !  |   1    |   0    |   3    |
+  !  |        |x4    x3|        |
+  !   ==========================
+  !  |        |        |        |
+  !  |   8    |   4    |   7    |
+  !  |        |        |        |
+  !   ==========================
+  !
+  !  side = 1 computes S(1+0)/S(0)
+  !  side = 2 computes S(2+0)/S(0)
+  !  side = 3 computes S(3+0)/S(0)
+  !  side = 4 computes S(4+0)/S(0)
+  !  side = 5 computes S(1+5+2+0)/S(0)
+  !  side = 6 computes S(2+6+3+0)/S(0)
+  !  side = 7 computes S(3+7+4+0)/S(0)
+  !  side = 8 computes S(4+8+1+0)/S(0)
+
+  use precision
+  implicit none
+
+  ! Input parameters
+  real(kind=realType), intent(in) :: x1(3), x2(3), x3(3), x4(3)
+  integer(kind=intType), intent(in) :: side
+
+  ! Outputs parameters
+  real, intent(out) :: areaRatio
+
+  ! Working parameters
+  real(kind=realType) :: xi(3), xj(3), xk(3), xl(3)
+  real(kind=realType) :: xm1(3), xm2(3), xm(3)
+  real(kind=realType) :: S0, Stot, deltaS
+
+  ! BEGIN EXECUTION
+
+  ! Compute original cell area
+  call cellArea(x1,x2,x3,x4,S0)
+
+  ! Initialize total area
+  Stot = S0
+
+  if (side .eq. 1) then
+     ! Extrapolate points
+     call extrapolatePoint(x2,x1,xi)
+     call extrapolatePoint(x3,x4,xj)
+     ! Compute area of new cells and add to total
+     call cellArea(xi,x1,x4,xj,deltaS)
+     Stot = Stot + deltaS
+  else if (side .eq. 2) then
+     ! Extrapolate points
+     call extrapolatePoint(x4,x1,xi)
+     call extrapolatePoint(x3,x2,xj)
+     ! Compute area of new cells and add to total
+     call cellArea(xi,xj,x2,x1,deltaS)
+     Stot = Stot + deltaS
+  else if (side .eq. 3) then
+     ! Extrapolate points
+     call extrapolatePoint(x1,x2,xi)
+     call extrapolatePoint(x4,x3,xj)
+     ! Compute area of new cells and add to total
+     call cellArea(x2,xi,xj,x3,deltaS)
+     Stot = Stot + deltaS
+  else if (side .eq. 4) then
+     ! Extrapolate points
+     call extrapolatePoint(x1,x4,xi)
+     call extrapolatePoint(x2,x3,xj)
+     ! Compute area of new cells and add to total
+     call cellArea(x4,x3,xj,xi,deltaS)
+     Stot = Stot + deltaS
+  else if (side .eq. 5) then
+     ! Extrapolate points
+     call extrapolatePoint(x2,x1,xi)
+     call extrapolatePoint(x3,x4,xj)
+     call extrapolatePoint(x4,x1,xk)
+     call extrapolatePoint(x3,x2,xl)
+     ! Extapolate the diagonal node taking the average of two extrapolations
+     call extrapolatePoint(xj,xi,xm1)
+     call extrapolatePoint(xl,xk,xm2)     
+     xm = half*(xm1 + xm2)
+     ! Compute area of new cells and add to total
+     call cellArea(xi,x1,x4,xj,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(xm,xk,x1,xi,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(xk,xl,x2,x1,deltaS)
+     Stot = Stot + deltaS
+  else if (side .eq. 6) then
+     ! Extrapolate points
+     call extrapolatePoint(x4,x1,xi)
+     call extrapolatePoint(x3,x2,xj)
+     call extrapolatePoint(x1,x2,xk)
+     call extrapolatePoint(x4,x3,xl)
+     ! Extapolate the diagonal node taking the average of two extrapolations
+     call extrapolatePoint(xi,xj,xm1)
+     call extrapolatePoint(xl,xk,xm2)     
+     xm = half*(xm1 + xm2)
+     ! Compute area of new cells and add to total
+     call cellArea(xi,xj,x2,x1,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(xj,xm,xk,x2,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(x2,xk,xl,x3,deltaS)
+     Stot = Stot + deltaS
+  else if (side .eq. 7) then
+     ! Extrapolate points
+     call extrapolatePoint(x1,x2,xi)
+     call extrapolatePoint(x4,x3,xj)
+     call extrapolatePoint(x1,x4,xk)
+     call extrapolatePoint(x2,x3,xl)
+     ! Extapolate the diagonal node taking the average of two extrapolations
+     call extrapolatePoint(xi,xj,xm1)
+     call extrapolatePoint(xk,xl,xm2)     
+     xm = half*(xm1 + xm2)
+     ! Compute area of new cells and add to total
+     call cellArea(x2,xi,xj,x3,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(x3,xj,xm,xl,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(x4,x3,xl,xk,deltaS)
+     Stot = Stot + deltaS
+  else if (side .eq. 8) then
+     ! Extrapolate points
+     call extrapolatePoint(x2,x1,xi)
+     call extrapolatePoint(x3,x4,xj)
+     call extrapolatePoint(x1,x4,xk)
+     call extrapolatePoint(x2,x3,xl)
+     ! Extapolate the diagonal node taking the average of two extrapolations
+     call extrapolatePoint(xi,xj,xm1)
+     call extrapolatePoint(xl,xk,xm2)     
+     xm = half*(xm1 + xm2)
+     ! Compute area of new cells and add to total
+     call cellArea(xi,x1,x4,xj,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(xj,x4,xk,xm,deltaS)
+     Stot = Stot + deltaS
+     call cellArea(x4,x3,xl,xk,deltaS)
+     Stot = Stot + deltaS
+  end if
+
+  ! Finally compute the area ratio
+  areaRatio = Stot/S0
+
+end subroutine extrapolateArea
+
+subroutine findKStretch(XL, XLm1, XLm2)
+  !***DESCRIPTION
+  !
+  !     Written by Ney Secco
+  !
+  !     Abstract: findKStretch computes a distance ratio. Let zeta and eta be
+  !     the computational coordinates along the surface, while L represents
+  !     the marching direction (the current layer). This functions compute
+  !     the following ratio:
+  !     Kstretch =  distance between X(zeta, eta, L) and X(zeta, eta, L-1)
+  !                --------------------------------------------------------
+  !                distance between X(zeta, eta, L-1) and X(zeta, eta, L-2)
+  !     This can be used as an indication of how much the grid is stretching in the
+  !     marching direction.
+  !    
+  !     Parameters
+  !     ----------
+  !     L : integer
+  !         The marching level to compute stretch for
+  !
+  !     Returns
+  !     -------
+  !     deltaS : real
+  !         Marching increment set in hypData
+  !
+  !     Updates
+  !     -------
+  !     maxKStretch: real (defined in hypData.F90)
+  !         Ratio of distance between layers
+  !
+  use precision
+  use hypInput
+  use hypData, only : maxKStretch, nx
+  implicit none
+
+#include "include/petscversion.h"
+#if PETSC_VERSION_MINOR > 5
+#include "petsc/finclude/petsc.h"
+#include "petsc/finclude/petscvec.h90"
+#else
+#include "include/finclude/petsc.h"
+#include "include/finclude/petscvec.h90"
+#endif
+
+  ! Input parameters
+  Vec, intent(in) :: XL, XLm1, XLm2
+
+  ! Working
+  integer(kind=intType) :: i, ierr
+  real(kind=realType) :: rl(3), rlm1(3), rlm2(3), KStretch
+  real(kind=realType), pointer, dimension(:) :: xxl, xxlm1, xxlm2
+  real(kind=realType), external :: dist
+
+  ! BEGIN EXECUTION
+
+  ! Assign pointers
+  call VecGetArrayF90(XL, xxl, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  call VecGetArrayF90(XLm1, xxlm1, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  call VecGetArrayF90(XLm2, xxlm2, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  ! Initialize maximum stretch variable
+  maxKStretch = 0.0
+
+  ! Compute strech for every point
+  do i=1,nx
+     
+     ! Get node coordinates on each layer
+     rl = xxl(3*i-2:3*i)
+     rlm1 = xxlm1(3*i-2:3*i)
+     rlm2 = xxlm2(3*i-2:3*i)
+
+     ! Compute stretch ratio (function dist defined in 3D_utilities.F90)
+     KStretch = dist(rl, rlm1)/dist(rlm1, rlm2)
+
+     ! Compare with the maximum value
+     maxKStretch = max(KStretch, maxKStretch)
+
+  end do
+
+  ! Restore arrays to make petsc happy
+  call VecRestoreArrayF90(XL, xxl, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  call VecRestoreArrayF90(XLm1, xxlm1, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  call VecRestoreArrayF90(XLm2, xxlm2, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+end subroutine findKStretch
