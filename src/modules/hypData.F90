@@ -74,10 +74,12 @@ module hypData
   ! Define the indices of each BC
   ! Higher indices will have higher priority
   integer(kind=intType), parameter :: SplayBCindex = 1
-  integer(kind=intType), parameter :: SymmetryBCindex = 2
-  integer(kind=intType), parameter :: ConstXBCindex = 3
-  integer(kind=intType), parameter :: ConstYBCindex = 4
-  integer(kind=intType), parameter :: ConstZBCindex = 5
+  integer(kind=intType), parameter :: SymmetryXBCindex = 2
+  integer(kind=intType), parameter :: SymmetryYBCindex = 3
+  integer(kind=intType), parameter :: SymmetryZBCindex = 4
+  integer(kind=intType), parameter :: ConstXBCindex = 5
+  integer(kind=intType), parameter :: ConstYBCindex = 6
+  integer(kind=intType), parameter :: ConstZBCindex = 7
 
   ! -------------------------------------
   !         Surface Patch Data
