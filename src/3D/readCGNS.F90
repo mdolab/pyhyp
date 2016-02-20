@@ -11,7 +11,8 @@ contains
     ! This subroutine opens a cgnsFile and 
 
     use hypData, only: patchType, intType, realType, maxBCneighbors, SplayBCindex, &
-         SymmetryBCindex, ConstXBCindex, ConstYBCindex, ConstZBCindex
+         SymmetryXBCindex, SymmetryYBCindex, SymmetryZBCindex, &
+         ConstXBCindex, ConstYBCindex, ConstZBCindex
     implicit none
     include 'cgnslib_f.h'
 
@@ -167,7 +168,49 @@ contains
              bocoIndex = SplayBCindex
 
           else if (bocoType .eq. BCSymmetryPlane) then
-             bocoIndex = SymmetryBCindex
+             ! We need to find if the user wants an X, Y or Z Wall
+             ! by looking at the Velocity components of the Wall BC
+
+             ! Loop over the datasets to find the wanted names.
+             ! The last dataset will replace the other ones.
+             do idataset = 1,ndataset
+
+                ! Check the dataset names
+                call cg_dataset_read_f(cg, base, iZone, iBC, idataset, &
+                     DatasetName, dummybocoType, DirichletFlag, NeumannFlag, ierr)
+                if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+                ! Check if it has Dirichlet data
+                if (DirichletFlag .eq. 1) then
+                   ! Try to access VelocityX
+                   call cg_goto_f(cg, base, ierr, 'Zone_t',iZone, 'ZoneBC',0, &
+                        'BC_t',iBC, 'BCDataSet_t',idataset, 'DirichletData',0, &
+                        'VelocityX',0, 'end')
+                   if (ierr .eq. 0) then ! We found VelocityX so we have WallX BC
+                      bocoIndex = SymmetryXBCindex
+                   else
+                      ! Try to access VelocityY
+                      call cg_goto_f(cg, base, ierr, 'Zone_t',iZone, 'ZoneBC',0, &
+                           'BC_t',iBC, 'BCDataSet_t',idataset, 'DirichletData',0, &
+                           'VelocityY',0, 'end')
+                      if (ierr .eq. 0) then ! We found VelocityY so we have WallY BC
+                         bocoIndex = SymmetryYBCindex
+                      else
+                         ! Try to access VelocityZ
+                         call cg_goto_f(cg, base, ierr, 'Zone_t',iZone, 'ZoneBC',0, &
+                              'BC_t',iBC, 'BCDataSet_t',idataset, 'DirichletData',0, &
+                              'VelocityZ',0, 'end')
+                         if (ierr .eq. 0) then ! We found VelocityZ so we have WallZ BC
+                            bocoIndex = SymmetryZBCindex
+                         else
+                            print *,'Did not recognize Symmetry BC'
+                            print *,'Check if you defined VelocityX, VelocityY, or VelocityZ'
+                         end if
+                      end if
+                   end if
+                end if
+
+             end do
 
           else if (bocoType .eq. BCWall) then
              ! We need to find if the user wants an X, Y or Z Wall

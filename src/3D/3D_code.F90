@@ -521,7 +521,7 @@ subroutine calcResidual
   integer(kind=intType) :: iLow, iHigh, bcType
   !real(kind=realType) :: XwallBC, YwallBC, ZwallBC
   real(kind=realType), dimension(3) :: r_zeta, r_ksi, r_eta, sigma, t, tau
-  real(kind=realType), dimension(3) :: r_ksi_ksi, r_eta_eta, rA, rB, rC
+  real(kind=realType), dimension(3) :: r_ksi_ksi, r_eta_eta, rA, rB, rC, f_rhs
   real(kind=realType), dimension(3) :: rMinusjHat, rMinuskHat, r0, rmmr0
   real(kind=realType), dimension(3) :: rPlusjHat, rPluskHat, nhat, G, PinvG
   real(kind=realType), dimension(3,3) :: Q1, Q2, P, eye, PinvQ1, PinvQ2, Pinv
@@ -651,7 +651,8 @@ subroutine calcResidual
                 rC(2)*rC(2) + rC(3)*rC(3))/), INSERT_VALUES, ierr)
            call EChk(ierr, __FILE__, __LINE__)
 
-        else if (bcType .eq. SymmetryBCindex) then ! Wall BC
+        else if ((bcType .eq. SymmetryXBCindex) .or.(bcType .eq. SymmetryYBCindex) .or. &
+             (bcType .eq. SymmetryZBCindex)) then ! Symmetry BC
 
            ! Now we will read the neighbors according to the orientation
            ! used to define patch%BCnodes (check readCGNS.F90). This
@@ -660,7 +661,7 @@ subroutine calcResidual
            ! For the Symmetry BC we need two neighbors:
            ! The i and j indices used in this part of the code are taken
            ! with respect to the marching direction. Therefore, the jp1
-           ! node will be towards the interior of the mesh always
+           ! node will be towards the interior of the mesh always.
            !
            !           jp2
            !            |
@@ -671,35 +672,55 @@ subroutine calcResidual
            !   X----refNode----X
            !     ---------> marching direction
 
-           print *,'Symmetry BC not implemented yet'
-           stop
-
            ! Read neighbors in local form
            jp1 = BCneighborsLocal(i, 2)
            jp2 = BCneighborsLocal(i, 3)
 
-           ! Set the matrix of the reference node ! 
-           call MatSetValuesBlocked(hypMat, 1, ii-1, 1, ii-1, &
-                eye, ADD_VALUES, ierr)
-           call EChk(ierr, __FILE__, __LINE__)
+           ! Read coordinates
+           rA = xx(3*ii-2:3*ii)
+           rB = xx(3*jp1-2:3*jp1)
+           rC = xx(3*jp2-2:3*jp2)
 
+           ! Define auxiliary matrix that will blank the symmetric coordinate
+           Abc = eye
+
+           ! Compute the right-hand side expression
+           f_rhs = 3.0*rA - 4.0*rB + rC
+
+           ! Blank the elements that corresponds to the symmetry variables
+           if (bcType .eq. SymmetryXBCindex) then !X-sym
+              Abc(1,1) = 0
+              f_rhs(1) = 0
+           else if (bcType .eq. SymmetryYBCindex) then !Y-sym
+              Abc(2,2) = 0
+              f_rhs(2) = 0
+           else if (bcType .eq. SymmetryZBCindex) then !Z-sym
+              Abc(3,3) = 0
+              f_rhs(3) = 0
+           end if
+           
             ! Read neighbors in global form to assemble matrices
            jp1 = BCneighborsGlobal(i, 2)
            jp2 = BCneighborsGlobal(i, 3)
 
-           ! Assign matrix
-           call MatSetValuesBlocked(hypMat, 1, ii-1, 1, jp1-1, &
-                -two*eye, ADD_VALUES, ierr)
+           ! Set the matrix of the reference node ! 
+           call MatSetValuesBlocked(hypMat, 1, ii-1, 1, ii-1, &
+                -3.0*Abc, ADD_VALUES, ierr)
            call EChk(ierr, __FILE__, __LINE__)
 
-           ! Assign matrix
+           ! Assign matrix to jp1 node
+           call MatSetValuesBlocked(hypMat, 1, ii-1, 1, jp1-1, &
+                4.0*Abc, ADD_VALUES, ierr)
+           call EChk(ierr, __FILE__, __LINE__)
+
+           ! Assign matrix to jp2 node
            call MatSetValuesBlocked(hypMat, 1, ii-1, 1, jp2-1, &
-                eye, ADD_VALUES, ierr)
+                -1.0*Abc, ADD_VALUES, ierr)
            call EChk(ierr, __FILE__, __LINE__)
 
            ! We also need to set the RHS
            call VecSetValuesBlocked(hypRHS, 1, (/ii-1/), &
-                (/zero, zero, zero/), INSERT_VALUES, ierr)
+                f_rhs, INSERT_VALUES, ierr)
            call EChk(ierr, __FILE__, __LINE__)
 
         else if ((bcType .eq. ConstXBCindex) .or.(bcType .eq. ConstYBCindex) .or. &

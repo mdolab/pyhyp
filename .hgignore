@@ -10,7 +10,6 @@ syntax: glob
 *.mod
 *.pyf
 *.a
-doc/*
 *.dat
 *.mk
 *.xyz
