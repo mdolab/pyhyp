@@ -1,6 +1,6 @@
 subroutine surfaceSmooth(xVec, nSteps, stepSize)
   use hypData, only : patches, nPatch, cPtr, xx, nx, conn, nghost, nlocalFace, XL_local, X
-  use hypInput, only : mirrorType, nodeTol
+  use hypInput, only : nodeTol
   use kd_tree
   use communication
   implicit none
@@ -33,19 +33,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
   integer(kind=intType), target :: indexes(1)
 
   type(tree_master_record), pointer :: mytree
-  interface 
-     subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
-       use precision
-       implicit none
-       real(kind=realType), dimension(:, :) :: pts
-       integer(kind=intType), intent(in) :: N
-       real(kind=realType), intent(in) :: tol
-       real(kind=realType), dimension(:, :) :: uniquePts
-       integer(kind=intType), dimension(:) :: link
-       integer(kind=intType) :: nUnique
-     end subroutine pointReduce
-  end interface
-
+ 
   ! First we have compute the distance factor. We need to get a local
   ! copy of all the nodes onto every proc so that everyone can create
   ! a KDTree with all the nodes 
@@ -255,18 +243,18 @@ subroutine freezeEdge(blockID, edge, dstar)
         patches(blockID)%weights(:, jl) = dstar
      end if
      
-     if (mirrorType /= noMirror) then
-        offset = nPatch/2
-        if (trim(edge) == 'ilow') then
-           patches(blockID+offset)%weights(1, :) = dstar
-        else if (trim(edge) == 'ihigh') then
-           patches(blockID+offset)%weights(il, :) = dstar
-        else if (trim(edge) == 'jlow') then
-           patches(blockID+offset)%weights(:, 1) = dstar
-        else if (trim(edge) == 'jhigh') then
-           patches(blockID+offset)%weights(:, jl) = dstar
-     end if
-  end if
+     ! if (mirrorType /= noMirror) then
+     !    offset = nPatch/2
+     !    if (trim(edge) == 'ilow') then
+     !       patches(blockID+offset)%weights(1, :) = dstar
+     !    else if (trim(edge) == 'ihigh') then
+     !       patches(blockID+offset)%weights(il, :) = dstar
+     !    else if (trim(edge) == 'jlow') then
+     !       patches(blockID+offset)%weights(:, 1) = dstar
+     !    else if (trim(edge) == 'jhigh') then
+     !       patches(blockID+offset)%weights(:, jl) = dstar
+     ! end if
+     !  end if
 
 
   end if
@@ -293,11 +281,11 @@ subroutine freezeFaces(blockIDs, nBlockIDs, dstar)
         patches(blockIDs(i))%weights(:, :) = dstar
      end do
 
-     if (mirrorType /= noMirror) then
-        do i=1, nBlockIDs
-           patches(blockIDs(i)+nPatch/2)%weights(:, :) = dstar
-        end do
-     end if
+     ! if (mirrorType /= noMirror) then
+     !    do i=1, nBlockIDs
+     !       patches(blockIDs(i)+nPatch/2)%weights(:, :) = dstar
+     !    end do
+     ! end if
   end if
 end subroutine freezeFaces
 
@@ -317,7 +305,7 @@ end subroutine smoothWrap
 
 subroutine surfaceSmooth2(xVec, nSteps, stepSize)
   use hypData, only : patches, nPatch, cPtr, xx, nx, conn, nghost, nlocalFace, XL_local, X
-  use hypInput, only : mirrorType, nodeTol
+  use hypInput, only : nodeTol
   use kd_tree
   use communication
   implicit none

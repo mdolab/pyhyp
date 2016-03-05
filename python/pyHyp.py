@@ -32,8 +32,8 @@ class Error(Exception):
     was a explicitly raised exception.
     """
     def __init__(self, message):
-        msg = '\n+'+'-'*78+'+'+'\n' + '| pyHypEllip Error: '
-        i = 19
+        msg = '\n+'+'-'*78+'+'+'\n' + '| pyHyp Error: '
+        i = 14
         for word in message.split():
             if len(word) + i + 1 > 78: # Finish line and start new one
                 msg += ' '*(78-i)+'|\n| ' + word + ' '
@@ -72,47 +72,65 @@ class pyHyp(object):
             """
             
         # Default options for hyperbolic generation
-        self.options_default = {
+        self.defaultOptions = {
             # ---------------------------
             #        Input Information
             # ---------------------------
-            # Input file
+
+            # Input surface file. 
             'inputFile':'default.fmt',
 
             # Input file type
-            'fileType':'CGNS',
+            'fileType':'plot3d',
 
             # Type of extrusion: hyperbolic or elliptic
             'mode':'hyperbolic',
+
+            # Unattached edges are symmetry plane
+            'unattachedEdgesAreSymmetry':True,
+    
+            # Outerface boundary condition: farfield or overset
+            'outerFaceBC':'farfield',
+
+            # Boundary condition information for speicific block edges
+            'BC':{},
+
+            # Optional names for wall families
+            'families':{},
+
+            # AutoConnect: Run cgnsutilities connect function to add
+            # any necessary block to block connectivity
+            'autoConnect':True,
 
             # ---------------------------
             #        Grid Parameters
             # ---------------------------
             # Number of layers:
-            'N': 100, 
+            'N': 65, 
 
             # Initial off-wall spacing
             's0':0.01, 
             
-            # Rmin: Distance to march in multiples of (automatically
-            # computed) initial radius surrounding the body. 
-            'rMin': 50, 
+            # Number of constant off-wall layers before beginning
+            # stretch
+            'nConstant':1,
+
+            # sMax': Distance to march. 
+            'marchDist':50,
 
             # nodeTol: Tolerance for nodes to be treated as identical.
             'nodeTol':1e-8,
 
-            # symTol: Tolerance for nodes next to the symmetry
-            # plane. If less than 0, node tol is used.
-            'symTol':-1,
+            # splay: Splay BC spreading factor
+            'splay': 0.25,
 
-            # mirror: Possible mirroring of mesh. Use 'x', 'y', 'z'
-            # if grid needs to be mirrored or None otherwise.
-            'mirror':None,
+            # splayEdgeOrthogonality. How hard to try to force
+            # orthogonality. Range of 0 to 0.5
+            'splayEdgeOrthogonality':0.1,
 
-            # panelEps: Distance source panels are "below" nodes. This
-            # parameter usually doesn't need to be changed.
-            'panelEps':1e-6,
-            
+            # splayCornerOrthogonality
+            'splayCornerOrthogonality':0.2,
+
             # ---------------------------
             #   Elliptic Parameters
             # ---------------------------
@@ -142,7 +160,7 @@ class pyHyp(object):
 
             # Maximum permissible ratio of marching direction length
             # to smallest in-plane edge.
-            'cMax':6.0, 
+            'cMax':1.0, 
 
             #nonLinear: True/False. Use nonlinear scheme. Not
             #currently working. 
@@ -152,11 +170,13 @@ class pyHyp(object):
             #unless you know what you are doing! 
             'slExp': .15, 
 
-            # Initial off-wall spacing.
-            'ps0':0.01, 
+            # Initial off-wall spacing. Negative values will be
+            # calculated automatically.
+            'ps0': -1,
             
-            # Pseudo grid Spacing Ratio.
-            'pGridRatio':1.15, 
+            # Pseudo grid Spacing Ratio. Negative values will be
+            # caculated automatically.
+            'pGridRatio': -1,
 
             # ----------------------------------------
             #   Smoothing parameters (Hyperbolic only)
@@ -173,7 +193,7 @@ class pyHyp(object):
 
             # volCoef: The volume smoothing coefficient for
             # pointJacobi iterations
-            'volCoef': .16, 
+            'volCoef': .25, 
 
             # volBlend: The volume blending coefficient to force
             # uniform sizes in farfield
@@ -181,18 +201,8 @@ class pyHyp(object):
 
             # volSmoothIter: The number of point-jacobi volume
             # smoothing iterations
-            'volSmoothIter': 10, 
-
-            # ----------------------------------------
-            #   Solution Parameters (Hyperbolic only)
-            # ----------------------------------------
-
-            # sigmaSplay: Splay BC spreading factor
-            'sigmaSplay': 0.4,
-
-            # nuSplay: Splay BC averaging factor (increase to prevent corner issues)
-            'nuSplay': 0.9, 
-
+            'volSmoothIter': 100, 
+            
             # -------------------------------
             #   Solution Parameters (Common)
             # -------------------------------
@@ -202,6 +212,7 @@ class pyHyp(object):
             # Maximum number of iterations to run for linear system
             'kspMaxIts': 500, 
 
+            # Subspace size for GMRES.
             'kspSubspaceSize':50, 
 
             # ---------------------------
@@ -210,7 +221,8 @@ class pyHyp(object):
             # Debugging option to write grid metrics. Hyperbolic only
             'writeMetrics': False, 
             }
-   
+        self.defaultOptionKeys = set(k.lower() for k in self.defaultOptions)
+
         # Import and set the hyp module
         curDir = os.path.dirname(os.path.realpath(__file__))
         self.hyp = MExt.MExt('hyp', [curDir], debug=debug)._module
@@ -227,27 +239,111 @@ class pyHyp(object):
         if options is None:
             raise Error("The options= keyword argument is *NOT* optional. "
                         "It must always be provided")
-        self.options = options
 
         # Setup the options
-        self._checkOptions()
+        self.options = {}
+        self._checkOptions(options)
+
+        # Set the fortan options
         self._setOptions()
         self.gridGenerated = False
 
         # Convert file type to integer
-        fileType_dict = {'cgns':1,'plot3d':2}
-        fileType_int = fileType_dict[self.options['fileType'].lower()]
+        fileType = {'cgns':self.hyp.hypinput.cgnsfiletype, 
+                    'plot3d':self.hyp.hypinput.plot3dfiletype}
+        intFileType = fileType[self._go('fileType').lower()]
 
-        # Initialize the problem based on dimension
-        self.hyp.setup(self.options['inputFile'], fileType_int)
+        # Check if input file exists.
+        if not os.path.isfile(self._go('inputFile')):
+            raise Error('Input file \'%s\' not found.'%self._go('inputFile'))
+
+        # Determine the number of blocks we have so we can initialize
+        # the BC array:
+        nBlocks = self.hyp.getnblocks(self._go('inputFile'), intFileType)
+
+        # The fortran BC information
+        fBCs = numpy.zeros((4, nBlocks), order='f')
+        fBCs[:, :] = self.hyp.hypinput.bcdefault
+
+        # The python BC information
+        BCs = self._go('BC')
+        BCMap = {'splay':self.hyp.hypinput.bcsplay,
+                 'xsymm':self.hyp.hypinput.bcxsymm,
+                 'ysymm':self.hyp.hypinput.bcysymm,
+                 'zsymm':self.hyp.hypinput.bczsymm,
+                 'xconst':self.hyp.hypinput.bcxconst,
+                 'yconst':self.hyp.hypinput.bcyconst,
+                 'zconst':self.hyp.hypinput.bczconst,
+                 'xyconst':self.hyp.hypinput.bcxyconst,
+                 'yzconst':self.hyp.hypinput.bcyzconst,
+                 'xzconst':self.hyp.hypinput.bcxzconst}
+
+        edgeMap = {'ilow':self.hyp.hypinput.ilow-1,
+                   'ihigh':self.hyp.hypinput.ihigh-1,
+                   'jlow':self.hyp.hypinput.jlow-1,
+                   'jhigh':self.hyp.hypinput.jhigh-1}
+                 
+        helpStr = "An example of a boundary specification is:  'BC':{1:{'iLow':'ySymm'}, 2:{'jHigh':'splay'}}"
+        for blkBC in BCs:
+            if blkBC < 1 or blkBC > nBlocks or not isinstance(blkBC, int):
+                raise Error('Keys in BC array must be 1-based integers and less '
+                            'than or equal to the total number of blocks. %s'%helpStr)
+            for edgeKey in BCs[blkBC]:
+                lKey = edgeKey.lower()
+                if lKey not in edgeMap.keys():
+                    raise Error("Boundary edge specification must be one of: "
+                               "'iLow', 'iHigh', 'jLow', or 'jHigh'. %s"%helpStr)
+                BCToSet = BCs[blkBC][edgeKey].lower()
+                if BCToSet.lower() not in BCMap.keys():
+                    raise Error("Boundary condition specification unknown. Must be one of: "
+                                "'splay', 'BCXSymm', 'BCYSymm', 'BCZSymm', "
+                                "'BCXConst', 'BCYConst', 'BCZConst, 'BCXYConst, "
+                                "'BCYZConst or BCXZConst'. %s"%helpStr)
+                    
+                fBCs[edgeMap[lKey], blkBC-1] = BCMap[BCToSet]
+
+        # Set the boundary condition information into fortran
+        self.hyp.hypinput.bcs = fBCs
+
+        # Now process the family information if we have any:
+        families = self._go('families')
+
+        fFamilies = []
+        # Set default a default name of "wall". 
+        for i in range(nBlocks):
+            fFamilies.append("Wall")
+
+        if isinstance(families, str):
+            for i in range(nBlocks):
+                fFamilies[i] = families
+
+        elif  isinstance(families, dict):
+            for blkBC in families:
+                if blkBC < 1 or blkBC > nBlocks or not isinstance(blkBC, int):
+                    raise Error('Keys in families dictionary must be 1-based integers and less '
+                                'than or equal to the total number of blocks')
+                fFamilies[blkBC-1] = families[blkBC]
+        else:
+            raise Error("'families' option must be a string or a dictionary. A string will "
+                        "set all wall families to the single string. A dictionary with "
+                        "one-based keys for the blocks may be used to specify individual "
+                        "families for each block.\n Examples: 'families':'fuselage' or"
+                        "'families':{'1:'fuselage', 2:'wing'}.")
+                
+        # Set our family information in fortran
+        for i in range(nBlocks):
+            self.hyp.setfamily(i+1, fFamilies[i])
+
+        # Now run the fortran setup.
+        self.hyp.setup(self._go('inputFile'), intFileType)
 
     def run(self):
         """
         Run given using the options given
         """
-        if self.options['mode'].lower() == 'hyperbolic':
+        if self._go('mode').lower() == 'hyperbolic':
             self.hyp.runhyperbolic()
-        elif self.options['mode'].lower() == 'elliptic':
+        elif self._go('mode').lower() == 'elliptic':
             self.hyp.setuppanels()
             self.hyp.runelliptic()
         else:
@@ -269,12 +365,16 @@ class pyHyp(object):
         """After we have generated a grid, write it out in a properly 
         formatted 1-Cell wide CGNS file suitable for running in SUmb."""
 
-        if self.gridGenerated:
-            self.hyp.writecgns(fileName)
-            self.hyp.zeromirrorplane(fileName)
-        else:
+        if not self.gridGenerated:
             raise Error("No grid has been generated! Run the run() "
                         "command before trying to write the grid!")
+
+        self.hyp.writecgns(fileName)
+
+        # Possibly perform autoconnect using cgns_utils
+        if self.comm.rank == 0 and self._go('autoConnect'):
+            os.system('cgns_utils connect %s'%fileName)
+        self.comm.barrier()
 
     def getSurfaceCoordinates(self):
         """Return the surface coordinates on this processor"""
@@ -289,55 +389,57 @@ class pyHyp(object):
 
     def _setOptions(self):
         """Internal function to set the options in pyHyp"""
-        self.hyp.hypinput.n = self.options['N']
-        self.hyp.hypinput.s0 = self.options['s0']
-        self.hyp.hypinput.rmin = self.options['rMin']
-        self.hyp.hypinput.ps0 = self.options['ps0']
-        self.hyp.hypinput.pgridratio = self.options['pGridRatio']
-        self.hyp.hypinput.slexp = self.options['slExp']
-        self.hyp.hypinput.epse = self.options['epsE']
-        self.hyp.hypinput.epsi = self.options['epsI']
-        self.hyp.hypinput.theta = self.options['theta']
-        self.hyp.hypinput.volcoef = self.options['volCoef']
-        self.hyp.hypinput.volblend = self.options['volBlend']
-        self.hyp.hypinput.cmax = self.options['cMax']
-        self.hyp.hypinput.volsmoothiter = self.options['volSmoothIter']
-        self.hyp.hypinput.sigmasplay = self.options['sigmaSplay']
-        self.hyp.hypinput.nusplay = self.options['nuSplay']
-        self.hyp.hypinput.kspreltol = self.options['kspRelTol']
-        self.hyp.hypinput.kspmaxits = self.options['kspMaxIts']
-        self.hyp.hypinput.nonlinear = self.options['nonLinear']
-        self.hyp.hypinput.kspsubspacesize = self.options['kspSubspaceSize']
-        self.hyp.hypinput.writemetrics = self.options['writeMetrics']
-        self.hyp.hypinput.nodetol = self.options['nodeTol']
-        self.hyp.hypinput.symtol = self.options['symTol']
-        self.hyp.hypinput.farfieldtol = self.options['farFieldTolerance']
-        self.hyp.hypinput.usematrixfree = self.options['useMatrixFree']
+        self.hyp.hypinput.n = self._go('N')
+        self.hyp.hypinput.nconstant = self._go('nConstant')
+        self.hyp.hypinput.s0 = self._go('s0')
+        self.hyp.hypinput.marchdist = self._go('marchdist')
+        self.hyp.hypinput.ps0 = self._go('ps0')
+        self.hyp.hypinput.pgridratio = self._go('pGridRatio')
+        self.hyp.hypinput.slexp = self._go('slExp')
+        self.hyp.hypinput.epse = self._go('epsE')
+        self.hyp.hypinput.epsi = self._go('epsI')
+        self.hyp.hypinput.theta = self._go('theta')
+        self.hyp.hypinput.volcoef = self._go('volCoef')
+        self.hyp.hypinput.volblend = self._go('volBlend')
+        self.hyp.hypinput.cmax = self._go('cMax')
+        self.hyp.hypinput.volsmoothiter = self._go('volSmoothIter')
+        self.hyp.hypinput.splay = self._go('splay')
+        self.hyp.hypinput.splayedgeorthogonality = self._go('splayEdgeOrthogonality')
+        self.hyp.hypinput.splaycornerorthogonality = self._go('splayCornerOrthogonality')
+        self.hyp.hypinput.kspreltol = self._go('kspRelTol')
+        self.hyp.hypinput.kspmaxits = self._go('kspMaxIts')
+        self.hyp.hypinput.nonlinear = self._go('nonLinear')
+        self.hyp.hypinput.kspsubspacesize = self._go('kspSubspaceSize')
+        self.hyp.hypinput.writemetrics = self._go('writeMetrics')
+        self.hyp.hypinput.nodetol = self._go('nodeTol')
+        self.hyp.hypinput.farfieldtol = self._go('farFieldTolerance')
+        self.hyp.hypinput.usematrixfree = self._go('useMatrixFree')
+        self.hyp.hypinput.unattachededgesaresymmetry = self._go('unattachEdedgesAreSymmetry')
         modes = {'exact':self.hyp.hypinput.eval_exact, 
                  'slow':self.hyp.hypinput.eval_slow,
                  'fast':self.hyp.hypinput.eval_fast}
-        self.hyp.hypinput.evalmode = modes[self.options['evalMode'].lower()]
+        self.hyp.hypinput.evalmode = modes[self._go('evalMode').lower()]
+        ffType = {'farfield':self.hyp.hypinput.outerfacefarfield,
+                  'overset':self.hyp.hypinput.outerfaceoverset}
+        self.hyp.hypinput.outerfacetype = ffType[self._go('outerFaceBC').lower()]
         self.hyp.hypinput.sourcestrengthfile[:] = ''
-        f = self.options['sourceStrengthFile']
+        f = self._go('sourceStrengthFile')
         self.hyp.hypinput.sourcestrengthfile[0:len(f)] = f
 
-        mirror = self.hyp.hypinput.nomirror
-        if self.options['mirror'] == 'x':
-            mirror = self.hyp.hypinput.xmirror
-        elif self.options['mirror'] == 'y':
-            mirror = self.hyp.hypinput.ymirror
-        elif self.options['mirror'] == 'z':
-            mirror = self.hyp.hypinput.zmirror
-        self.hyp.hypinput.mirrortype = mirror
-
-    def _checkOptions(self):
+    def _checkOptions(self, options):
         """
         Check the solver options against the default ones
-        and add option iff it is NOT in solver_options
+        and add option iff it is NOT in options
         """
-        for key in self.options_default.keys():
-            if not key in self.options.keys():
-                self.options[key] = self.options_default[key]
+        # Set existing ones
+        for key in options:
+            self.setOption(key, options[key])
+
+        # Check for the missing ones
+        optionKeys = set(k.lower() for k in options)
+        for key in self.defaultOptions:
+            if not key.lower() in optionKeys:
+                self.setOption(key, self.defaultOptions[key])
 
     def __del__(self):
         """
@@ -430,3 +532,44 @@ class pyHyp(object):
 
         self.hyp.smoothwrap(nIter, stepSize)
     
+    def getOption(self, name):
+        """
+        Return the value of the requested option. 
+
+        Parameters
+        ----------
+        name : str
+           Name of option to get. Not case sensitive
+
+        Returns
+        -------
+        value : varries
+           Return the curent value of the option.         
+        """
+
+        if name.lower() in self.defaultOptionKeys:
+            return self.options[name.lower()]
+        else:    
+            raise Error('getOption: %s is not a volid pyHyp option.'%name)
+
+    def setOption(self, name, value):
+        """
+        Set the value of the requested option. 
+
+        Parameters
+        ----------
+        name : str
+           Name of option to get. Not case sensitive
+
+        value : varries
+           Value to set
+        """
+
+        if name.lower() in self.defaultOptionKeys:
+            self.options[name.lower()] = value
+        else:    
+            raise Error('setOption: %s is not a volid pyHyp option.'%name)
+            
+    def _go(self, name):
+        """Internal short-cut function to make text a litle shorter"""
+        return self.getOption(name)

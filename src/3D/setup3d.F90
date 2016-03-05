@@ -1,4 +1,4 @@
-subroutine setup(fileName,fileType)
+subroutine setup(fileName, fileType)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -12,213 +12,52 @@ subroutine setup(fileName,fileType)
   !
   !     Description of Arguments
   !     Input:
-  !     fileName : char* array : Filename of plot3d file. Usually has .fmt extension. 
+  !     fileName : char* array : Filename of plot3d or cgns file.
   !     fileType : integer : 1-CGNS 2-Plot3d
 
   use communication
   use hypData
   use hypInput
-  use readCGNS
+
   implicit none
 
   ! Input Arguments
   character*(*), intent(in) :: fileName
-  integer, intent(in) :: fileType
+  integer(kind=intType), intent(in) :: fileType
 
   ! Working parameters
-
   real(kind=realType), dimension(:, :), allocatable :: uniquePts, allEdgeNodes
-  real(kind=realType), dimension(3) :: mask, tmp
-  real(kind=realType) :: tol2
-
   integer(kind=intType), dimension(:), allocatable :: link, ptInd, nFace, localFace
   integer(kind=intType), dimension(:), allocatable :: nte, ntePtr
   integer(kind=intType), dimension(:, :), allocatable :: fullnPtr
-  integer(kind=intType), dimension(:, :), allocatable :: patchSizes
   integer(kind=intType), dimension(:, :), allocatable :: nodeConn
-  integer(kind=intType), dimension(:, :), allocatable :: uniqueBCs
-
-  ! Uncomment if we remove the elliptic generator and the definition in hyData.F90
-  !integer(kind=intType) :: nPatch
-  !type(patchType), dimension(:), allocatable :: patches
-
-  integer(kind=intType) :: nBlocks, nUnique
+  integer(kind=intType), dimension(:, :), allocatable ::  directedNodeConn
+  integer(kind=intType), dimension(:), allocatable ::  nEdge, nDirectedEdge
+  
+  integer(kind=intType) :: nBlocks, nUnique, corners(4), iCorner
   integer(kind=intType) :: nodeTotal, node1, node2, node3, node4
-  integer(kind=intType) :: nodeCounter, iNode, evenNodes
+  integer(kind=intType) :: iNode, evenNodes
   integer(kind=intType) :: NODE_MAX, CELL_MAX
-  integer(kind=intType) :: nFaceNeighbours, firstElemID, nodeID, nextElemID
-  integer(kind=intType) :: nodeToAdd, faceToCheck, nodeToFind, nextNode, startNode, startNodeID
+  integer(kind=intType) :: nFaceNeighbours, firstID, nodeID, nextElemID
+  integer(kind=intType) :: nodeToAdd, faceToCheck, nodeToFind
   integer(kind=intType) :: i, j, k, ii, jj, iii, jjj, ierr, iStart, iEnd
-  integer(kind=intType) :: isize, ind, icell, iNeighbor, iBC, neighborID
-  integer(kind=intType) :: currNeighbors(maxBCneighbors), nextNeighbors(maxBCneighbors)
-  integer(kind=intType) :: neighbor_i, neighbor_j, lastFaceIncrement
-  logical :: found, keepSearching, closedSurface
-  integer(kind=intType) :: nNode, nElem, shp2(2), shp1(1), idim
-  interface 
-     subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
-       use precision
-       implicit none
-       real(kind=realType), dimension(:, :) :: pts
-       integer(kind=intType), intent(in) :: N
-       real(kind=realType), intent(in) :: tol
-       real(kind=realType), dimension(:, :) :: uniquePts
-       integer(kind=intType), dimension(:) :: link
-       integer(kind=intType) :: nUnique
-     end subroutine pointReduce
+  integer(kind=intType) :: isize, ind, icell, idim, BCToSet, il, jl, iEdge, iBCToSet
+  logical :: found
+  character(5) :: faceStr
+  integer(kind=intType), dimension(:), pointer :: lPtr1, lPtr2
+  real(kind=realType), dimension(:, :), pointer :: xPtr
+  real(kind=realType) :: xSum(3), vals(2, 3)
+  integer(kind=intType) :: mask(2, 3), nn(2)
 
-     subroutine assignNode2NodeConn(nodeConn, node1, node2)
-       use precision
-       implicit none
-       integer(kind=intType), intent(in) :: node1, node2
-       integer(kind=intType), dimension(:,:), intent(inout) :: nodeConn
-     end subroutine assignNode2NodeConn
-
-  end interface
   ! Only the root processor reads the mesh and does the initial processing:
   rootProc: if (myid == 0) then 
+     
+     fType: if (fileType .eq. cgnsFileType) then ! We have a CGNS file
+        call readCGNS(fileName)
+     else if (fileType .eq. plot3dFileType) then ! We have a Plot3d file
+        call readPlot3d(fileName)
+     end if fType
 
-     if (fileType .eq. 1) then ! We have a CGNS file
-
-        ! call the CGNS reader (defined in readCGNS.F90)
-        call readGrid(fileName, patches)
-
-        ! get the number of patches
-        nPatch = size(patches)
-
-     else if (fileType .eq. 2) then ! We have a Plot3d file
-
-        ! Open file and read number of patches
-        open(unit=7, form='formatted', file=fileName)
-        read(7, *) nBlocks
-
-        ! Allocate space for the patch sizes and patches
-        if (mirrorType == noMirror) then 
-           nPatch = nBlocks
-        else
-           nPatch = nBlocks*2
-        end if
-
-        allocate(patchSizes(3, nPatch), patches(nPatch))
-
-        read(7,*) (patchSizes(1, i), patchSizes(2, i), patchSizes(3, i), i=1, nBlocks)
-
-        ! Make sure that ALL k-index patch sizes are 1
-        do ii=1, nBlocks
-           if (patchSizes(3, ii) /= 1) then
-              print *,'Plot3d Read Error: k-dimension of all blocks must be precisely 1'
-              stop
-           end if
-        end do
-
-        ! Now allocate and read all the blocks from the plot3d file
-        do  ii=1, nBlocks
-           patches(ii)%il = patchSizes(1, ii)
-           patches(ii)%jl = patchSizes(2, ii)
-
-           ! Allocate space for the grid coordinates on the patch and read
-           allocate(patches(ii)%X(3, patches(ii)%il, patches(ii)%jl))
-           allocate(patches(ii)%l_index(patches(ii)%il, patches(ii)%jl))
-           allocate(patches(ii)%weights(patches(ii)%il, patches(ii)%jl))
-           patches(ii)%weights(:, :) = zero
-
-           ! Initialize BC arrays
-           allocate(patches(ii)%BCnodes(patches(ii)%il,patches(ii)%jl,1+2*maxBCneighbors))
-           patches(ii)%BCnodes = zero
-
-           read(7, *) (( patches(ii)%X(1, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-           read(7, *) (( patches(ii)%X(2, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-           read(7, *) (( patches(ii)%X(3, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-        enddo
-        deallocate(patchSizes)
-
-        ! All the reading is done
-        close(7)
-
-        ! Need to do more work if we are mirroring
-        mirrorCheck: if (mirrorType /= noMirror) then
-
-           ! Just check each node is within tolerance of the sym plane
-           mask(:) = one
-           if (mirrorType == xmirror) then
-              mask(1) = zero
-           else if (mirrorType == ymirror) then
-              mask(2) = zero
-           else if (mirrorType == zmirror) then
-              mask(3) = zero
-           end if
-           if (symTol < zero ) then
-              tol2 = nodeTol ** 2
-           else
-              tol2 = symTol ** 2
-           end if
-           do ii=1,nBlocks
-              patches(ii)%nSym = 0
-              ! First do a pass to count:
-              do j=1, patches(ii)%jl
-                 do i=1, patches(ii)%il
-                    tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
-                    if (dot_product(tmp, tmp) < tol2) then
-                       patches(ii)%nSym = patches(ii)%nSym + 1
-                       patches(ii)%X(:, i, j) = patches(ii)%X(:, i, j)*mask
-                    end if
-                 end do
-              end do
-
-              ! Check if the symmetry plane applies along the entire edge of the patch
-              if ((patches(ii)%nSym .ne. 0) .and. &
-                   (patches(ii)%nSym .ne. patches(ii)%il) .and. & 
-                   (patches(ii)%nSym .ne. patches(ii)%jl)) then
-                 print *,'WARNING: Possible symmetry nodes extrapolate symmetry plane tolerance'
-                 print *,'         Increase nodeTol option or check if nodes are too far from'
-                 print *,'         the symmetry plane. Check the block with following coordinates:'
-                 print *,patches(ii)%X(:, 1, 1)
-                 print *,patches(ii)%X(:, 1, patches(ii)%jl)
-                 print *,patches(ii)%X(:, patches(ii)%il, patches(ii)%jl)
-                 print *,patches(ii)%X(:, patches(ii)%il, 1)
-              end if
-
-              ! Now allocate and store
-              allocate(patches(ii)%symNodes(2, patches(ii)%nSym))
-              iNode = 0
-              do j=1, patches(ii)%jl
-                 do i=1, patches(ii)%il
-                    tmp = patches(ii)%X(:, i, j) - patches(ii)%X(:, i, j)*mask
-                    if (dot_product(tmp, tmp) < tol2) then
-                       iNode = iNode + 1
-                       patches(ii)%symNodes(:, iNode) = (/i, j/)
-                    end if
-                 end do
-              end do
-           end do
-
-           ! Now we can finish mirroring the mesh:
-           mask(:) = one
-           if (mirrorType == xmirror) then
-              mask(1) = -one
-           else if (mirrorType == ymirror) then
-              mask(2) = -one
-           else if (mirrorType == zmirror) then
-              mask(3) = -one
-           end if
-
-           do ii=1,nBlocks
-              allocate(patches(ii+nBlocks)%X(3, patches(ii)%il, patches(ii)%jl))
-              allocate(patches(ii+nBlocks)%l_index(patches(ii)%il, patches(ii)%jl))
-              allocate(patches(ii+nBlocks)%weights(patches(ii)%il, patches(ii)%jl))
-              patches(ii+nBlocks)%weights(:, :) = zero
-
-              patches(ii+nBlocks)%il = patches(ii)%il
-              patches(ii+nBlocks)%jl = patches(ii)%jl
-              do j=1,patches(ii)%jl
-                 do i=1,patches(ii)%il
-                    patches(ii+nBlocks)%X(:, i, j) = &
-                         patches(ii)%X(:, i, j)*mask
-                 end do
-              end do
-           end do
-        end if mirrorCheck
-
-     end if
      ! Now we can create the final connectivity
      nodeTotal = 0
      faceTotal = 0
@@ -246,7 +85,7 @@ subroutine setup(fileName,fileType)
         end do
      end do
 
-     ! Now we will call pointReduce to remove repeated edge nodes.
+     ! Now we will call pointReduce to remove any repeated edge nodes.
      ! link maps from allEdgeNodes to uniquePts
      call pointReduce(allEdgeNodes, iNode, nodeTol, uniquePts, link, nUnique)
 
@@ -259,7 +98,7 @@ subroutine setup(fileName,fileType)
               patches(ii)%l_index(i, j) = link(iNode)
            end do
         end do
-
+        
         do i=1, patches(ii)%il, patches(ii)%il-1
            do j=2, patches(ii)%jl-1
               iNode = iNode + 1
@@ -280,107 +119,6 @@ subroutine setup(fileName,fileType)
         end do
      end do
      nUnique = iNode ! Now nUnique has the number of unique edge and interior nodes
-
-     ! Allocate BC array
-     allocate(uniqueBCs(nUnique,1+maxBCneighbors))
-     ! The following structure is used:
-     ! uniqueBCs(nodeID,:) = (\ bcType, neighbor1, neighbor2, neighbor3 \)
-     ! Remember that maxBCneighbors is defined in modules/hypData.F90
-     !
-     ! uniqueBCs will always store the nodes acording to orientation
-     ! used to setup patches%BCnodes (check readCGNS.F90)
-     !
-     ! Another pass to assign boundary conditions on the edges...
-     ! In the end we will have a 2d array uniqueBCs, which contains
-     ! the BC type and the global indices of the neighbors of every node
-     uniqueBCs = 0
-     iNode = 0
-     do ii=1,nPatch
-
-        ! Do for the j-edges first
-        do j=1, patches(ii)%jl, patches(ii)%jl-1
-           do i=1, patches(ii)%il
-              iNode = iNode + 1
-              ! Check the dominant BC and update if necesasry
-              if (uniqueBCs(link(iNode),1) .lt. patches(ii)%BCnodes(i,j,1)) then
-                 ! Update the BC type
-                 uniqueBCs(link(iNode),1) = patches(ii)%BCnodes(i,j,1)
-                 ! Update neighbors
-                 do iNeighbor = 1,maxBCneighbors
-                    neighbor_i = patches(ii)%BCnodes(i,j,2*iNeighbor)
-                    neighbor_j = patches(ii)%BCnodes(i,j,2*iNeighbor+1)
-                    ! Check if we got null entries as some BCs do not
-                    ! use all neighbors slots
-                    if (neighbor_i + neighbor_j .gt. 0) then
-                       uniqueBCs(link(iNode),iNeighbor+1) = patches(ii)%l_index(neighbor_i, neighbor_j)
-                    end if
-                 end do
-                 
-              else if (uniqueBCs(link(iNode),1) .eq. patches(ii)%BCnodes(i,j,1)) then
-                 ! We may have a corner that is shared between two blocks.
-                 ! Thus it is not a corner at all and we should check for that.
-
-                 ! Store the current neighbors
-                 currNeighbors = uniqueBCs(link(iNode),2:)
-
-                 ! Read the new neighbors and convert from i,j to global node indices
-                 do iNeighbor = 1,maxBCneighbors
-                    neighbor_i = patches(ii)%BCnodes(i,j,2*iNeighbor)
-                    neighbor_j = patches(ii)%BCnodes(i,j,2*iNeighbor+1)
-                    if (neighbor_i + neighbor_j .gt. 0) then
-                       nextNeighbors(iNeighbor) = patches(ii)%l_index(neighbor_i, neighbor_j)
-                    else ! The BC does not exist
-                       nextNeighbors(iNeighbor) = 0
-                    end if
-                 end do
-
-                 ! The problem is that each BC has a specific neighbor ordering
-                 ! so the check is BCtype-dependant
-
-                 ! Check BC type
-                 if (patches(ii)%BCnodes(i,j,1) .eq. SplayBCindex) then
-
-                    ! If the first current neighbor is equal to the last next neighbor,
-                    ! or vice-versa, then we have an indication of a node shared between
-                    ! two blocks. Then it is not an actual corner
-                    if (currNeighbors(1) .eq. nextNeighbors(3)) then
-                       currNeighbors(1:3) = (/ nextNeighbors(1), nextNeighbors(3), currNeighbors(3)/)
-                    else if (currNeighbors(3) .eq. nextNeighbors(1)) then
-                       currNeighbors(1:3) = (/ currNeighbors(1), currNeighbors(3), nextNeighbors(3)/)
-                    end if
-
-                    ! Save back the modified neighbors
-                    uniqueBCs(link(iNode),2:) = currNeighbors
-
-                 end if
-
-              end if
-           end do
-        end do
-
-        ! Now check the i-edges
-        do i=1, patches(ii)%il, patches(ii)%il-1
-           do j=2, patches(ii)%jl-1
-              iNode = iNode + 1
-              ! Check the dominant BC and update if necesasry
-              if (uniqueBCs(link(iNode),1) .lt. patches(ii)%BCnodes(i,j,1)) then
-                 ! Update the BC type
-                 uniqueBCs(link(iNode),1) = patches(ii)%BCnodes(i,j,1)
-                 ! Update neighbors
-                 do iNeighbor = 1,maxBCneighbors
-                    neighbor_i = patches(ii)%BCnodes(i,j,2*iNeighbor)
-                    neighbor_j = patches(ii)%BCnodes(i,j,2*iNeighbor+1)
-                    ! Check if we got a null entries as some BCs do not
-                    ! use all neighbors slots
-                    if (neighbor_i + neighbor_j .gt. 0) then
-                       uniqueBCs(link(iNode),iNeighbor+1) = patches(ii)%l_index(neighbor_i, neighbor_j)
-                    end if
-                 end do
-              end if
-           end do
-        end do
-
-     end do
 
      write(*,"(a)", advance="no") '#--------------------#'
      print "(1x)"  
@@ -403,43 +141,31 @@ subroutine setup(fileName,fileType)
      allocate(fullConn(4, faceTotal))
      jj = 0
      do ii=1,nPatch
-        if (mirrorType==noMirror .or. ii <= nPatch/2) then
-           do j=1, patches(ii)%jl-1
-              do i=1, patches(ii)%il-1
-                 jj = jj + 1
-                 fullConn(:, jj) = (/&
-                      patches(ii)%l_index(i,   j), &
-                      patches(ii)%l_index(i+1, j), &
-                      patches(ii)%l_index(i+1, j+1), &
-                      patches(ii)%l_index(i,   j+1)/)
-              end do
+        do j=1, patches(ii)%jl-1
+           do i=1, patches(ii)%il-1
+              jj = jj + 1
+              fullConn(:, jj) = (/&
+                   patches(ii)%l_index(i,   j), &
+                   patches(ii)%l_index(i+1, j), &
+                   patches(ii)%l_index(i+1, j+1), &
+                   patches(ii)%l_index(i,   j+1)/)
            end do
-        else
-           ! Patches are flipped orientation
-           do j=1, patches(ii)%jl-1
-              do i=1, patches(ii)%il-1
-                 jj = jj + 1
-                 fullConn(:, jj) = (/&
-                      patches(ii)%l_index(i,   j), &
-                      patches(ii)%l_index(i, j+1), &
-                      patches(ii)%l_index(i+1, j+1), &
-                      patches(ii)%l_index(i+1, j)/)
-              end do
-           end do
-        end if
+        end do
      end do
 
-     ! NORMAL ORIENTATION CHECK
-     
-     ! Print what we are doing
+     ! Determine if the normals are consistent:
      print *,'Normal orientation check ...'
 
      ! Allocate and initialize matrix that stores nodal connectivity directions
      ! I'm assuming that the maximum number of connections of a single node
      ! is 10
-     allocate(nodeConn(10, nodeTotal))
-     nodeConn(:,:) = 0
-
+     allocate(directedNodeConn(10, nUnique))
+     allocate(nodeConn(10, nUnique))
+     allocate(nEdge(nUnique), nDirectedEdge(nUnique))
+     nodeConn = 0
+     directedNodeConn = 0
+     nEdge = 0
+     nDirectedEdge = 0
      ! Loop over each face and increment elementes from the connectivity
      ! matrix acording to the connectivity direction.
      do jj=1,faceTotal
@@ -451,39 +177,46 @@ subroutine setup(fileName,fileType)
         node4 = fullConn(4, jj)
 
         ! Assign connections acording to their orientations
-        ! The assignNode2NodeConn subroutine is defined in
-        ! 3D_utilities.F90
-        call assignNode2NodeConn(nodeConn, node1, node2)
-        call assignNode2NodeConn(nodeConn, node2, node3)
-        call assignNode2NodeConn(nodeConn, node3, node4)
-        call assignNode2NodeConn(nodeConn, node4, node1)
+        ! The two routines are in 3D_utilities.F90
+        call assignN2NDirected(directedNodeConn, nDirectedEdge, node1, node2, 10, nUnique)
+        call assignN2NDirected(directednodeConn, nDirectedEdge, node2, node3, 10, nUnique)
+        call assignN2NDirected(directedNodeConn, nDirectedEdge, node3, node4, 10, nUnique)
+        call assignN2NDirected(directedNodeConn, nDirectedEdge, node4, node1, 10, nUnique)
 
+        !Here we must add two edges for each 
+        call assignN2N(nodeConn, nEdge, node1, node2, 10, nUnique)
+        call assignN2N(nodeConn, nEdge, node1, node4, 10, nUnique)
+        
+        call assignN2N(nodeConn, nEdge, node2, node3, 10, nUnique)
+        call assignN2N(nodeConn, nEdge, node2, node1, 10, nUnique)
+        
+        call assignN2N(nodeConn, nEdge, node3, node4, 10, nUnique)
+        call assignN2N(nodeConn, nEdge, node3, node2, 10, nUnique)
+        
+        call assignN2N(nodeConn, nEdge, node4, node1, 10, nUnique)
+        call assignN2N(nodeConn, nEdge, node4, node3, 10, nUnique)
      end do
 
      ! Now check if we flagged any node during the assignments
-     if (minval(nodeConn) .eq. -1) then
+     if (minval(directedNodeConn) .eq. -1) then
 
         ! Say that the normals are wrong
         print *,' ERROR: Normal directions may be wrong'
         print *,'        Check the following coordinates:'
 
         ! Print coordinates of nodes were the problem occurs
-        do i=1,nodeTotal
-           if (nodeConn(1,i) .eq. -1) then
+        do i=1, nUnique
+           if (directedNodeConn(1, i) .eq. -1) then
               print *,uniquePts(:, i)
            end if
         end do
-
-        ! Halt program execution
         stop
-
      end if
 
-     print *,'Normals seem correct!'
-
-     ! END OF NORMAL ORIENTATION CHECK
-
-     ! Determine the number of number of faces around each node:
+     ! We just determined the number of nodes conected to each
+     ! node. Now we determine the number of faces connected to each
+     ! node. These two pieces of information will determine the
+     ! topology of the node.
      allocate(nFace(nUnique))
      nFace(:) = 0
      do i=1, faceTotal
@@ -491,12 +224,58 @@ subroutine setup(fileName,fileType)
            nFace(fullConn(ii, i)) = nFace(fullConn(ii, i)) + 1
         end do
      end do
+     
+     ! Here we can determine the topology of every node in the
+     ! mesh. The topology refers to the number of faces and edges each
+     ! node is connected to. 
 
-     ! Allocate the nodeToElem (nte) data array and the ptr array:
-     allocate(nte(2*sum(nFace)), ntePtr(nUnique+1))
-     ntePtr(1) = 1
+     allocate(fullTopoType(nUnique))
+     allocate(fullBCType(2, nUnique))
+     allocate(fullBCVal(2, 2, nUnique)) ! We can have 2 BC, and each
+                                        ! can have 2 values. 
+
+     ! Initialze these to internal node, with defaultBC
+     fullTopoType = topoInternal
+     fullBCType = BCDefault
+     fullBCVal = huge(one) ! If we accidently use this and shouldn't,
+                           ! this should cause problems.
+
      do i=1, nUnique
-        ntePtr(i+1) = ntePtr(i) + nFace(i)*2
+        if (nEdge(i) == 2 .and. nFace(i) == 1) then 
+           ! This is a corner
+           fullTopoType(i) = topoCorner
+
+        else if (nEdge(i) == 2 .and. nFace(i) == 2) then 
+           ! This is a degenerate corner. We can treat this as an
+           ! internal node by using diagonals
+           fullTopoType(i) = topoInternal
+
+        else if (nEdge(i) == 3 .and. nface(i) == 2) then
+           ! This is a regular edge
+           fullTopoType(i) = topoEdge
+
+        else if (nEdge(i) == 4 .and. nFace(i) == 2) then 
+           ! This is a bow-tie. We don't do that either.
+           print *, "Come on. A bow-tie? Really? No, we can't do that'"
+           stop
+
+        else if (nEdge(i) == 4 .and. nFace(i) == 3) then 
+           ! This is an L corner. In theory, we should be able to do
+           ! this...but not yet
+           print *, "An L-corner topology was encountered. This is not yet implemented"
+           fullTopoType(i) = topoLCorner
+           stop
+
+        else if (nEdge(i) == nFace(i)) then 
+           ! This is an internal node so we're ok.
+           fullTopoType(i) = topoInternal
+
+        else
+           ! This is some really wonky combination which we assume we
+           ! can't deal with. 
+           print *, "An unknown topology was encountered. I'm assuming we can't do that."
+           stop
+        end if
      end do
 
      ! The nte stucture is like this:
@@ -507,6 +286,13 @@ subroutine setup(fileName,fileType)
      ! | face 1 | position of node i on face 1 | face 2 | position of node i on face 2 | ...
      !
      ! This is why ntePtr is 2*sum(nFace) long
+  
+     ! Allocate the nodeToElem (nte) data array and the ptr array:
+     allocate(nte(2*sum(nFace)), ntePtr(nUnique+1))
+     ntePtr(1) = 1
+     do i=1, nUnique
+        ntePtr(i+1) = ntePtr(i) + nFace(i)*2
+     end do
 
      ! Now fill-up the array
      nFace(:) = 0
@@ -540,179 +326,377 @@ subroutine setup(fileName,fileType)
      allocate(fullnPtr(NODE_MAX+1, nUnique), fullcPtr(CELL_MAX+1, nUnique))
 
      nodeLoop: do iNode=1, nUnique
+        internalNode: if (fullTopoType(iNode) == topoInternal) then 
+           nFaceNeighbours = (ntePtr(iNode+1)-ntePtr(iNode))/2
 
-        ! Get the number of neighbor faces
-        nFaceNeighbours = (ntePtr(iNode+1)-ntePtr(iNode))/2
-
-        ! Store the number of neighbor cells
-        fullcPtr(1, iNode) = nFaceNeighbours
-
-        ! This gives ID of first neighboring face
-        firstElemID = nte(ntePtr(iNode))
-
-        ! nodeID is the position (1-4) of the node after iNode on the first face
-        startNodeID = mod(nte(ntePtr(iNode)+1), 4) + 1
-        startNode = fullConn(startNodeID, firstElemID)
-
-        ! now we need to find if the faces form a closed neighborhood or if
-        ! we have a free edge. The idea is that we will try to loop around the faces
-        ! and try to come back to the first node
-        ! Initialize variables
-        closedSurface = .False.
-        keepSearching = .True.
-        nodeID = startNodeID
-        nextElemID = firstElemID
-
-        closedSearch: do while (keepSearching)
-
-           ! Append the node along the next edge of the element:
-           nextNode = fullConn(mod(nodeID+1,4)+1, nextElemID)
-
-           ! Check if the next node is the starting one
-           if (nextNode .eq. startNode) then
-              keepSearching = .False.
-              closedSurface = .True.
+           ! Low-neighbour count nodes get doubles, others get all neighbours
+           if (nFaceNeighbours == 2 .or. nFaceNeighbours ==3) then
+              fullnPtr(1, iNode) = nFaceNeighbours*2
+           else
+              fullnPtr(1, iNode) = nFaceNeighbours
            end if
+           fullcPtr(1, iNode) = nFaceNeighbours
+        
+           firstID = nte(ntePtr(iNode))
+           nodeID = mod(nte(ntePtr(iNode)+1), 4) + 1
+           nextElemID = -1
+           iii = 2
+           jjj = 2
 
-           ! Otherwise we move to the cell that contains the next node
-           found = .False.
-           jj = -1
-           findNextElement: do while ((.not. found) .and. (jj .lt. nFaceNeighbours-1))
-              jj = jj + 1
-              ! Find the next face
-              faceToCheck = nte(ntePtr(iNode) + jj*2)
-              if (faceToCheck /= nextElemID) then
-                 !  Check the 4 nodes on this face 
-                 do ii=1, 4
-                    if (fullConn(ii, faceToCheck) == nextNode) then
-                       ! Update values
-                       nextElemID = faceToCheck
-                       nodeID = ii
-                       ! Stop iteration
-                       found = .True.
-                    end if
-                 end do
+           nodeLoopCycle: do while (nextElemID /= firstID)
+              if (nextElemID == -1) &
+                   nextElemID = firstID
+
+              ! Append the next node along that edge:
+              nodeToAdd = fullConn(mod(nodeID-1, 4)+1, nextElemID)  
+              fullnPtr(iii, iNode) = nodeToAdd 
+              fullcPtr(jjj, iNode) = nextElemID
+              iii = iii + 1
+              jjj = jjj + 1
+
+              ! Add the diagonal if not regular node
+              if (nFaceNeighbours == 3 .or. nFaceNeighbours == 2) then
+                 fullnPtr(iii, iNode) =  fullConn(mod(nodeID, 4)+1, nextElemID)
+                 iii = iii + 1
               end if
-           end do findNextElement
-
-           if (.not. found) then ! We probably found a boundary edge
-              keepSearching = .False.
-              closedSurface = .False.
-           end if
-
-        end do closedSearch
-
-        ! If we assume that the node belongs to the interior of the mesh, then the number of
-        ! neighbors will be the number of faces.
-        ! The first value of fullnPtr stores the number of neighbor nodes
-        ! We have a special case for 3 neighbors because we will store the diagonals as well
-        if (nFaceNeighbours == 3 .and. closedSurface) then
-           fullnPtr(1, iNode) = 6
-        else if (closedSurface) then
-           fullnPtr(1, iNode) = nFaceNeighbours
+              
+              ! And we need to find the face that contains the following node:
+              nodeToFind = fullConn(mod(nodeID+1, 4)+1, nextElemID)
+              
+              found = .False.
+              jj = -1
+              findNextElement: do while (.not. found)
+                 jj = jj + 1
+                 
+                 ! Find the next face
+                 faceToCheck = nte(ntePtr(iNode) + jj*2)
+                 if (faceToCheck /= nextElemID) then
+                    !  Check the 4 nodes on this face 
+                    do ii=1, 4
+                       if (fullConn(ii, faceToCheck) == nodeToFind) then
+                          nextElemID = faceToCheck
+                          nodeID = ii
+                          found = .True.
+                       end if
+                    end do
+                 end if
+              end do findNextElement
+           end do nodeLoopCycle
         else
-           fullnPtr(1, iNode) = nFaceNeighbours+1 !Open surface has extra node
+           ! Not an internal node. Set all values to zero so we know
+           ! they have not been processed yet:
+           fullNPtr(:, iNode) = 0
+           fullCPtr(:, iNode) = 0
+        end if internalNode
+     end do nodeLoop
+
+     ! We have now set the fullNodePointer (fullnPtr) and the
+     ! fullCellPointer (fullCPtr) for all internal nodes. These were
+     ! straightforward since by definition they are fully surrounded
+     ! by elements. We now have to set the nodes on boundaries.  Since
+     ! we will need to know the local structured topology it is easier
+     ! to loop through the edges of the patches themselves and push
+     ! the information to global node.
+
+     ! First figure out which of the BCDefault edges are actually
+     ! physical edges and assign them to be BCSplay OR Symmetry if the
+     ! 'unattachedEdgesAreSymmetry" is true.
+     patchLoop0: do ii=1, nPatch
+        il = patches(ii)%il
+        jl = patches(ii)%jl
+
+        edgeLoop0: do iEdge=1,4
+           select case(iEdge)
+           case (iLow) 
+              iSize = jl
+              lPtr1 => patches(ii)%l_index(1, jl:1:-1)
+              xPtr => patches(ii)%x(:, 1, jl:1:-1)
+           case (iHigh)
+              iSize = jl
+              lPtr1 => patches(ii)%l_index(il, :)
+              xPtr => patches(ii)%x(:, il, :)
+           case (jLow) 
+              iSize = il
+              lPtr1 => patches(ii)%l_index(:, 1)
+              xPtr => patches(ii)%x(:, :, 1)
+           case (jHigh)
+              iSize = il
+              lPtr1 => patches(ii)%l_index(il:1:-1, jl)
+              xPtr => patches(ii)%x(:, il:1:-1, jl)
+           end select
+           
+           ! Just check the n=2 node:
+           if (iSize > 2) then 
+              i = 2
+              iNode = lPtr1(i)
+              if (fullTopoType(iNode) == topoEdge .and. BCs(iEdge, ii) == BCDefault) then 
+                 if (unattachedEdgesAreSymmetry) then 
+                    ! Determine which symm type we need:
+                    xSum(1) = abs(sum(xptr(1, :)))
+                    xSum(2) = abs(sum(xptr(2, :)))
+                    xSum(3) = abs(sum(xptr(3, :)))
+                    ! take dimension with lowest val
+                    i = minloc(xSum, 1)
+                    if (i== 1) then 
+                       BCs(iEdge, ii) = BCXsymm
+                    else if(i==2) then 
+                       BCs(iEdge, ii) = BCYSymm
+                    else if(i==3) then
+                       BCs(iEdge, ii) = BCZSymm
+                    end if
+                    
+                 else
+                    ! Otherwise it must be a splay
+                    BCs(iEdge, ii) = BCSplay
+                 end if
+              end if
+           end if
+        end do edgeLoop0
+     end do patchLoop0
+ 
+     nAverage = 0
+     patchLoop: do ii=1, nPatch
+        il = patches(ii)%il
+        jl = patches(ii)%jl
+
+        edgeLoop: do iEdge=1,4
+           select case(iEdge)
+           case (iLow) 
+              lPtr1 => patches(ii)%l_index(1, jl:1:-1)
+              lPtr2 => patches(ii)%l_index(2, jl:1:-1)
+              xPtr => patches(ii)%x(:, 1, jl:1:-1)
+              iSize = jl
+              faceStr = 'iLow '
+           case (iHigh)
+              lPtr1 => patches(ii)%l_index(il, :)
+              lPtr2 => patches(ii)%l_index(il-1, :)
+              xPtr => patches(ii)%x(:, il, :)
+              iSize = jl
+              faceStr = 'iHigh '
+           case (jLow) 
+              lPtr1 => patches(ii)%l_index(:, 1)
+              lPtr2 => patches(ii)%l_index(:, 2)
+              xPtr => patches(ii)%x(:, :, 1)
+              iSize = il
+              faceStr = 'jLow '
+           case (jHigh)
+              lPtr1 => patches(ii)%l_index(il:1:-1, jl)
+              lPtr2 => patches(ii)%l_index(il:1:-1, jl-1)
+              xPtr => patches(ii)%x(:, il:1:-1, jl)
+              iSize = il
+              faceStr = 'jHigh'
+           end select
+           
+           edgeNodeLoop: do i=1, iSize
+              iNode = lPtr1(i)
+              checkTopoType: if (fullTopoType(iNode) == topoInternal) then 
+                 ! We don't have anything to do for this, BUT if the
+                 ! boundary condition is anything but BCDefault than
+                 ! it means someone explictly specifid it which is an
+                 ! error since this isn't *actually* a boundary condition
+                 if (BCs(iEdge, ii) /= BCDefault) then 
+101 format (a,a,a,I3,a)
+                    print 101, 'ERROR: A boundary condition was specifed for ', &
+                         trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
+                    stop
+                 end if
+
+              else if (fullTopoType(iNode) == topoEdge) then 
+                 ! By definition , edge topology nodes must have 3 neighbours
+                 fullnPtr(1, iNode) = 3
+                    
+                 if (i> 1 .and. i < iSize) then 
+                    
+                    ! Edge topology, and internal to an edge, we can
+                    ! just read off the neighbours.
+                    fullnPtr(2, iNode) = lPtr1(i+1)
+                    fullnPtr(3, iNode) = lPtr2(i  )
+                    fullnPtr(4, iNode) = lPtr1(i-1)
+                    fullBCType(1, iNode) = BCs(iEdge, ii)
+     
+                    ! Set the possible boundary condition value
+                    call setBCVal(fullBCType(1, iNode), xPtr(:, i), &
+                         fullBCVal(1, :, iNode))
+                 else 
+                    ! This is an edge topology, but at the logical
+                    ! corner of a block. If some other edge has
+                    ! already set the BC for us, we can just skip,
+                    ! since they did the work.
+                    if (BCs(iedge, ii) /= bcDefault) then 
+                       if (i == 1) then 
+                          fullnPTr(2, iNode) = lPtr1(i+1)
+                          fullnPTr(3, iNode) = lPtr2(i  )
+                          call addMissing(nodeConn(1:3, iNode), fullnPtr(2, iNode), fullNPtr(3, iNode), &
+                               fullNPtr(4, iNode))
+                       else ! other end
+                          fullnPTr(3, iNode) = lPtr2(i  )
+                          fullnPTr(4, iNode) = lPtr1(i-1)
+                          call addMissing(nodeConn(1:3, iNode), fullnPtr(4, iNode), fullNPtr(3, iNode), &
+                               fullNPtr(2, iNode))
+                       end if
+                       fullBCType(1, iNode) = BCs(iEdge, ii)
+
+                       ! Set the possible boundary condition value
+                       call setBCVal(fullBCType(1, iNode), xPtr(:, i), &
+                            fullBCVal(1, :, iNode))
+                    end if
+                 end if
+            
+                 ! Setting the cell pointer is common
+                 fullcPtr(1, iNode) = 2
+                 fullcPtr(2, iNode) = nte(ntePtr(iNode))
+                 fullcPtr(3, iNode) = nte(ntePtr(iNode)+2)
+                                  
+              else if (fullTopoType(iNode) == topoCorner) then 
+                 ! Do a sanity check: This should only occur if i==1 or i==iSize
+                 if (i/= 1 .and. i /= iSize) then 
+                    print *, 'ERROR: Unknown corner topology error detected.', i, isize
+                    stop
+                 end if
+                 
+                 ! By definition , corner topology nodes must have 2 neighbours
+                 fullnPtr(1, iNode) = 2
+                 
+                 if (i == 1) then 
+                    fullnPtr(2, iNode) = lPtr1(i+1)
+                    fullnPtr(3, iNode) = lPtr2(i)
+                    iBCToSet = 2
+                 else ! Must be iSize
+                
+                    fullnPtr(2, iNode) = lPtr2(i)
+                    fullnPtr(3, iNode) = lPtr1(i-1)
+                    iBCToSet = 1
+                 end if
+
+                 ! Set BC
+                 fullBCType(iBCToSet, iNode) = BCs(iEdge, ii)
+
+                 ! Set the possible boundary condition value
+                 call setBCVal(fullBCType(iBCToSet, iNode), xPtr(:, i), &
+                      fullBCVal(iBCToSet, :, iNode))
+
+                 ! Set the cell pointer for this node
+                 fullcPtr(1, iNode) = 1
+                 fullcPtr(2, iNode) = nte(ntePtr(iNode))
+
+              else if (fullTopoType(iNode) == topoLCorner) then 
+                 print *,'LCorner topos are not coded yet...'
+                 stop
+              end if checkTopoType
+           end do edgeNodeLoop
+        end do edgeLoop
+
+        ! We now do a special check to see if corners have boundary
+        ! conditions that would require the averaging procedure. This
+        ! will happen if the two neighbour nodes are constrained to
+        ! the same plane. For example, having two ySymm conditions.
+
+        corners(1) = patches(ii)%l_index(1, 1)
+        corners(2) = patches(ii)%l_index(il, 1)
+        corners(3) = patches(ii)%l_index(il, jl)
+        corners(4) = patches(ii)%l_index(1, jl)
+
+        do iCorner=1, 4
+           i = corners(iCorner) ! Node index
+           nn(1) = fullnPtr(2, i) ! Neighbour 1 index
+           nn(2) = fullnPtr(3, i) ! Neighbour 2 index
+           
+           if (fullTopoType(i) == topoCorner) then 
+              ! It is an actual corner topology
+              mask = 0
+              vals = zero
+              do jj=1, 2 ! Loop over the two neighbours and check
+                         ! their BC Type
+                 select case (fullBCType(1, nn(jj)))
+
+                 case (BCXSymm, BCXConst)
+                    ! This means the following: the 'jj' neighbour
+                    ! constrains the 'X' direction with value given in
+                    ! fullBCVal. The mask(jj, 1) says the 'jj'
+                    ! neighbour is constrained in 'x', with the value
+                    ! given by vals(jj, 1)
+                    mask(jj, 1) = 1
+                    vals(jj, 1) = fullBCVal(1, 1, nn(jj))
+
+                 case (BCYSymm, BCYConst)
+                    mask(jj, 2) = 1
+                    vals(jj, 2) = fullBCVal(1, 1, nn(jj))
+
+                 case (BCZSymm, BCZConst)
+                    mask(jj, 3) = 1
+                    vals(jj, 3) = fullBCVal(1, 1, nn(jj))
+
+                 case (BCXYConst)
+                    mask(jj, 1) = 1
+                    mask(jj, 2) = 1
+                    vals(jj, 1) = fullBCVal(1, 1, nn(jj))
+                    vals(jj, 2) = fullBCVal(1, 2, nn(jj))
+
+                 case(BCYZConst)
+                    mask(jj, 2) = 1
+                    mask(jj, 3) = 1
+                    vals(jj, 2) = fullBCVal(1, 1, nn(jj))
+                    vals(jj, 3) = fullBCVal(1, 2, nn(jj))
+
+                 case (BCXZConst)
+                    mask(jj, 1) = 1
+                    mask(jj, 3) = 1
+                    vals(jj, 1) = fullBCVal(1, 1, nn(jj))
+                    vals(jj, 3) = fullBCVal(1, 2, nn(jj))
+                    
+                 end select
+              end do
+              
+              ! Loop over each coordinate direction. 
+              do jj=1,3
+                 ! Is the same coordinate constrained in each neighbour
+                 if (mask(1, jj) == mask(2, jj) .and. mask(1, jj) == 1) then 
+
+                    ! The same coordinate is constrained. Now check if
+                    ! the value is the essentially the same
+                    if (abs(vals(1, jj) - vals(2, jj)) < nodeTol) then 
+                       fullBCType(:, i) = BCAverage
+                       nAverage = nAverage + 1
+                    end if
+                 end if
+              end do
+           end if
+        end do
+     end do patchLoop
+
+     if (nAverage > 0) then 
+        print *, 'Coner averaging activated for ', nAverage, ' nodes.'
+     end if
+
+     ! Do a sanity check to make sure that all nodes have their 
+     ! fullnPtr populated. 
+     do i=1,nUnique
+        if (fullNPtr(1, i) == 0) then 
+           print *, 'There was a general error with topology computation for node:', uniquePts(:, i)
+           stop
+        end if
+     end do
+
+     ! Another sanity check to make sure all nodes that are physically
+     ! at edges have the required number of boundary conditions
+     ! their fullnPtr populated.
+     do i=1, nUnique
+        if (fullTopoType(i) == topoEdge .and. fullBCType(1, i) == BCDefault) then 
+           print *, 'There was a boundary condition for edge node:',  uniquePts(:, i)
+           stop
+
+        else if (fullTopoType(i) == topoCorner .and. (fullBCType(1, i) == BCDefault .or. &
+             fullBCType(2, i) == BCDefault)) then 
+           print *, 'There was a boundary condition for corner node:',  uniquePts(:, i)
+           stop
         end if
 
-        firstElemID = nte(ntePtr(iNode)) ! This gives ID of first neighboring face
-        ! nodeID is the position (1-4) of the node after iNode on the first face
-        nodeID = mod(nte(ntePtr(iNode)+1), 4) + 1
-        nextElemID = -1
-        iii = 2
-        jjj = 2
+     end do
 
-        ! Initialize last face increment
-        lastFaceIncrement = 0
-
-        nodeLoopCycle: do while (nextElemID /= firstElemID)
-           if (nextElemID == -1) &
-                nextElemID = firstElemID
-
-           ! Append the next node along the edge of the element:
-           nodeToAdd = fullConn(nodeID, nextElemID)
-           fullnPtr(iii, iNode) = nodeToAdd ! The first iteration connects iNode to the next node on the face
-           fullcPtr(jjj, iNode) = nextElemID
-           iii = iii + 1
-           jjj = jjj + 1
-
-           ! Add the diagonal if not regular node, which is the next node on the same face
-           if (nFaceNeighbours == 3 .and. closedSurface) then
-              fullnPtr(iii, iNode) =  fullConn(mod(nodeID, 4)+1, nextElemID)
-              iii = iii + 1
-           end if
-
-           ! And we need to find the face that contains the following node:
-           nodeToFind = fullConn(mod(nodeID+1, 4)+1, nextElemID)
-
-           found = .False.
-           jj = -1
-
-           findNextElement2: do while ((.not. found) .and. (jj .lt. nFaceNeighbours-1))
-              jj = jj + 1
-
-              ! Find the next face
-              faceToCheck = nte(ntePtr(iNode) + jj*2)
-              if (faceToCheck /= nextElemID) then
-                 !  Check the 4 nodes on this face 
-                 do ii=1, 4
-                    if (fullConn(ii, faceToCheck) == nodeToFind) then
-                       nextElemID = faceToCheck
-                       lastFaceIncrement = jj
-                       nodeID = ii
-                       found = .True.
-                    end if
-                 end do
-              end if
-           end do findNextElement2
-
-           if (.not. found) then ! We probably found a boundary edge
-              ! Add the last node to the connectivity
-              fullnPtr(iii, iNode) = nodeToFind
-              iii = iii + 1
-              if (lastFaceIncrement+1 .lt. nFaceNeighbours) then ! There are missing faces
-                 ! Jump to next face
-                 nextElemID = nte(ntePtr(iNode) + 2*(lastFaceIncrement+1))
-                 nodeID = mod(nte(ntePtr(iNode) + 2*(lastFaceIncrement+1)+1), 4) + 1
-              else ! We already scanned all faces and we should leave the loop
-                 ! Force loop exit
-                 nextElemID = firstElemID
-              end if
-           end if
-
-        end do nodeLoopCycle
-
-     end do nodeLoop
-     deallocate(nte, ntePtr)
-
+     ! Free up some more memory
+     deallocate(nte, ntePtr, directedNodeConn, nodeConn, nEdge, nDirectedEdge)
+  
   end if rootProc
-
-  ! ii = 1
-  ! do i=1, patches(ii)%il
-  !    print *,patches(ii)%l_index(i,   :)
-  ! end do
-
-  ! ii = 1
-  ! do i=1, patches(ii)%il
-  !    print *,patches(ii)%BCnodes(i,:,1)
-  ! end do
-
-  !ii =  2
-  ! do i=1, patches(ii)%il
-  !    print *,patches(ii)%l_index(i,   :)
-  ! end 
-  !do
-
-  ! do i = 1,nUnique
-  !    print *,i
-  !    print *,fullnPtr(:,i)
-  ! end do
-
-  !do i = 1,nUnique
-  !   print *,i
-  !   print *,uniqueBCs(i,:)
-  !end do
-
-  !stop
 
   ! Now we can broadcast the required infomation to everyone. In fact
   ! all we need is the fullnPtr, fullcPtr and the full connectivity list
@@ -736,8 +720,10 @@ subroutine setup(fileName,fileType)
      allocate(fullConn(4, faceTotal))
      allocate(fullnPtr(NODE_MAX+1, nUnique))
      allocate(fullcPtr(CELL_MAX+1, nUnique))
+     allocate(fullTopoType(nUnique))
+     allocate(fullBCType(2, nUnique))
+     allocate(fullBCVal(2, 2, nUnique))
      allocate(uniquePts(3, nUnique))
-     allocate(uniqueBCs(nUnique, 1+maxBCneighbors))
   end if
 
   ! Actual broadcasts
@@ -753,7 +739,13 @@ subroutine setup(fileName,fileType)
   call MPI_Bcast(uniquePts, 3*nUnique, MPI_DOUBLE, 0, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
-  call MPI_Bcast(uniqueBCs, nUnique*(1+maxBCneighbors), MPI_INTEGER, 0, hyp_comm_world, ierr)
+  call MPI_Bcast(fullTopoType, nUnique, MPI_INTEGER, 0, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  call MPI_Bcast(fullBCType, 2*nUnique, MPI_INTEGER, 0, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
+  call MPI_Bcast(fullBCVal, 2*2*nUnique, MPI_DOUBLE, 0, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
   ! We now do "partitioning". It is essentially tries to divide up the
@@ -772,13 +764,18 @@ subroutine setup(fileName,fileType)
   ! Allocate the final space for gnPtr (global node ptr) and lnPtr
   ! (local node ptr) since we now know the range each proc owns
 
-  allocate(lnPtr(NODE_MAX+1, isize), gnPtr(NODE_MAX+1, isize), cPtr(CELL_MAX+1, iSize))
+  allocate(lnPtr(NODE_MAX+1, isize), gnPtr(NODE_MAX+1, isize), &
+       cPtr(CELL_MAX+1, iSize), topoType(iSize), BCType(2, iSize), &
+       BCVal(2, 2, iSize))
 
-  ! Copy in just the required parts of the fullnPtr
+  ! Copy in just the required parts:
   do i=istart, iend
      gnPtr(:, i-istart+1) = fullnPtr(:, i)
      lnPtr(:, i-istart+1) = fullnPtr(:, i) ! lnPtr will be modified below
      cPtr(:, i-istart+1) = fullcPtr(:, i) ! cPtr will be modified below
+     topoType(i-iStart+1) = fullTopoType(i)
+     BCType(:, i-iStart+1) = fullBCType(:, i)
+     BCVal(:, :, i-iStart+1) = fullBCVal(:, :, i)
   end do
 
   ! Compute Ghost Information:
@@ -792,9 +789,10 @@ subroutine setup(fileName,fileType)
   allocate(link(nUnique)) ! This will store the local ghost index for
   ! a non-owned node
   link(:) = 0
+
   do i=istart, iend
      do j=1, fullcPtr(1, i)
-        iCell = fullcPtr(j+1, i) ! 
+        iCell = fullcPtr(j+1, i)
         do k=1, 4
            ind = fullConn(k, iCell)
            
@@ -829,11 +827,6 @@ subroutine setup(fileName,fileType)
         end if
      end do
   end do
-
-  !do i=1, isize
-  !   print *,i
-  !   print *,lnPtr(:,i)
-  !end do
 
   ! Determine now many local faces we will have, (faces surrounding owned nodes)
   allocate(localFace(faceTotal))
@@ -888,46 +881,91 @@ subroutine setup(fileName,fileType)
   call VecGetArrayF90(X(1), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
-  do i=1,nx
-     do idim=1,3
+  do i=1, nx
+     do idim=1, 3
         xx((i-1)*3 + idim) = uniquePts(idim, i+istart-1)
      end do
   end do
 
   call VecRestoreArrayF90(X(1), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
-
+  
   ! Update ghost values for the quality calc (this will be the -1 level)
   call VecGhostUpdateBegin(X(1), INSERT_VALUES, SCATTER_FORWARD, ierr)
   call VecGhostUpdateEnd(X(1), INSERT_VALUES,SCATTER_FORWARD, ierr)
 
-  ! Allocate local BC neighbors (declared in hypData.F90)
-  allocate(BCneighborsLocal(nx,1+maxBCneighbors))
-  allocate(BCneighborsGlobal(nx,1+maxBCneighbors))
-
-  ! Store BC information
-  do i=1,nx
-     BCneighborsGlobal(i,:) = uniqueBCs(i+istart-1,:)
-     BCneighborsLocal(i,:) = uniqueBCs(i+istart-1,:)
-     ! Adjust the local indices
-     do j = 2,maxBCneighbors+1
-        ! Get the current index
-        ind = BCneighborsLocal(i,j)
-        ! Check if we have a valid node
-        if (BCneighborsLocal(i,j) .ne. 0) then
-           if (ind < istart .or. ind > iend) then
-              BCneighborsLocal(i,j) = link(ind) + iSize ! Use ghost value from link
-           else
-              BCneighborsLocal(i,j) = ind - istart + 1 ! Local node
-           end if
-        end if
-     end do
-  end do
-
   ! Finally finished with the full set of information so deallocate
-  deallocate(fullnPtr, link, localFace, uniquePts, uniqueBCs)
+  deallocate(fullnPtr, link, localFace, uniquePts, fullTopoType, fullBCType, &
+       fullBCVal)
 
 end subroutine setup
 
+subroutine getNBlocks(fileName, fileType, nBlocks)
+  !***DESCRIPTION
+  !
+  !     Written by Gaetan Kenway
+  !
+  !     Abstract: getNBlocks opens the input file and just reads the
+  !     number of blocks and returns them. 
+  !
+  !     Description of Arguments
+  !     Input:
+  !     fileName : char* array : Filename of plot3d file. Usually has .fmt extension. 
+  !     fileType : integer : 1-CGNS 2-Plot3d
+  !     Output:
+  !     nBlocks  : number of blocks
 
+  use communication
+  use hypData
+  use hypInput
 
+  implicit none
+  include 'cgnslib_f.h'
+
+  ! Input/Output Arguments
+  character*(*), intent(in) :: fileName
+  integer(kind=intType), intent(in) :: fileType
+  integer(kind=intType), intent(out) :: nBlocks
+
+  ! Working parameters
+  integer(kind=intType) :: cg, ierr, base
+
+  fType: if (fileType ==  cgnsFileType) then 
+
+    ! Open and get the number of zones:
+     call cg_open_f(trim(fileName), CG_MODE_READ, cg, ierr)
+     if (ierr .eq. CG_ERROR) call cg_error_exit_f
+     
+     base = 1_intType
+     
+     call cg_nzones_f(cg, base, nBlocks, ierr);
+     if (ierr .eq. CG_ERROR) call cg_error_exit_f
+     
+     call cg_close_f(cg, ierr)
+     if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+  else if (fileType .eq. plot3dFileType) then 
+     
+     ! Open file and read number of patches
+     open(unit=7, form='formatted', file=fileName)
+     read(7, *) nBlocks
+     close(7)
+  end if fType
+
+  ! Allocate the families array since we know the number of patches
+  allocate(families(nBlocks))
+
+end subroutine getNBlocks
+
+subroutine setFamily(i, fam)
+
+  ! Helper routine to set a family string from python
+  use hypInput
+  implicit none
+  
+  character*(*) , intent(in) :: fam
+  integer(kind=intType), intent(in) :: i
+
+  families(i) = trim(fam)
+
+end subroutine setFamily

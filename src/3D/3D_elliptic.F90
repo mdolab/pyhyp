@@ -17,7 +17,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
   ! PETSc Variables
   PetscFortranAddr ctx(*)
   Vec     stateVec, resVec
-  integer(kind=intType) :: ierr, iLow, iHigh, nPLocal, j
+  integer(kind=intType) :: ierr, iStart, iEnd, nPLocal, j
   real(kind=realType) :: V(3)
 
   call setStrengths(stateVec)
@@ -27,12 +27,12 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
   call VecGetArrayF90(resVec, xx, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call VecGetOwnershipRange(stateVec, iLow, iHigh, ierr)
+  call VecGetOwnershipRange(stateVec, iStart, iEnd, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  nPLocal = iHigh-iLow
+  nPLocal = iEnd-iStart
 
   do j=1, nPLocal
-     call evalAtPoint(MGP(1)%panels(j + iLow)%center, xx(j), V)
+     call evalAtPoint(MGP(1)%panels(j + iStart)%center, xx(j), V)
   end do
 
   call VecRestoreArrayF90(resVec, xx, ierr)
@@ -414,7 +414,7 @@ subroutine generateSolution
   implicit none
 #include "include/petscversion.h"
   ! Working parameters
-  integer(kind=intType) :: i, j, k, info, ierr, iLow, iHigh, nPLocal
+  integer(kind=intType) :: i, j, k, info, ierr, iStart, iEnd, nPLocal
   integer(kind=intType), dimension(:), allocatable :: onProc, offProc
   real(kind=realType) :: d, phi, V(3), dist, val
   logical :: assembleMat, successful
@@ -453,10 +453,10 @@ subroutine generateSolution
      assembleMat = .False.
   end if
 
-  call VecGetOwnershipRange(ellipRHS, iLow, iHigh, ierr)
+  call VecGetOwnershipRange(ellipRHS, iStart, iEnd, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  nPLocal = iHigh-iLow
+  nPLocal = iEnd-iStart
   if (myid == 0) then
      print *,'Determining PC size...'
   end if
@@ -471,10 +471,10 @@ subroutine generateSolution
 
   do j=1,nPLocal
      do i=1, nPGlobal
-        d = dist(MGP(1)%panels(i)%center, MGP(1)%panels(j+iLow)%center)
+        d = dist(MGP(1)%panels(i)%center, MGP(1)%panels(j+iStart)%center)
         if (d < MGP(1)%panels(i)%length) then
            ! Determine if on-proc or off-proc
-           if (i>=iLow .and. i < iHigh) then
+           if (i>=iStart .and. i < iEnd) then
               onProc(j) = onProc(j) + 1
            else
               offProc(j) = offProc(j) + 1
@@ -519,20 +519,20 @@ subroutine generateSolution
      do i=1, nPGlobal
         ! Only evalaute if assembling matrix
         if (assembleMat) then
-           call panelInfluence2(i, MGP(1)%panels(j+iLow)%center, phi, V)
-           call MatSetValues(ellipMat, 1, j + iLow - 1, 1, i-1, phi, INSERT_VALUES, ierr)
+           call panelInfluence2(i, MGP(1)%panels(j+iStart)%center, phi, V)
+           call MatSetValues(ellipMat, 1, j + iStart - 1, 1, i-1, phi, INSERT_VALUES, ierr)
            call EChk(ierr, __FILE__, __LINE__)
         end if
 
-        d = dist(MGP(1)%panels(i)%center, MGP(1)%panels(j+iLow)%center)
+        d = dist(MGP(1)%panels(i)%center, MGP(1)%panels(j+iStart)%center)
 
         if (d < MGP(1)%panels(i)%length) then
            ! If we're JUST assembling the PC we need to actually do the evaluation here
            if (.not. assembleMat) then
-              call panelInfluence2(i, MGP(1)%panels(j+iLow)%center, phi, V)
+              call panelInfluence2(i, MGP(1)%panels(j+iStart)%center, phi, V)
            end if
 
-           call MatSetValues(ellipPCMat, 1, j + iLow - 1, 1, i-1, phi, INSERT_VALUES, ierr)
+           call MatSetValues(ellipPCMat, 1, j + iStart - 1, 1, i-1, phi, INSERT_VALUES, ierr)
            call EChk(ierr, __FILE__, __LINE__)
         end if
      end do
