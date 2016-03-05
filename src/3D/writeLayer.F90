@@ -16,7 +16,7 @@ subroutine writeLayerPlot3d(fileName, layer)
 
   ! Working parameters
   integer(kind=intType) :: i, ii, j, ierr, idim, ipatch, idGlobal, nPatchToWrite
-  real(kind=realType), dimension(3) :: mask
+
   ! Send everything to the root:
   call VecScatterBegin(rootScatter, X(layer), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
   call EChk(ierr,__FILE__,__LINE__)
@@ -29,11 +29,11 @@ subroutine writeLayerPlot3d(fileName, layer)
 7    format(g21.14)
 
      ! Allocate space for the patch sizes and patches
-     if (mirrorType == noMirror) then 
+     ! if (mirrorType == noMirror) then 
         nPatchToWrite = nPatch
-     else
-        nPatchToWrite = nPatch/2
-     end if
+     ! else
+     !    nPatchToWrite = nPatch/2
+     ! end if
 
      call VecGetArrayF90(xLocal, xx, ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -48,17 +48,7 @@ subroutine writeLayerPlot3d(fileName, layer)
      do i=1,nPatchToWrite
         write(7,6) patches(i)%il, patches(i)%jl, 1
      end do
-
-     ! Mask for symmetry plane
-     mask(:) = one
-     if (mirrorType == xmirror) then
-        mask(1) = zero
-     else if (mirrorType == ymirror) then
-        mask(2) = zero
-     else if (mirrorType == zmirror) then
-        mask(3) = zero
-     end if
-
+     
      do iPatch = 1, nPatchToWrite
         ii = iPatch
         ! First copy the xx into the X array in the patch
@@ -69,12 +59,6 @@ subroutine writeLayerPlot3d(fileName, layer)
               idGlobal = patches(iPatch)%l_index(i, j)
               patches(ii)%X(:, i, j) = xx(3*idGlobal-2:3*idGlobal)
            end do
-        end do
-        
-        ! Loop over the symm nodes and apply the mask if necessary
-        do i=1,patches(ii)%nSym
-           patches(ii)%X(:, patches(ii)%symNodes(1, i), patches(ii)%symNodes(2, i)) = &
-                patches(ii)%X(:, patches(ii)%symNodes(1, i), patches(ii)%symNodes(2, i)) * mask
         end do
         
         ! Now finally write out the patch

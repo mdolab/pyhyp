@@ -29,14 +29,13 @@ subroutine computeStretch(L)
   ! just use geometric progression which is usually close to what we
   ! actually want in the marching direction anyway
 
-  if (L == 2) then
-     ! First step, set deltaS to the desired initial grid spacign
-     ! given in HypInput
-     deltaS = s0
+  if (L <= (nConstant+1)) then
+     ! First nConstant steps, deltaS to the desired initial grid
+     ! spacign given in HypInput
+     desiredDeltaS = s0
   else
-     ! Otherwise, just multiply the current deltaS by the pGridRatio
-     ! parameter, also in HypInput
-     deltaS = deltaS*gridRatio
+     ! Otherwise, use the actual grid Ratio
+     desiredDeltaS = s0*gridRatio**(L-1-nConstant)
   end if
 
 end subroutine computeStretch
@@ -48,7 +47,7 @@ subroutine calcGridRatio(N, s0, S, ratio)
   !
   !     Abstract: calcGridRatio() calculates the exponential
   !     distribution Turns out we need to solve a transendental
-  !     equation here. We will do this with a secant iteration.
+  !     equation here. We will do this with a bisection search
   !
   !     Parameters
   !     ----------
@@ -97,7 +96,7 @@ subroutine calcGridRatio(N, s0, S, ratio)
      if (abs(f) < 1e-6) then ! Converged
         exit
      end if
-     
+
      if (f * fa > 0) then 
         a = c
      else
@@ -200,22 +199,18 @@ subroutine writeHeader
 
   ! Write the first line of '-'
   write(*,"(a)",advance="no") "#"
-  do i=2,140
+  do i=2,126
      write(*,"(a)",advance="no") "-"
   enddo
   print "(1x)"
-  write(*,"(a)",advance="no") "# Grid  |     CPU    | Sub  | KSP  |     Sl     |"
-  write(*,"(a)",advance="no") " Grid       | Grid       |     Min    |   deltaS   |"
-  write(*,"(a)",advance="no") "    cMax    |    min R   |    max     | "
+  write(*,"(a)",advance="no") "# Grid  | CPU  | Sub  | KSP | nAvg |   Sl   | Grid     | Grid     | Min     | Min    | deltaS | March    | cMax   | kStretch |"
   print "(1x)"
-  write(*,"(a)",advance="no") "# Level |     Time   | Iter | Its  |            |"
-  write(*,"(a)",advance="no") " Sensor Max | Sensor Min |  Quality   |            |"
-  write(*,"(a)",advance="no") "            |            |  KStretch  | "
+  write(*,"(a)",advance="no") "# Level | Time | Iter | Its |      |        | Sens Max | Sens Min | Quality | Volume |        | Distance |        | Max      |"
   print "(1x)"
-
+  i =                                                                                                                                      10
   ! Write the Last line of '-'
   write(*,"(a)",advance="no") "#"
-  do i=2,140
+  do i=2,126
      write(*,"(a)",advance="no") "-"
   enddo
   print "(1x)"
@@ -236,12 +231,14 @@ subroutine writeIteration
   implicit none
 
   ! Working variables
-  real(kind=realType) :: gridSensorMaxRed, gridSensorMinRed
-  integer(kind=intType) :: ierr
+  real(kind=realType) :: gridSensorMaxRed, gridSensorMinRed, maxKStretchRed
+  integer(kind=intType) :: ierr, nAverageRed
 
   ! Reduce all mins/maxes
   CALL MPI_REDUCE(gridSensorMax, gridSensorMaxRed, 1, MPI_DOUBLE, MPI_MAX, 0, hyp_comm_world, ierr)
   CALL MPI_REDUCE(gridSensorMin, gridSensorMinRed, 1, MPI_DOUBLE, MPI_MIN, 0, hyp_comm_world, ierr)
+  CALL MPI_REDUCE(maxKStretch, maxKStretchRed, 1, MPI_DOUBLE, MPI_MAX, 0, hyp_comm_world, ierr)
+  CALL MPI_REDUCE(nAverage, nAverageRed, 1, MPI_INTEGER, MPI_SUM, 0, hyp_comm_world, ierr)
 
   ! Only root proc prints stuff
   if (myid == 0) then
@@ -250,184 +247,57 @@ subroutine writeIteration
      write(*,"(i8,1x)",advance="no") marchIter
 
      ! CPU time
-     write(*,"(e12.5,1x)",advance="no") dble(mpi_wtime()) - timeStart
+     write(*,"(f6.1,1x)",advance="no") dble(mpi_wtime()) - timeStart
 
      ! Sub Iteration
      write(*,"(i6,1x)",advance="no") nSubIter
 
      ! KSP ITerations
-     write(*,"(i6,1x)",advance="no") kspIts
+     write(*,"(i5,1x)",advance="no") kspIts
+
+     ! Number of averaged nodes
+     write(*,"(i6,1x)",advance="no") nAverageRed
 
      ! Modified Sl factor from Steger and Chan
-     write(*,"(e12.5,1x)",advance="no") Sl
+     write(*,"(f8.5,1x)",advance="no") Sl
 
      ! maximum Grid convergence sensor
-     write(*,"(e12.5,1x)",advance="no") gridSensorMaxRed
+     write(*,"(f10.5,1x)",advance="no") gridSensorMaxRed
 
      ! minimum Grid convergence sensor
-     write(*,"(e12.5,1x)",advance="no") gridSensorMinRed
+     write(*,"(f10.5,1x)",advance="no") gridSensorMinRed
 
      ! minimum grid quality for new layer
-     write(*,"(e12.5,1x)",advance="no") minQuality ! This was reduced already
+     write(*,"(f8.5,1x)",advance="no") minQuality ! This was reduced already
+
+     ! minimum volume for new layer
+     write(*,"(e9.3,1x)",advance="no") minVolume ! This was reduced already
 
      ! marching step size for this iteration
-     write(*,"(e12.5,1x)",advance="no") deltaS
+     write(*,"(e8.3,1x)",advance="no") deltaS
 
+     ! March Distance
+     write(*,"(e10.3,1x)",advance="no") scaleDist
+     
      ! marching step size for this iteration
-     write(*,"(e12.5,1x)",advance="no") cRatio
-
-     ! approximate minimim distance to body
-     minR = zero
-     write(*,"(e12.5,1x)",advance="no") scaleDist/radius0
-
+     write(*,"(f8.5,1x)",advance="no") cRatio
+     
      ! maximum stretch ratio in K-direction
-     write(*,"(e12.5,1x)",advance="no") maxKStretch
+     write(*,"(f10.3,1x)",advance="no") maxKStretchRed
 
      ! Jump to next line
      print "(1x)"
 
   end if
-
 end subroutine writeIteration
-
-subroutine computeR(xVec, R)
-  !***DESCRIPTION
-  !
-  !     Written by Gaetan Kenway
-  !
-  !     computeR0 determines the minimum radius of a sphere that will
-  !     fully enclose the grid level defined by xVec
-  !
-  !     Parameters
-  !     ----------
-  !     xVec : Petsc vector 
-  !        Vector of nodes
-  !
-  !     Returns
-  !     -------
-  !     R : real
-  !        Minimum radius surrounding xVec
-
-  use communication
-  use hypData, only : xAvg, xx, nXGlobal, nX
-  implicit none
-
-#include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
-#endif
-
-  ! Input parameters
-  Vec, intent(in) :: xVec
-  
-  ! Ouput parameters
-  real(kind=realType), intent(out) :: R
-
-  ! Working
-  integer(kind=intType) :: i, ierr
-  real(kind=realType) :: dist, XavgLocal(3), rLocal
-
-  ! First find the average of X
-  XavgLocal = zero
-
-  call VecGetArrayF90(xVec, xx, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
-  do i=1,nX
-     XavgLocal = XavgLocal + xx(3*i-2:3*i)
-  end do
-
-  ! All reduce across all procs:
-  call mpi_AllReduce(XavgLocal, Xavg, 3, MPI_DOUBLE, MPI_SUM, hyp_comm_world, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
-  ! And Now divide by total number of points nGloabl
-  Xavg = Xavg / nXGlobal
-
-  ! Now find the maximum distance of X from Xavg
-  rLocal = zero
-  do i=1,nx
-     rLocal = max(rLocal, dist(Xavg, xx(3*i-2:3*i)))
-  end do
-
-  ! All reduce with max
-  call mpi_AllReduce(rLocal, R, 1, MPI_DOUBLE, MPI_MAX, hyp_comm_world, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
-  ! Always remember to restore the array
-  call VecRestoreArrayF90(xVec, xx, ierr)
-
-end subroutine computeR
-
-subroutine computeMinR(xVec, R)
-  !***DESCRIPTION
-  !
-  !     Written by Gaetan Kenway
-  !
-  !     Abstract: computeMinR determines the closest point of xVec to
-  !     Xavg
-  !
-  !     Parameters
-  !     ----------
-  !     xVec : Petsc vector 
-  !        Vector of nodes
-  !
-  !     Returns
-  !     -------
-  !     R : real
-  !        Minimum distance from xVec to xAvg
-
-  use communication
-  use hypData, only : nx, xAvg, xx
-  implicit none
-
-#include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
-#endif
-  ! Input parameters
-  Vec, intent(in) :: xVec
-
-  ! Ouput parameters
-  real(kind=realType), intent(out) :: R
-
-  ! Working
-  integer(kind=intType) :: i, ierr
-  real(kind=realType) :: dist, Rlocal
-
-  call VecGetArrayF90(xVec, xx, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
-  Rlocal = huge(Rlocal)
-  ! Now find the minimum distance of X from Xavg
-  do i=1,nX
-     Rlocal = min(Rlocal, dist(Xavg, xx(3*i-2:3*i)))
-  end do
-
-  ! All reduce with min
-  call mpi_AllReduce(rLocal, R, 1, MPI_DOUBLE, MPI_MIN, hyp_comm_world, ierr)
-  call EChk(ierr,__FILE__,__LINE__)
-
-  ! Always remember to restore the array
-  call VecRestoreArrayF90(xVec, xx, ierr)
-
-end subroutine computeMinR
 
 subroutine computeQualityLayer
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
   !
-  !     Compute the minimum quality measure for the cells defined by
-  !     two grid levels
+  !     Compute the minimum quality and volume measure for the cells
+  !     defined by two grid levels
   !
   use communication
   use hypInput
@@ -436,11 +306,11 @@ subroutine computeQualityLayer
 
   ! Working
   integer(kind=intType) :: i, j, iPatch, ierr
-  real(kind=realType) :: points(3,8), Q
-  real(Kind=realType) :: minQuality_local
+  real(kind=realType) :: points(3,8), Q, V
+  real(Kind=realType) :: minQuality_local, minVolume_local
   ! Since we are dealing with volumes, we need to loop over faces:
   minQuality_local = one
-
+  minVolume_local = huge(one)
   call VecGhostUpdateBegin(X(marchIter), INSERT_VALUES, SCATTER_FORWARD, ierr)
   call VecGhostUpdateEnd(X(marchIter), INSERT_VALUES,SCATTER_FORWARD, ierr)
 
@@ -457,7 +327,7 @@ subroutine computeQualityLayer
   call EChk(ierr, __FILE__, __LINE__)
 
   do i=1,nLocalFace
-  
+
      ! Assemble the 8 points we need for the volume - Note
      ! coodinate coordinate ordering!
      points(:,1) = xxm1(3*conn(1, i)-2: 3*conn(1, i))
@@ -469,10 +339,12 @@ subroutine computeQualityLayer
      points(:,6) = xx(3*conn(2, i)-2: 3*conn(2, i))
      points(:,7) = xx(3*conn(4, i)-2: 3*conn(4, i))
      points(:,8) = xx(3*conn(3, i)-2: 3*conn(3, i))
-                   
+
      call quality_hexa(points, Q)
      minQuality_local = min(minQuality_local, Q)
-              
+
+     call volume_hexa(points, V)
+     minVolume_local = min(minVolume_local, V)
   end do
 
   call VecRestoreArrayF90(XL_local, xx, ierr)
@@ -491,7 +363,77 @@ subroutine computeQualityLayer
   call mpi_Reduce(minQuality_local, minQuality, 1, MPI_DOUBLE, MPI_MIN, 0, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
+  ! Need to reduce the min value to the root proc
+  call mpi_Reduce(minVolume_local, minVolume, 1, MPI_DOUBLE, MPI_MIN, 0, hyp_comm_world, ierr)
+  call EChk(ierr,__FILE__,__LINE__)
+
 end subroutine computeQualityLayer
+
+subroutine volume_hexa(points, V)
+  !***DESCRIPTION
+  !
+  !     Written by Gaetan Kenway
+  !
+  !     Abstract: volume_hexa determines the volume for a hexa defined
+  !     by 8 nodes.
+  !    
+  !     Parameters
+  !     ----------
+  !     points : real array size(3, 8)
+  !         Nodes defining the hexa in coordinate ordering. 
+  !
+  !     Returns
+  !     -------
+  !     Volume : real 
+  !         The computed cell volume
+  use precision
+  implicit none
+
+  ! Input/Output
+  real(kind=realType), intent(in) :: points(3, 8)
+  real(kind=realType), intent(out) :: V
+
+  ! Working                                                                                  
+  real(kind=realType) :: center(3), volpymrid, v1, v2, v3, v4, v5, v6
+  integer(kind=intType) ::  i, idim
+
+  ! Compute the center of the points                                                         
+  center = zero
+  do i=1, 8
+     do idim=1, 3
+        center(idim) = center(idim) + points(idim, i)
+     end do
+  end do
+  center = center / eight
+
+  ! Compute the volumes of the 6 sub pyramids. The                                           
+  ! arguments of volpym must be such that for a (regular)                                    
+  ! right handed hexahedron all volumes are positive.                                        
+
+  v1 = volpymrid(center, points(:, 1), points(:, 2), points(:, 4), points(:, 3))
+  v2 = volpymrid(center, points(:, 7), points(:, 8), points(:, 6), points(:, 5))
+  v3 = volpymrid(center, points(:, 1), points(:, 3), points(:, 7), points(:, 5))
+  v4 = volpymrid(center, points(:, 4), points(:, 2), points(:, 6), points(:, 8))
+  v5 = volpymrid(center, points(:, 2), points(:, 1), points(:, 5), points(:, 6))
+  v6 = volpymrid(center, points(:, 3), points(:, 4), points(:, 8), points(:, 7))
+
+  V = (v1+v2+v3+v4+v5+v6)/six
+end subroutine volume_hexa
+
+function volpymrid(p, a, b, c, d)
+  use precision
+  implicit none
+  real(kind=realType) :: p(3), a(3), b(3), c(3), d(3), volpymrid
+
+  ! 6*Volume of a pyrimid -> Counter clockwise ordering                                      
+  volpymrid = (p(1) - fourth*(a(1) + b(1)  + c(1) + d(1))) *&
+       ((a(2) - c(2))*(b(3) - d(3)) - (a(3) - c(3))*(b(2) - d(2)))   + &
+       (p(2) - fourth*(a(2) + b(2)  + c(2) + d(2)))*&
+       ((a(3) - c(3))*(b(1) - d(1)) - (a(1) - c(1))*(b(3) - d(3)))   + &
+       (p(3) - fourth*(a(3) + b(3)  + c(3) + d(3)))* &
+       ((a(1) - c(1))*(b(2) - d(2)) - (a(2) - c(2))*(b(1) - d(1)))
+
+end function volpymrid
 
 subroutine quality_hexa(points, quality)
   !***DESCRIPTION
@@ -540,7 +482,7 @@ subroutine quality_hexa(points, quality)
      do m=1, Ng ! Gauss in s
         do l=1, Ng ! Gauss in t
 
-          Xd = zero
+           Xd = zero
            do k=1, 2
               do j=1, 2
                  do i=1, 2
@@ -549,17 +491,17 @@ subroutine quality_hexa(points, quality)
                     Xd(1) = Xd(1) + points(1, counter)*Na(counter)
                     Xd(2) = Xd(2) + points(2, counter)*Na(counter)
                     Xd(3) = Xd(3) + points(3, counter)*Na(counter)
-                    
+
                     Nb(counter) = shp(i, l)*dshp(j, m)*shp(k, nn)
                     Xd(4) = Xd(4) + points(1, counter)*Nb(counter)
                     Xd(5) = Xd(5) + points(2, counter)*Nb(counter)
                     Xd(6) = Xd(6) + points(3, counter)*Nb(counter)
-                    
+
                     Nc(counter) = shp(i, l)*shp(j, m)*dshp(k, nn)
                     Xd(7) = Xd(7) + points(1, counter)*Nc(counter)
                     Xd(8) = Xd(8) + points(2, counter)*Nc(counter)
                     Xd(9) = Xd(9) + points(3, counter)*Nc(counter)
-                    
+
                  end do
               end do
            end do
@@ -639,7 +581,6 @@ function dist(p1, p2)
 
 end function dist
 
-
 subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 
   ! Given a list of N points (pts) in three space, with possible
@@ -647,232 +588,77 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
   ! uniquePoints of points and a link array of length N, that points
   ! into the unique list
   use precision
+  use kdtree2_module
+  use hypdata
   implicit none
 
   ! Input Parameters
   integer(kind=intType), intent(in) :: N
-  real(kind=realType), intent(in), dimension(:, :) :: pts
+  real(kind=realType), intent(in), dimension(3, N) :: pts
   real(kind=realType), intent(in) :: tol
 
   ! Output Parametres
-  real(kind=realType), intent(out), dimension(:,:) :: uniquePts
-  integer(kind=intType), intent(out), dimension(:) :: link
+  real(kind=realType), intent(out), dimension(3, N) :: uniquePts
+  integer(kind=intType), intent(out), dimension(N) :: link
   integer(kind=intType), intent(out) :: nUnique
 
-  ! Working Parameters
-  real(kind=realType), allocatable, dimension(:) :: dists, tmp
-  integer(kind=intType), allocatable, dimension(:) :: ind
-  integer(kind=intType) :: i, j, nTmp, link_counter, ii, nSubUnique
-  logical cont, cont2
-  integer(kind=intType), dimension(:), allocatable :: tmpInd, subLInk
-  real(kind=realType), dimension(:, :), allocatable :: subPts, subUniquePts
-  real(kind=realType), dimension(3) :: Xavg
-  integer(kind=intType) :: maxSubUnique
-  interface
-     subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
-       use precision
-       implicit none
-       real(kind=realType), dimension(:, :) :: pts
-       integer(kind=intType), intent(in) :: N
-       real(kind=realType), intent(in) :: tol
-       real(kind=realType), dimension(:, :) :: uniquePts
-       integer(kind=intType), dimension(:) :: link
-       integer(kind=intType) :: nUnique
-     end subroutine pointReduceBruteForce
+  ! Working paramters
+  type(kdtree2), pointer :: mytree
+  real(kind=realType) :: tol2, timeb, timea
+  integer(kind=intType) :: nFound, i, j, nAlloc
+  type(kdtree2_result), allocatable, dimension(:) :: results
 
-  end interface
-  maxSubUnique = 10
-  ! Allocate dists, and the ind pointer
-  allocate(dists(N), tmp(N), ind(N), tmpInd(maxSubUnique), subLink(maxSubUnique), &
-       subPts(3, maxSubUnique), subUniquePts(3, maxSubUnique))
+  ! We will use the KD_tree to do most of the heavy lifting here:
+  mytree => kdtree2_create(pts, sort=.True.)
 
-  Xavg(1) = sum(pts(:, 1))/N
-  Xavg(2) = sum(pts(:, 2))/N
-  Xavg(3) = sum(pts(:, 3))/N
+  ! KD tree works with the square of the tolerance
+  tol2 = tol**2
 
-  ! Compute distances of all points from the origin
-  do i=1, N
-     dists(i) = sqrt((pts(1,i)-Xavg(1))**2 + (pts(2,i)-Xavg(2))**2 + (pts(3, i)-Xavg(3))**2)
-     tmp(i) = dists(i)
-     ind(i) = i
-  end do
+  ! Unlikely we'll have more than 20 points same, but there is a
+  ! safetly check anwyay.
+  nalloc = 20
+  allocate(results(nalloc))
 
-  ! Do an argsort on the distances
-  call ArgQsort(tmp, N, ind)
-
-  i = 1
-  cont = .True.
-  link_counter = 0
+  link = 0
   nUnique = 0
 
-  do while(cont)
-     cont2 = .True.
-     j = i
-     nTmp = 0
-     do while(cont2)
-        if (abs(dists(ind(i))-dists(ind(j))) < tol) then
-           nTmp = nTmp + 1
-           j = j + 1
-           if (j == N+1) then ! Overrun check
-              cont2 = .False.
-           end if
-        else
-           cont2 = .False.
+  ! Loop over all nodes
+  do i=1, N
+     if (link(i) == 0) then 
+        call kdtree2_r_nearest(mytree, pts(:, i), tol2, nFound, nAlloc, results)
+
+        ! Expand if necesary and re-run
+        if (nfound > nalloc) then 
+           deallocate(results)
+           nalloc = nfound
+           allocate(results(nalloc))
+           call kdtree2_r_nearest(mytree, pts(:, i), tol2, nFound, nAlloc, results)
         end if
-     end do
 
-     ! Not enough space...deallocate and reallocate
-     if (ntmp > maxSubUnique) then
-        deallocate(tmpInd, subLink, subPts, subUniquePts)
-        maxSubUnique = nTmp
-        allocate(tmpInd(maxSubUnique), subLink(maxSubUnique), &
-             subPts(3, maxSubUnique), subUniquePts(3, maxSubUnique))
-     end if
+        if (nFound == 1) then 
+           ! This one is easy, it is already a unique node
+           nUnique = nUnique + 1
+           link(i) = nUnique
+           uniquePts(:, nUnique) = pts(:, i)
+        else
+           if (link(i) == 0) then 
+              ! This node hasn't been assigned yet:
+              nUnique = nUnique + 1
+              uniquePts(:, nUnique) = pts(:, i)
 
-     ! Copy the points that have the same distance into subPts. Note
-     ! these may NOT be the same, since two points can have the same
-     ! distance, but not be co-incident (ie (1,0,0), (-1,0,0))
-     do ii=1,nTmp
-        tmpInd(ii) = ind(j - nTmp + ii - 1)
-        subPts(:, ii) = pts(:, tmpInd(ii))
-     end do
-
-     ! Brute Force Search them 
-     call pointReduceBruteForce(subPts, nTmp, tol, subUniquePts, subLink, nSubUnique)
-
-     do ii=1,nSubUnique
-        nUnique = nUnique + 1
-        uniquePts(:, nUnique) = subUniquePts(:,ii)
-     end do
-
-     do ii=1,nTmp
-        link(tmpInd(ii)) = subLink(ii) + link_counter
-     end do
-
-     link_counter = link_counter +  maxval(subLink) 
-
-     i = j - 1 + 1
-     if (i == N+1) then
-        cont = .False.
+              do j=1, nFound
+                 link(results(j)%idx) = nUnique
+              end do
+           end if
+        end if
      end if
   end do
-  deallocate(dists, tmp, ind, tmpInd, subLink, subPts, subUniquePts)
+
+  ! Done with the tree and the result vector
+  call kdtree2_destroy(mytree)
+  deallocate(results)
 
 end subroutine pointReduce
-
-subroutine pointReduceBruteForce(pts, N, tol, uniquePts, link, nUnique)
-
-  ! Given a list of N points (pts) in three space, with possible
-  ! duplicates, (to within tol) return a list of the nUnqiue
-  ! uniquePoints of points and a link array of length N, that points
-  ! into the unique list
-
-  use precision 
-  implicit none
-
-  ! Input Parameters
-  integer(kind=intType), intent(in) :: N
-  real(kind=realType), intent(in), dimension(:, :) :: pts
-  real(kind=realType), intent(in) :: tol
-
-  ! Output Parametres
-  real(kind=realType), intent(out), dimension(:,:) :: uniquePts
-  integer(kind=intType), intent(out), dimension(:) :: link
-  integer(kind=intType), intent(out) :: nUnique
-
-  ! Working parameters
-  integer(kind=intType) :: i, j
-  real(kind=realType) :: dist
-  logical :: found_it
-
-  ! First point is *always* unique
-  uniquePts(:, 1) = pts(:, 1)
-  link(:) = 0
-  link(1) = 1
-  nUnique = 1
-
-  do i=2,N
-     found_it = .False.
-     uniqueLoop: do j=1,nUnique
-        dist = sqrt((pts(1, i)-uniquePts(1, j))**2 + &
-             (pts(2, i) - uniquePts(2, j))**2 + &
-             (pts(3, i) - uniquePts(3, j))**2)
-        if (dist < tol) then
-           link(i) = j
-           found_it = .True. 
-           exit uniqueLoop
-        end if
-     end do uniqueLoop
-
-     if (.not. found_it) then
-        nUnique = nUnique + 1
-        uniquePts(:, nUnique) = pts(:, i)
-        link(i) = j 
-     end if
-  end do
-
-end subroutine pointReduceBruteForce
-
-recursive subroutine ArgQSort(A, nA, ind)
-
-  ! Do an ArgQuickSort. Adapted from
-  ! http://rosettacode.org/wiki/Sorting_algorithms/Quicksort#FPr. Modified
-  ! such that array 'A' is unchanged and the index 'ind' is initialzed
-  ! inside the algorithm
-
-  use precision
-  implicit none
-
-  ! DUMMY ARGUMENTS
-  integer(kind=intType), intent(in) :: nA
-  real(kind=realType), dimension(nA), intent(inout) :: A
-  integer(kind=intType), dimension(nA), intent(inout) :: ind
-
-  ! LOCAL VARIABLES
-  integer(kind=intType) :: left, right, itemp, i
-  real(kind=realType) :: random, pivot, temp
-  integer(kind=intType) :: marker
-
-  if (nA > 1) then
-
-     call random_number(random)
-     i = int(random*real(nA-1))+1
-     pivot = A(i)    ! random pivot (not best performance, but avoids worst-case)
-     left = 0
-     right = nA + 1
-
-     do while (left < right)
-        right = right - 1
-        do while (A(right) > pivot)
-           right = right - 1
-        end do
-        left = left + 1
-        do while (A(left) < pivot)
-           left = left + 1
-        end do
-        if (left < right) then
-           ! Swap value 
-           temp = A(left)
-           A(left) = A(right)
-           A(right) = temp
-           ! ! And swap index
-           iTemp = ind(left)
-           ind(left) = ind(right)
-           ind(right) = itemp
-
-        end if
-     end do
-
-     if (left == right) then
-        marker = left + 1
-     else
-        marker = left
-     end if
-
-     call argQSort(A(:marker-1), marker-1, ind(:marker-1))
-     call argQSort(A(marker:), nA-marker+1, ind(marker:))
-  end if
-end subroutine ArgQSort
 
 subroutine getSurfaceCoordinates(coords, n)
 
@@ -885,12 +671,12 @@ subroutine getSurfaceCoordinates(coords, n)
   real(kind=realType), intent(inout), dimension(n) :: coords
   integer(kind=intType) :: ierr
 
-  call VecGetArrayF90(X(n), xx, ierr)
+  call VecGetArrayF90(X(1), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
   ! Just copy
   coords = xx
-  call VecRestoreArrayF90(X(n), xx, ierr)
+  call VecRestoreArrayF90(X(1), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
 end subroutine getSurfaceCoordinates
@@ -906,18 +692,18 @@ subroutine setSurfaceCoordinates(coords, n)
   real(kind=realType), intent(in), dimension(n) :: coords
   integer(kind=intType) :: ierr
 
-  call VecGetArrayF90(X(n), xx, ierr)
+  call VecGetArrayF90(X(1), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
   ! Just copy
   xx = coords
 
-  call VecRestoreArrayF90(X(n), xx, ierr)
+  call VecRestoreArrayF90(X(1), xx, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
 end subroutine setSurfaceCoordinates
 
-subroutine assignNode2NodeConn(nodeConn, node1, node2)
+subroutine assignN2NDirected(nodeConn, nEdge, n1, n2, size1, size2)
 
   ! This subroutine assigns connection from node 1 to node 2
   ! in the nodeConn matrix. If this connection is already assigned
@@ -927,251 +713,64 @@ subroutine assignNode2NodeConn(nodeConn, node1, node2)
   implicit none
 
   ! Input variables
-  integer(kind=intType), intent(in) :: node1, node2
+  integer(kind=intType), intent(in) :: n1, n2, size1, size2
 
   ! Input/Output variables
-  integer(kind=intType), dimension(:,:), intent(inout) :: nodeConn
+  integer(kind=intType), dimension(size1, size2), intent(inout) :: nodeConn
+  integer(kind=intType), dimension(size2), intent(inout) :: nEdge
 
   ! Working variables
-  integer(kind=intType) :: i, numConn
+  integer(kind=intType) :: i
+  logical :: foundNode
 
-  ! BEGIN EXECUTION
-
-  ! Get the total number of connections allowed
-  numConn = size(nodeConn,1)
-
-  do i=1,numConn
-
-     ! Check if node1 to node2 connection already exists
-     if (nodeConn(i, node1) .eq. node2) then
-        ! Flag this node by setting all connections to -1
-        nodeConn(:,node1) = -1
-        ! Get out of this loop
-        exit
-
-     else if (nodeConn(i, node1) .eq. 0) then
-        ! If we reach 0, then we already checked all connections
-        ! and we can assign the new one without problems
-        nodeConn(i, node1) = node2
-        ! Get out of this loop
-        exit
-
+  foundNode = .False.
+  do i=1, nEdge(n1)
+     if (nodeConn(i, n1) == n2) then 
+        foundNode = .True. 
      end if
-
   end do
-
-end subroutine assignNode2NodeConn
-
-subroutine extrapolatePoint(x1,x2,x3)
-
-  ! This subroutine extrapolates the line connecting points x1 and x2
-  ! to find x3. x2 will be the middle point between x1 and x3
-
-  use precision
-  implicit none
-
-  ! Input variables
-  real(kind=realType), intent(in) :: x1(3), x2(3)
-
-  ! Output variables
-  real(kind=realType), intent(out) :: x3(3)
-
-  ! BEGIN EXECUTION
-
-  x3 = 2*x2 - x1
-
-end subroutine extrapolatePoint
-
-subroutine cellArea(x1,x2,x3,x4,S)
-
-  ! This subroutine computes the cell area defined by the nodes x1, x2, x3, x4.
-  !
-  !   ========
-  !  |x1    x2|
-  !  |        |
-  !  |x4    x3|
-  !   ========
-
-
-  use precision
-  implicit none
-
-  ! Input variables
-  real(kind=realType), intent(in) :: x1(3), x2(3), x3(3), x4(3)
-
-  ! Output variables
-  real(kind=realType), intent(out) :: S
-
-  ! Working variables
-  real(kind=realType) :: v1(3), v2(3), v3(3)
-
-  ! BEGIN EXECUTION
-
-  ! Compute diagonal vectors
-  v1(:) = x3 - x1
-  v2(:) = x4 - x2
-
-  ! Cross Product
-  call cross_prod(v1,v2,v3)
-  
-  ! Compute area
-  S = half*sqrt(v3(1)*v3(1) + v3(2)*v3(2) + v3(3)*v3(3))
-
-end subroutine cellArea
-
-subroutine extrapolateArea(x1,x2,x3,x4,side,areaRatio)
-
-  ! This subroutine computes the ratio of the extrapolated area to the
-  ! initial cell area defined by the nodes x1, x2, x3, x4.
-  !
-  !   ==========================
-  !  |        |        |        |
-  !  |   5    |   2    |   6    |
-  !  |        |        |        |
-  !   ==========================
-  !  |        |x1    x2|        |
-  !  |   1    |   0    |   3    |
-  !  |        |x4    x3|        |
-  !   ==========================
-  !  |        |        |        |
-  !  |   8    |   4    |   7    |
-  !  |        |        |        |
-  !   ==========================
-  !
-  !  side = 1 computes S(1+0)/S(0)
-  !  side = 2 computes S(2+0)/S(0)
-  !  side = 3 computes S(3+0)/S(0)
-  !  side = 4 computes S(4+0)/S(0)
-  !  side = 5 computes S(1+5+2+0)/S(0)
-  !  side = 6 computes S(2+6+3+0)/S(0)
-  !  side = 7 computes S(3+7+4+0)/S(0)
-  !  side = 8 computes S(4+8+1+0)/S(0)
-
-  use precision
-  implicit none
-
-  ! Input parameters
-  real(kind=realType), intent(in) :: x1(3), x2(3), x3(3), x4(3)
-  integer(kind=intType), intent(in) :: side
-
-  ! Outputs parameters
-  real, intent(out) :: areaRatio
-
-  ! Working parameters
-  real(kind=realType) :: xi(3), xj(3), xk(3), xl(3)
-  real(kind=realType) :: xm1(3), xm2(3), xm(3)
-  real(kind=realType) :: S0, Stot, deltaS
-
-  ! BEGIN EXECUTION
-
-  ! Compute original cell area
-  call cellArea(x1,x2,x3,x4,S0)
-
-  ! Initialize total area
-  Stot = S0
-
-  if (side .eq. 1) then
-     ! Extrapolate points
-     call extrapolatePoint(x2,x1,xi)
-     call extrapolatePoint(x3,x4,xj)
-     ! Compute area of new cells and add to total
-     call cellArea(xi,x1,x4,xj,deltaS)
-     Stot = Stot + deltaS
-  else if (side .eq. 2) then
-     ! Extrapolate points
-     call extrapolatePoint(x4,x1,xi)
-     call extrapolatePoint(x3,x2,xj)
-     ! Compute area of new cells and add to total
-     call cellArea(xi,xj,x2,x1,deltaS)
-     Stot = Stot + deltaS
-  else if (side .eq. 3) then
-     ! Extrapolate points
-     call extrapolatePoint(x1,x2,xi)
-     call extrapolatePoint(x4,x3,xj)
-     ! Compute area of new cells and add to total
-     call cellArea(x2,xi,xj,x3,deltaS)
-     Stot = Stot + deltaS
-  else if (side .eq. 4) then
-     ! Extrapolate points
-     call extrapolatePoint(x1,x4,xi)
-     call extrapolatePoint(x2,x3,xj)
-     ! Compute area of new cells and add to total
-     call cellArea(x4,x3,xj,xi,deltaS)
-     Stot = Stot + deltaS
-  else if (side .eq. 5) then
-     ! Extrapolate points
-     call extrapolatePoint(x2,x1,xi)
-     call extrapolatePoint(x3,x4,xj)
-     call extrapolatePoint(x4,x1,xk)
-     call extrapolatePoint(x3,x2,xl)
-     ! Extapolate the diagonal node taking the average of two extrapolations
-     call extrapolatePoint(xj,xi,xm1)
-     call extrapolatePoint(xl,xk,xm2)     
-     xm = half*(xm1 + xm2)
-     ! Compute area of new cells and add to total
-     call cellArea(xi,x1,x4,xj,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(xm,xk,x1,xi,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(xk,xl,x2,x1,deltaS)
-     Stot = Stot + deltaS
-  else if (side .eq. 6) then
-     ! Extrapolate points
-     call extrapolatePoint(x4,x1,xi)
-     call extrapolatePoint(x3,x2,xj)
-     call extrapolatePoint(x1,x2,xk)
-     call extrapolatePoint(x4,x3,xl)
-     ! Extapolate the diagonal node taking the average of two extrapolations
-     call extrapolatePoint(xi,xj,xm1)
-     call extrapolatePoint(xl,xk,xm2)     
-     xm = half*(xm1 + xm2)
-     ! Compute area of new cells and add to total
-     call cellArea(xi,xj,x2,x1,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(xj,xm,xk,x2,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(x2,xk,xl,x3,deltaS)
-     Stot = Stot + deltaS
-  else if (side .eq. 7) then
-     ! Extrapolate points
-     call extrapolatePoint(x1,x2,xi)
-     call extrapolatePoint(x4,x3,xj)
-     call extrapolatePoint(x1,x4,xk)
-     call extrapolatePoint(x2,x3,xl)
-     ! Extapolate the diagonal node taking the average of two extrapolations
-     call extrapolatePoint(xi,xj,xm1)
-     call extrapolatePoint(xk,xl,xm2)     
-     xm = half*(xm1 + xm2)
-     ! Compute area of new cells and add to total
-     call cellArea(x2,xi,xj,x3,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(x3,xj,xm,xl,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(x4,x3,xl,xk,deltaS)
-     Stot = Stot + deltaS
-  else if (side .eq. 8) then
-     ! Extrapolate points
-     call extrapolatePoint(x2,x1,xi)
-     call extrapolatePoint(x3,x4,xj)
-     call extrapolatePoint(x1,x4,xk)
-     call extrapolatePoint(x2,x3,xl)
-     ! Extapolate the diagonal node taking the average of two extrapolations
-     call extrapolatePoint(xi,xj,xm1)
-     call extrapolatePoint(xl,xk,xm2)     
-     xm = half*(xm1 + xm2)
-     ! Compute area of new cells and add to total
-     call cellArea(xi,x1,x4,xj,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(xj,x4,xk,xm,deltaS)
-     Stot = Stot + deltaS
-     call cellArea(x4,x3,xl,xk,deltaS)
-     Stot = Stot + deltaS
+  if (foundNode) then 
+     nodeConn(:, n1) = -1
+  else
+     nEdge(n1) = nEdge(n1) + 1
+     nodeConn(nEdge(n1), n1) = n2
   end if
 
-  ! Finally compute the area ratio
-  areaRatio = Stot/S0
+end subroutine assignN2NDirected
 
-end subroutine extrapolateArea
+subroutine assignN2N(nodeConn, nEdge, n1, n2, size1, size2)
+
+  ! This subroutine assigns connection from node 1 to node 2
+  ! in the nodeConn matrix. If this connection is already assigned
+  ! then we should flag this node as this indicates flipped normals
+
+  use precision
+  implicit none
+
+  ! Input variables
+  integer(kind=intType), intent(in) :: n1, n2, size1, size2
+
+  ! Input/Output variables
+  integer(kind=intType), dimension(size1, size2), intent(inout) :: nodeConn
+  integer(kind=intType), dimension(size2), intent(inout) :: nEdge
+
+  ! Working variables
+  integer(kind=intType) :: i
+  logical :: foundNode
+
+  foundNode = .False.
+  do i=1, nEdge(n1)
+     if (nodeConn(i, n1) == n2) then 
+        foundNode = .True. 
+     end if
+  end do
+
+  if (.not. foundNode) then 
+     nEdge(n1) = nEdge(n1) + 1
+     nodeConn(nEdge(n1), n1) = n2
+  end if
+
+end subroutine assignN2N
 
 subroutine findKStretch(XL, XLm1, XLm2)
   !***DESCRIPTION
@@ -1242,12 +841,12 @@ subroutine findKStretch(XL, XLm1, XLm2)
   maxKStretch = 0.0
 
   ! Compute strech for every point
-  do i=1,nx
-     
+  do i=1 ,nx
+
      ! Get node coordinates on each layer
-     rl = xxl(3*i-2:3*i)
-     rlm1 = xxlm1(3*i-2:3*i)
-     rlm2 = xxlm2(3*i-2:3*i)
+     rl = xxl(3*i-2 : 3*i)
+     rlm1 = xxlm1(3*i-2 : 3*i)
+     rlm2 = xxlm2(3*i-2 : 3*i)
 
      ! Compute stretch ratio (function dist defined in 3D_utilities.F90)
      KStretch = dist(rl, rlm1)/dist(rlm1, rlm2)
@@ -1268,3 +867,352 @@ subroutine findKStretch(XL, XLm1, XLm2)
   call EChk(ierr,__FILE__,__LINE__)
 
 end subroutine findKStretch
+
+subroutine addMissing(nList, n1, n2, n3)
+
+  use precision 
+  implicit none
+
+  integer(kind=intType), intent(in) :: nList(3), n1, n2
+  integer(kind=intType), intent(out) :: n3
+  integer(kind=intType) :: i
+  ! For a list of 3 integers, nList, and two given integer n1, n2 which
+  ! are also in the list, return the other one in the list
+
+  do i=1,3
+     if (.not. (nList(i) == n1 .or. nList(i) == n2)) then 
+        n3 = nList(i)
+     end if
+  end do
+end subroutine addMissing
+
+! subroutine getBCCorner(bcType, p0, p1, p2, p3, p4)
+!   ! Apply the boundary condition to compute p3 and p4 in the following
+!   ! situation:
+!   !
+!   !               p2----------+
+!   !               |           |
+!   !               |           |
+!   !               |           |
+!   !     p3--------p0----------p1
+!   !               |            
+!   !               |            
+!   !               |            
+!   !               p4
+!   !
+!   ! For this case TWO BCTypes must be given. The first BC determines
+!   ! p3 while the second BC determines p4. 
+
+!   use hypInput
+!   use hypData, only : marchIter
+!   implicit none
+
+!   ! Input
+!   integer(kind=intType), intent(in), dimension(2) :: bcType
+!   real(kind=realType), dimension(3) :: p0, p1, p2
+
+!   ! Output
+!   real(kind=realType), dimension(3) :: p3, p4
+
+!   ! Working:
+!   real(kind=realType), dimension(3) :: v1, v2, normal, edgeNormal, p0_new
+!   real(kind=realType), dimension(3) :: p4_extrap, p4_splay, p3_extrap, p3_splay
+!   real(kind=realType) :: blend, dist
+
+!   blend = splayCornerOrthogonality
+
+!   p0_new = p0
+
+!   ! ------------------ Boundary Condition 1 -----------------
+!   select case(BCType(1))
+!   case (BCSplay)
+!      p3_extrap = (2+splay)*p0 - (1+splay)*p1
+
+!      ! Distance between p1 and p0
+!      dist = norm2(p1-p0)
+
+!      ! Compute the normal
+!      v1 = p1 - p0
+!      v1 = v1 / norm2(v1)
+
+!      v2 = p2 - p0
+!      v2 = v2 / norm2(v2)
+
+!      call cross_prod(v1, v2, normal)
+!      normal = normal / norm2(normal)
+
+!      ! Now cross product for the edge normal
+!      call cross_prod(v2, normal, edgeNormal)
+!      edgeNormal = edgeNormal / norm2(edgeNormal)
+
+!      p3_splay = p0 - edgeNormal*(1+splay)*dist
+
+!      p3 = (one-blend)*p3_extrap + blend*p3_splay
+
+!   case (BCXSymm)
+!      p3 = (/-p1(1), p1(2), p1(3)/)
+!      p0_new(1) = zero
+
+!   case (BCYSymm) 
+!      p3 = (/p1(1), -p1(2), p1(3)/)
+!      p0_new(2) = zero
+
+!   case (BCZSymm)
+!      p3 = (/p1(1), p1(2), -p1(3)/)
+!      p0_new(3) = zero
+     
+!   case (BCXConst, BCYConst, BCZConst)
+!      p3 = 2*p0 - p1
+
+!      p0_new(2) = zero
+
+!   case (BCAverage) 
+!      p0_new(2) = zero
+
+!   case default
+!      print *,'BC Error'
+!      stop
+!   end select
+
+!   ! ------------------ Boundary Condition 2 -----------------
+!   select case(BCType(2))
+!   case (BCSplay)
+!      p4_extrap = (2+splay)*p0 - (1+splay)*p2
+
+!      ! Distance between p1 and p0
+!      dist = norm2(p2-p0)
+
+!      ! Compute the normal
+!      v1 = p1 - p0
+!      v1 = v1 / norm2(v1)
+
+!      v2 = p2 - p0
+!      v2 = v2 / norm2(v2)
+
+!      call cross_prod(v1, v2, normal)
+!      normal = normal / norm2(normal)
+
+!      ! Now cross product for the edge normal
+!      call cross_prod(v1, normal, edgeNormal)
+!      edgeNormal = edgeNormal / norm2(edgeNormal)
+
+!      p4_splay = p0 + edgeNormal*(1+splay)*dist
+
+!      p4 = (one-blend)*p4_extrap + blend*p4_splay
+     
+!   case(BCXSymm)
+!      p4 = (/-p2(1), p2(2), p2(3)/)
+!      p0_new(1) = zero
+
+!   case (BCYSymm)
+!      p4 = (/p2(1), -p2(2), p2(3)/)
+!      p0_new(2) = zero
+
+!   case (BCZSymm)
+!      p4 = (/p2(1), p2(2), -p2(3)/)
+!      p0_new(3) = zero
+
+!   case (BCXConst, BCYConst, BCZConst)
+!      !p4 = p4_extrap
+!      p4 = 2*p0 - p2
+!      p0_new(2) = zero
+
+!   case (BCAverage) 
+!      p0_new(2) = zero
+
+!   case default
+!      print *,'BC Error'
+!      stop
+!  end select
+
+!  ! Set the updated center coordinate. 
+!  p0 = p0_new
+! end subroutine getBCCorner
+
+
+
+! subroutine getBCEdge(bcType, p0, p1, p2, p3, p4)
+
+!   ! Apply the boundary condition to compute p4 in the following
+!   ! situation:
+!   !
+!   !     +---------p2----------+
+!   !     |         |           |
+!   !     |         |           |
+!   !     |         |           |
+!   !     p3--------p0----------p1
+!   !               |            
+!   !               |            
+!   !               |            
+!   !               p4
+!   !
+!   use hypInput 
+!   use hypData, only :marchIter
+!   implicit none
+
+!   ! Input
+!   integer(kind=intType), intent(in) :: bcType
+!   real(kind=realType), dimension(3) :: p0, p1, p2, p3
+
+!   ! Output
+!   real(kind=realType), dimension(3) :: p4
+
+!   ! Working:
+!   real(kind=realType), dimension(3) :: v1, v2, normal
+!   real(kind=realType), dimension(3) :: p4_extrap, p4_splay, edgeNormal
+!   real(kind=realType) :: blend, dist
+
+!   blend = splayEdgeOrthogonality
+
+!   select case(bcType) 
+!   case (BCSplay)
+
+!      ! Regular extrapolation without orthogonality
+!      p4_extrap = (2+splay)*p0 - (1+splay)*p2
+
+!      ! Distance between p2 and p0
+!      dist = norm2(p2-p0)
+
+!      ! Compute the normal
+!      v1 = p1 - p3
+!      v1 = v1 / norm2(v1)
+
+!      v2 = p2 - p0
+!      v2 = v2/norm2(v2)
+
+!      call cross_prod(v1, v2, normal)
+!      normal = normal / norm2(normal)
+
+!      ! Now cross product for the edge normal
+!      call cross_prod(v1, normal, edgeNormal)
+!      edgeNormal = edgeNormal / norm2(edgeNormal)
+
+!      p4_splay = p0 + edgeNormal*(1+splay)*dist
+
+!      p4 = (one-blend)*p4_extrap + blend*p4_splay
+
+!   case (BCXSymm)
+!      !p4 = (/two*BCVal(1) -p2(1), p2(2), p2(3)/)
+!      p0(1) = zero
+!   case (BCYSymm)
+!      !p4 = (/p2(1), two*BCVal(1)-p2(2), p2(3)/)
+!      p4 = (/p2(1), zero, p2(3)/)
+!      p0(2) = zero
+!   case (BCZSymm)
+!      !p4 = (/p2(1), p2(2), two*BCVal(1)-p2(3)/)
+!      p0(3) = zero
+!   case (BCXConst) 
+!      p4 = two*p0 - p2
+!      !p0(1) = BCVal(1)
+!   case(BCYConst) 
+!      p4 = two*p0 - p2
+!      !p0(2) = BCVal(1)
+!   case(BCZConst)
+!      p4 = two*p0 - p2
+!      !p0(3) = BCVal(1)
+!   case default
+!      print *,'BC Error', bcTYpe
+!      stop
+!  end select
+
+! end subroutine getBCEdge
+
+
+! subroutine getBCEdgeBlocks(bcType, blk4, blk0, blk2)
+
+!   use hypInput
+!   implicit none
+
+!   ! Input
+!   integer(kind=intType), intent(in) :: bcType
+!   real(kind=realType), dimension(3,3), intent(in) :: blk4
+
+!   ! Output
+!   real(kind=realType), dimension(3,3), intent(out) :: blk0, blk2
+!   blk2 = zero
+!   select case(bcType)
+!   case (BCSplay)
+!      blk0 = (one + splay)*blk4
+!      blk2 = -splay*blk4
+
+!   case (BCXSymm)
+!      blk0 = zero
+!      blk2 = blk4
+!      blk2(:, 1) = -blk2(:, 1)
+
+!   case (BCYSymm) 
+!      blk0 = zero
+!      blk2 = blk4
+!      blk2(:, 2) = -blk2(:, 2)
+!    case (BCZSymm)
+!      blk0 = zero
+!      blk2 = blk4
+!      blk2(:, 3) = -blk2(:, 3)
+
+!   case (BCXConst, BCYConst, BCZConst)
+!      blk0 = zero
+!      blk2 = blk4
+!   end select
+
+! end subroutine getBCEdgeBlocks
+
+! subroutine getBCCornerBlocks(bcType, blk3, blk4, blk0, blk1, blk2)
+
+!   use hypInput
+!   implicit none
+
+!   ! Input
+!   integer(kind=intType), intent(in), dimension(2) :: bcType
+!   real(kind=realType), dimension(3,3), intent(in) :: blk3, blk4
+
+!   ! Output
+!   real(kind=realType), dimension(3,3), intent(out) :: blk0, blk1, blk2
+
+!   ! blk0 needs to be zeroed since we will have two contributions to it
+!   blk0 = zero
+!   blk1 = zero
+!   blk2 = zero
+!   ! ------------------ Boundary Condition 1 -----------------
+!   select case (bcType(1))
+!   case (BCSplay)
+!      blk0 = blk0 + (one + splay)*blk3
+!      blk1 = -splay*blk3
+
+!   case (BCXSymm) 
+!      blk1 = blk3
+!      blk1(:, 1) = -blk1(:, 1)
+
+!   case (BCYSymm) 
+!      blk1 = blk3
+!      blk1(:, 2) = -blk1(:, 2)
+
+!   case (BCZSymm) 
+!      blk1 = blk3
+!      blk1(:, 3) = -blk1(:, 3)
+!   case (BCXConst, BCYConst, BCZConst) 
+!      blk1 = blk3
+!   case (BCAverage)
+!      blk1 = blk3
+!   end select
+
+!   ! ------------------ Boundary Condition 2 -----------------
+!   select case (bcType(2))
+!   case (BCSplay)
+!      blk0 = blk0 + (one + splay)*blk4
+!      blk2 = -splay*blk4
+!   case (BCXSymm) 
+!      blk2 = blk4
+!      blk2(:, 1) = -blk2(:, 1)
+!   case (BCYSymm) 
+!      blk2 = blk4
+!      blk2(:, 2) = -blk2(:, 2)
+!   case (BCZSymm) 
+!      blk2 = blk4
+!      blk2(:, 3) = -blk2(:, 3)
+!   case (BCXConst, BCYConst, BCZConst) 
+!      blk2 = blk4
+!   case (BCAverage)
+!      blk2 = blk4
+!   end select
+
+! end subroutine getBCCornerBlocks

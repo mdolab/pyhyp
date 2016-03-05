@@ -1,33 +1,36 @@
 from pyhyp import pyHyp
-fileName = 'm6_small.fmt'
-#fileName = 'm6_large.fmt'
-#fileName = 'm6_tiny.fmt'
+
+fileName = 'plate_surf.cgns'
+fileType = 'CGNS'
 
 options= {
+
     # ---------------------------
     #        Input Parameters
     # ---------------------------
     'inputFile':fileName,
-    'unattachedEdgesAreSymmetry':True,
-    'outerFaceBC':'farField',
+    'fileType': 'CGNS',
+    'unattachedEdgesAreSymmetry':False,
+    'outerFaceBC':'overset',
     'autoConnect':True,
-    'BC':{},
+    'BC':{1:{'jLow':'XYConst',
+             'iLow':'XConst', 
+             'iHigh':'XConst'}},
     'families':'wall',
-    
+
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 81,
-    's0':1.5e-5,
-    'marchDist':30,
-    'nConstant':1,
-    
+    'N': 65, 
+    's0': 1e-6,
+    'marchDist':2.5,
+    'splay':0.5,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    'ps0':-1,
-    'pGridRatio':-1,
-    'cMax':5.0,
+    'ps0': -1,
+    'pGridRatio': -1,
+    'cMax': 5,
 
     # ---------------------------
     #   Smoothing parameters
@@ -35,14 +38,11 @@ options= {
     'epsE': 1.0,
     'epsI': 2.0,
     'theta': 3.0,
-    'volCoef': .25,
-    'volBlend': 0.0005,
+    'volCoef': 0.25,
+    'volBlend': 0.0001,
     'volSmoothIter': 100,
-    'kspreltol':1e-4,
 }
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS('m6.cgns')
-
-
+hyp.writeCGNS('face3D.cgns')

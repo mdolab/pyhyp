@@ -10,32 +10,51 @@ python module hyp ! in
             real(kind=realtype) :: ps0
             real(kind=realtype) :: pgridratio
             integer(kind=inttype) :: n
+            integer(kind=inttype) :: nconstant
             integer(kind=inttype) :: volsmoothiter
             real(kind=realtype) :: slexp
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
-            real(kind=realtype) :: sigmasplay
-            real(kind=realtype) :: nusplay
+            real(kind=realtype) :: splay
+            real(kind=realtype) :: splayedgeorthogonality
+            real(kind=realtype) :: splaycornerorthogonality
             real(kind=realtype) :: kspreltol
             logical :: nonlinear
+            logical :: unattachededgesaresymmetry
             logical :: writemetrics
             integer(kind=inttype) :: kspmaxits, preconlag, kspsubspacesize
-            real(kind=realtype) :: rmin
+            real(kind=realtype) :: marchdist
             real(kind=realtype) :: cmax
             real(kind=realtype) :: nodetol
             real(kind=realtype) :: symtol
-            integer(kind=inttype) :: mirrortype
-            integer(kind=inttype), parameter :: nomirror = 0
-            integer(kind=inttype), parameter :: xmirror = 1
-            integer(kind=inttype), parameter :: ymirror = 2
-            integer(kind=inttype), parameter :: zmirror = 3
+            integer(kind=inttype), parameter :: bcdefault = -1
+            integer(kind=inttype), parameter :: bcsplay = 0
+            integer(kind=inttype), parameter :: bcxsymm = 1
+            integer(kind=inttype), parameter :: bcysymm = 2
+            integer(kind=inttype), parameter :: bczsymm = 3
+            integer(kind=inttype), parameter :: bcxconst = 4
+            integer(kind=inttype), parameter :: bcyconst = 5
+            integer(kind=inttype), parameter :: bczconst = 6
+            integer(kind=inttype), parameter :: bcxyconst = 7
+            integer(kind=inttype), parameter :: bcyzconst = 8
+            integer(kind=inttype), parameter :: bcxzconst = 9
+            integer(kind=inttype), parameter :: ilow = 1
+            integer(kind=inttype), parameter :: ihigh = 2
+            integer(kind=inttype), parameter :: jlow = 3
+            integer(kind=inttype), parameter :: jhigh = 4
             logical :: usematrixfree
             real(kind=realtype) :: farfieldtol
             integer(kind=inttype) :: evalmode
             integer(kind=inttype), parameter,optional :: eval_slow=1
             integer(kind=inttype), parameter,optional :: eval_fast=2
             integer(kind=inttype), parameter,optional :: eval_exact=0
+            integer(kind=inttype), parameter :: cgnsfiletype=1
+            integer(kind=inttype), parameter :: plot3dfiletype=2
             character(len=512) :: sourcestrengthfile
+            integer(kind=inttype) :: outerfacetype
+            integer(kind=inttype), parameter:: outerfacefarfield = 1
+            integer(kind=inttype), parameter:: outerfaceoverset = 2
+            integer(kind=intType), dimension(:, :), allocatable :: bcs
         end module hypinput
 
         module hypdata
@@ -45,10 +64,22 @@ python module hyp ! in
         subroutine releasememory
         end subroutine releasememory
 
-        subroutine setup(filename,filetype)
-          character*(*) :: filename
-          integer(kind=inttype) :: filetype
+        subroutine setup(filename,filetype) ! in :test:setup3d.F90
+          character*(*) intent(in) :: filename
+          integer(kind=inttype) intent(in) :: filetype
         end subroutine setup
+
+        subroutine setfamily(i,fam) ! in :test:setup3d.F90
+          use hypinput
+          integer(kind=inttype) intent(in) :: i
+          character*(*) intent(in) :: fam
+        end subroutine setfamily
+
+        subroutine getnblocks(filename,filetype,nblocks)
+          character*(*), intent(in) :: filename
+          integer(kind=inttype), intent(in) :: filetype
+          integer(kind=inttype), intent(out) :: nblocks
+        end subroutine getnblocks
         
         subroutine setuppanels
         end subroutine setuppanels
@@ -59,33 +90,12 @@ python module hyp ! in
         subroutine runelliptic
         end subroutine runelliptic
 
-        subroutine smoothwrap(nsteps, stepsize)
-          integer(kind=inttype) :: nsteps
-          real(kind=realtype) :: stepsize
-        end subroutine smoothwrap
-
         subroutine writecgns(filename) 
           character*(*) :: filename
         end subroutine writecgns
 
-        subroutine freezeedge(blockid,edge,dstar) ! in :test:smoothing.F90
-          integer(kind=inttype) intent(in) :: blockid
-          character*(*) :: edge
-          real(kind=realtype) intent(in) :: dstar
-        end subroutine freezeedge
-
-        subroutine freezefaces(blockids,nblockids,dstar) ! in :test:smoothing.F90
-          integer(kind=inttype) dimension(nblockids),intent(in) :: blockids
-          integer(kind=inttype), optional,intent(in),check(len(blockids)>=nblockids),depend(blockids) :: nblockids=len(blockids)
-          real(kind=realtype) intent(in) :: dstar
-        end subroutine freezefaces
-
-        subroutine zeromirrorplane(filename)
-          character*(*) intent(in) :: filename
-        end subroutine zeromirrorplane
-
         subroutine initpetsc(comm)
-          integer(kind=intType) :: comm
+          integer(kind=inttype) :: comm
         end subroutine initpetsc
         
         subroutine writeplot3d(filename) 
@@ -125,6 +135,24 @@ python module hyp ! in
           real(kind=realtype) dimension(n),intent(in) :: coords
           integer(kind=inttype), optional,intent(in),check(len(coords)>=n),depend(coords) :: n=len(coords)
         end subroutine setsurfacecoordinates
+
+        ! subroutine smoothwrap(nsteps, stepsize)
+        !   integer(kind=inttype) :: nsteps
+        !   real(kind=realtype) :: stepsize
+        ! end subroutine smoothwrap
+
+        ! subroutine freezeedge(blockid,edge,dstar) ! in :test:smoothing.F90
+        !   integer(kind=inttype) intent(in) :: blockid
+        !   character*(*) :: edge
+        !   real(kind=realtype) intent(in) :: dstar
+        ! end subroutine freezeedge
+
+        ! subroutine freezefaces(blockids,nblockids,dstar) ! in :test:smoothing.F90
+        !   integer(kind=inttype) dimension(nblockids),intent(in) :: blockids
+        !   integer(kind=inttype), optional,intent(in),check(len(blockids)>=nblockids),depend(blockids) :: nblockids=len(blockids)
+        !   real(kind=realtype) intent(in) :: dstar
+        ! end subroutine freezefaces
+
      end interface
 end python module hyp
 

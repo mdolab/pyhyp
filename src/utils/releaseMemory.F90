@@ -25,7 +25,7 @@ subroutine releaseMemory
      deallocate(lnPtr)
   end if
 
-  if (three_d_vars_allocated) then
+  if (varsAllocated) then
      ! Destroy hyp system objects
      call KSPDestroy(hypKSP, ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -73,8 +73,7 @@ subroutine releaseMemory
         metricsAllocated = .False.
      end if
 
-     !deallocate(volume)
-     three_d_vars_allocated = .False.
+     varsAllocated = .False.
   end if
 
 end subroutine releaseMemory

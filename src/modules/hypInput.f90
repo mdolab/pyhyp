@@ -11,14 +11,19 @@ module hypInput
   real(kind=realType) :: s0, ps0, pgridratio
   real(kind=realType) :: slexp
   real(kind=realType) :: epsE, volCoef, volBlend, epsI, theta
-  real(kind=realType) :: kspRelTol,rMin, cmax
+  real(kind=realType) :: kspRelTol, cmax, marchDist
   real(kind=realType) :: nodeTol, symTol
-  real(kind=realType) :: sigmaSplay, nuSplay
-
-  integer(kind=intType) :: N
+  real(kind=realType) :: splay, splayEdgeOrthogonality, splayCornerOrthogonality
+  integer(kind=intType) :: N, nConstant
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
 
-  logical ::  nonLinear, writeMetrics
+  logical ::  nonLinear, writeMetrics, unattachedEdgesAreSymmetry
+
+  ! Input boundary condition information
+  integer(kind=intType), dimension(:, :), allocatable :: BCs
+
+  ! Family names for wall surfaces
+  character(maxCGNSNameLen), dimension(:), allocatable :: families
 
   ! Elliptic Parameters
   real(kind=realType) :: farFieldTol
@@ -29,11 +34,40 @@ module hypInput
   logical :: useMatrixFree
   character(len=512) :: sourceStrengthFile
 
-  ! Grid mirroring parameters
-  integer(kind=intType) :: mirrorType
-  integer(kind=intType), parameter :: nomirror = 0
-  integer(kind=intType), parameter :: xmirror = 1
-  integer(kind=intType), parameter :: ymirror = 2
-  integer(kind=intType), parameter :: zmirror = 3
+  ! Topology types:
+  integer(kind=intType), parameter :: topoInternal = 0
+  integer(kind=intType), parameter :: topoCorner = 1
+  integer(kind=intType), parameter :: topoEdge = 2
+  integer(kind=intType), parameter :: topoLCorner = 3
+
+  ! Boundary condition types:
+  integer(kind=intType), parameter :: BCDefault = -1
+  integer(kind=intType), parameter :: BCSplay = 0
+  integer(kind=intType), parameter :: BCXSymm = 1
+  integer(kind=intType), parameter :: BCYSymm = 2
+  integer(kind=intType), parameter :: BCZSymm = 3
+  integer(kind=intType), parameter :: BCXConst = 4
+  integer(kind=intType), parameter :: BCYConst = 5
+  integer(kind=intType), parameter :: BCZConst = 6
+  integer(kind=intType), parameter :: BCXYConst = 7
+  integer(kind=intType), parameter :: BCYZConst = 8
+  integer(kind=intType), parameter :: BCXZConst = 9
+
+  integer(kind=intType), parameter :: BCAverage = 10
+  ! Boundary condition side:
+  integer(kind=intType), parameter :: iLow  = 1
+  integer(kind=intType), parameter :: iHigh = 2
+  integer(kind=intType), parameter :: jLow  = 3
+  integer(kind=intType), parameter :: jHigh = 4
+  
+  ! FileType
+  integer(kind=intType), parameter :: cgnsFileType = 1
+  integer(kind=intType), parameter :: plot3dFileType = 2
+
+  ! Farfield type selection
+  integer(kind=intType) :: outerFaceType
+  integer(kind=intType), parameter :: outerFaceFarfield = 1
+  integer(kind=intType), parameter :: outerFaceOverset = 2
+
 
 end module hypInput

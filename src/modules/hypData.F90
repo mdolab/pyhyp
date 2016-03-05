@@ -23,7 +23,7 @@ module hypData
   integer(kind=intType) :: faceTotal, nPGlobal
 
   ! The local number of nodes
-  integer(kind=intType) :: nX 
+  integer(kind=intType) :: nx
   
   ! List of petsc vectors. One for each k-plane
   Vec, dimension(:), allocatable :: X
@@ -52,34 +52,14 @@ module hypData
 
   ! The "nodal volume" of each local node
   Vec Volume, VolumeLocal
-  real(kind=realType), dimension(:), pointer :: Vptr, dptr
+  real(kind=realType), dimension(:), pointer :: Vptr
 
   ! -------------------------------------
   !         Boundary Condition Data
   ! -------------------------------------
-
-  ! maximum number of neighbors necessary for boundary conditions
-  integer(kind=intType), parameter :: maxBCneighbors = 3
-
-  ! Array that stores the boundary condition type and the neighbor nodes 
-  ! the will be used in these boundary conditions
-  ! The following structure is used:
-  ! BCneighbors(nodeID,:) = (\ bcType, neighbor1, neighbor2, neighbor3 \)
-  ! Its dimensions should be (numLocalNodes,maxBCneighbors+1)
-  ! This first version stores the local indices of the neighbors
-  integer(kind=intType), dimension(:,:), allocatable :: BCneighborsLocal
-  ! This other vesion stores the global indices of the neighbors
-  integer(kind=intType), dimension(:,:), allocatable :: BCneighborsGlobal
-
-  ! Define the indices of each BC
-  ! Higher indices will have higher priority
-  integer(kind=intType), parameter :: SplayBCindex = 1
-  integer(kind=intType), parameter :: SymmetryXBCindex = 2
-  integer(kind=intType), parameter :: SymmetryYBCindex = 3
-  integer(kind=intType), parameter :: SymmetryZBCindex = 4
-  integer(kind=intType), parameter :: ConstXBCindex = 5
-  integer(kind=intType), parameter :: ConstYBCindex = 6
-  integer(kind=intType), parameter :: ConstZBCindex = 7
+  integer(kind=intType), dimension(:), allocatable :: fullTopoType, topoType
+  integer(kind=intType), dimension(:, :), allocatable :: fullBCType, BCType
+  real(kind=realType), dimension(:, :, :), allocatable :: fullBCVal, BCVal
 
   ! -------------------------------------
   !         Surface Patch Data
@@ -89,26 +69,10 @@ module hypData
      integer(kind=intType) :: il, jl
 
      ! l_index: Pointer of each node on the patch into the X array
-     integer(kind=intType), dimension(:, :), allocatable :: l_index
+     integer(kind=intType), dimension(:, :), pointer :: l_index
 
      ! X: Coordinates of the patch
-     real(kind=realType), dimension(:, :, :), allocatable :: X
-
-     ! symNodes : list of indices that symmetry nodes and must be
-     ! zeroed as such when writing the mesh
-     integer(kind=intType) :: nSym
-     integer(kind=intType), dimension(:, :), allocatable :: symNodes
-
-     ! BCnodes
-     ! This array will be of size (il,jl,2*maxBCneighbors+1)
-     ! This will give i,j coordinates of the neighbor nodes that should be used
-     ! when applying a boundary condition.
-     ! The following structure is used:
-     ! BCnodes(node_i, node_j, :) = (\ bcType,
-     !                                 neighbor1_i, neighbor1_j,
-     !                                 neighbor2_i, neighbor2_j,
-     !                                 neighbor3_i, neighbor3_j /)
-     integer(kind=intType), dimension(:,:,:), allocatable :: BCnodes
+     real(kind=realType), dimension(:, :, :), pointer :: X
 
      ! Array determining the freezing weights of the nodes. 
      real(kind=realType), dimension(:, :), allocatable :: weights
@@ -125,16 +89,16 @@ module hypData
   double precision :: timeStart
   real(kind=realType) :: scaleDist
   real(kind=realType) :: gridRatio
-  real(kind=realType) :: gridSensorMax, gridSensorMin, minQuality, deltaS, minR
-  integer(kind=intType) :: marchIter, kspIts
-  real(kind=realType) :: radius, radius0, Xavg(3), cratio, sl, vBar
+  real(kind=realType) :: gridSensorMax, gridSensorMin, minQuality, deltaS, minR, minVolume
+  integer(kind=intType) :: marchIter, kspIts, nAverage
+  real(kind=realType) ::  Xavg(3), cratio, sl, vBar
   integer(kind=intType) :: nSubIter, nSubIterPrev
-  real(kind=realType) :: desiredS, maxKStretch
+  real(kind=realType) :: desiredDeltaS, desiredS, maxKStretch
 
   ! ---------------------------------------
   !    Miscellaneous Variables
   ! ---------------------------------------
-  logical :: three_d_vars_allocated = .False.
+  logical :: varsAllocated = .False.
 
   ! -------------------------------------
   !         PETSc Linear System Variables
@@ -146,7 +110,7 @@ module hypData
   VecScatter allScatter
   Vec allGlobalNodes
 
-  ! Do we need this?
+  ! Elliptic variables
   Mat ellipMat, ellipPCMat
   Vec ellipRHS, ellipSol, localSol
   KSP ellipKSP
