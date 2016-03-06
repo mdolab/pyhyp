@@ -199,20 +199,24 @@ subroutine writeHeader
 
   ! Write the first line of '-'
   write(*,"(a)",advance="no") "#"
-  do i=2,126
+  do i=2,116
      write(*,"(a)",advance="no") "-"
   enddo
+  write(*,"(a)",advance="no") "#"
   print "(1x)"
-  write(*,"(a)",advance="no") "# Grid  | CPU  | Sub  | KSP | nAvg |   Sl   | Grid     | Grid     | Min     | Min    | deltaS | March    | cMax   | kStretch |"
+  write(*,"(a)",advance="no") "# Grid | CPU  | Sub | KSP | nAvg |  Sl  | Sensor | Sensor | Min     | Min     |  deltaS  |"
+  write(*,"(a)",advance="no") " March    | cMax  | Ratio |"
   print "(1x)"
-  write(*,"(a)",advance="no") "# Level | Time | Iter | Its |      |        | Sens Max | Sens Min | Quality | Volume |        | Distance |        | Max      |"
+  write(*,"(a)",advance="no") "# Lvl  | Time | Its | Its |      |      | Max    | Min    | Quality | Volume  |          |"
+  write(*,"(a)",advance="no") " Distance |       | kMax  |"
   print "(1x)"
-  i =                                                                                                                                      10
+
   ! Write the Last line of '-'
   write(*,"(a)",advance="no") "#"
-  do i=2,126
+  do i=2,116
      write(*,"(a)",advance="no") "-"
   enddo
+  write(*,"(a)",advance="no") "#"
   print "(1x)"
 
 end subroutine writeHeader
@@ -244,13 +248,13 @@ subroutine writeIteration
   if (myid == 0) then
 
      ! Iteration Count
-     write(*,"(i8,1x)",advance="no") marchIter
+     write(*,"(i7,x)",advance="no") marchIter
 
      ! CPU time
      write(*,"(f6.1,1x)",advance="no") dble(mpi_wtime()) - timeStart
 
      ! Sub Iteration
-     write(*,"(i6,1x)",advance="no") nSubIter
+     write(*,"(i5,1x)",advance="no") nSubIter
 
      ! KSP ITerations
      write(*,"(i5,1x)",advance="no") kspIts
@@ -259,31 +263,31 @@ subroutine writeIteration
      write(*,"(i6,1x)",advance="no") nAverageRed
 
      ! Modified Sl factor from Steger and Chan
-     write(*,"(f8.5,1x)",advance="no") Sl
+     write(*,"(f6.3,1x)",advance="no") Sl
 
      ! maximum Grid convergence sensor
-     write(*,"(f10.5,1x)",advance="no") gridSensorMaxRed
+     write(*,"(f8.5,1x)",advance="no") gridSensorMaxRed
 
      ! minimum Grid convergence sensor
-     write(*,"(f10.5,1x)",advance="no") gridSensorMinRed
+     write(*,"(f8.5,1x)",advance="no") gridSensorMinRed
 
      ! minimum grid quality for new layer
      write(*,"(f8.5,1x)",advance="no") minQuality ! This was reduced already
 
      ! minimum volume for new layer
-     write(*,"(e9.3,1x)",advance="no") minVolume ! This was reduced already
+     write(*,"(e10.3,1x)",advance="no") minVolume ! This was reduced already
 
      ! marching step size for this iteration
-     write(*,"(e8.3,1x)",advance="no") deltaS
+     write(*,"(e10.3,1x)",advance="no") deltaS
 
      ! March Distance
      write(*,"(e10.3,1x)",advance="no") scaleDist
      
      ! marching step size for this iteration
-     write(*,"(f8.5,1x)",advance="no") cRatio
+     write(*,"(f7.4,1x)",advance="no") cRatio
      
      ! maximum stretch ratio in K-direction
-     write(*,"(f10.3,1x)",advance="no") maxKStretchRed
+     write(*,"(f7.4,1x)",advance="no") maxKStretchRed
 
      ! Jump to next line
      print "(1x)"
