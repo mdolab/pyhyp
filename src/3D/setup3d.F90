@@ -397,7 +397,6 @@ subroutine setup(fileName, fileType)
      if (unattachedEdgesAreSymmetry) then 
         do i=1, nUnique
            if (fullTopoType(i) /= topoInternal .and. fullTopoType(i) /= topoEdge) then
-              print *,fullTopoType(i)
               print *,"ERROR: A free corner or other topology that is not an "
               print *,"edge was detected with the unattachedEdgesAreSymmetry option."
               print *,"This option can only be used for configurations that become "
