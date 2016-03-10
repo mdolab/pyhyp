@@ -47,7 +47,7 @@ subroutine setup(fileName, fileType)
   integer(kind=intType), dimension(:), pointer :: lPtr1, lPtr2
   real(kind=realType), dimension(:, :), pointer :: xPtr
   real(kind=realType) :: xSum(3), vals(2, 3)
-  integer(kind=intType) :: mask(2, 3), nn(2)
+  integer(kind=intType) :: mask(2, 3), nn(2), mm(2), f(3), iFace, jp2
 
   ! Only the root processor reads the mesh and does the initial processing:
   rootProc: if (myid == 0) then 
@@ -262,10 +262,8 @@ subroutine setup(fileName, fileType)
         else if (nEdge(i) == 4 .and. nFace(i) == 3) then 
            ! This is an L corner. In theory, we should be able to do
            ! this...but not yet
-           print *, "An L-corner topology was encountered. This is not yet implemented"
            fullTopoType(i) = topoLCorner
-           stop
-
+           
         else if (nEdge(i) == nFace(i)) then 
            ! This is an internal node so we're ok.
            fullTopoType(i) = topoInternal
@@ -578,10 +576,7 @@ subroutine setup(fileName, fileType)
                  ! Set the cell pointer for this node
                  fullcPtr(1, iNode) = 1
                  fullcPtr(2, iNode) = nte(ntePtr(iNode))
-
-              else if (fullTopoType(iNode) == topoLCorner) then 
-                 print *,'LCorner topos are not coded yet...'
-                 stop
+        
               end if checkTopoType
            end do edgeNodeLoop
         end do edgeLoop
@@ -663,6 +658,88 @@ subroutine setup(fileName, fileType)
            end if
         end do
      end do patchLoop
+
+     do i=1,nUnique
+        ! Special loop for the LCorners
+        if (fullTopoType(i) == topoLCorner) then 
+           
+           ! This is quite complicated. It has 4 neighbours. Two
+           ! of the neighbours have edge topology, two of the
+           ! neighbours have internal topology. 
+           !
+           !     +---------p2----------+
+           !     |         |           |
+           !     |   x     |           |
+           !     |         |           |
+           !     p3--------p0----------p1----->
+           !     |         |            
+           !     |         |            
+           !     |         |            
+           !     +---------p4
+           !               |
+           !               |
+           !              \|/
+           
+           
+           ! Determine the two that have internal
+           ! topology. These must be part of facex
+           ii = 0
+           jj = 0
+           do j=1,4
+              if (fullTopoType(nodeConn(j, i)) == topoInternal) then 
+                 ii =ii + 1
+                 nn(ii) = nodeConn(j, i) ! Nodes on diagonal face x
+              else 
+                 jj = jj + 1
+                 mm(jj) = nodeConn(j, i) ! Nodes on edge
+              end if
+              
+           end do
+         
+           ! And the three faces 
+           f(1) = nte(ntePtr(i)  )
+           f(2) = nte(ntePtr(i)+2)
+           f(3) = nte(ntePtr(i)+4)
+           
+           do iFace=1,3
+              ! Check if nn(1) is followed by nn(2)
+              do j=1,4
+                 jp2 = mod(j+1, 4)+1
+
+                 if (nn(1) == fullConn(j, f(iFace)) .and. nn(2) == fullConn(jp2, f(iFace))) then 
+                    fullnPtr(3, i) = nn(1)
+                    fullnPtr(4, i) = nn(2)
+                 else if (nn(2) == fullConn(j, f(iFace)) .and. nn(1) == fullConn(jp2, f(iFace))) then 
+                    fullnPtr(3, i) = nn(2)
+                    fullnPtr(4, i) = nn(1)
+                 end if
+              end do
+           end do
+           
+           ! We have now set the 'p2' and 'p3' nodes. We have to
+           ! identify p1 and p4 which should be fairly easy now:
+           
+           ! This takes the missing one and adds it to the first spot
+           call addMissing(directedNodeConn(1:3, i), fullnPtr(3, i), fullnPtr(4, i), fullnPtr(2, i))
+           
+           ! Add the only other node in mm
+           if (mm(1) == fullnPtr(2, i)) then
+              fullnPtr(5, i) = mm(2)
+           else
+              fullnPtr(5, i) = mm(1)
+           end if
+           
+           ! By definition , Lcorner topology nodes must have 4 neighbours
+           fullnPtr(1, i) = 4
+
+           ! Set the cell pointer for this node
+           fullcPtr(1, i) = 3
+           fullcPtr(2, i) = f(1)
+           fullcPtr(3, i) = f(2)
+           fullcPtr(4, i) = f(3)
+           
+        end if
+     end do
 
      if (nAverage > 0) then 
         print *, 'Coner averaging activated for ', nAverage, ' nodes.'
