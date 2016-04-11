@@ -396,6 +396,22 @@ subroutine setup(fileName, fileType)
         end if internalNode
      end do nodeLoop
 
+     ! Check to make sure that there are only edge and interneral
+     ! topology nodes if unattachedEdgesAreSymmetry is true: This can
+     ! only be used for mirrored cases where all non interior nodes
+     ! MUST be edges
+     if (unattachedEdgesAreSymmetry) then 
+        do i=1, nUnique
+           if (fullTopoType(i) /= topoInternal .and. fullTopoType(i) /= topoEdge) then
+              print *,"ERROR: A free corner or other topology that is not an "
+              print *,"edge was detected with the unattachedEdgesAreSymmetry option."
+              print *,"This option can only be used for configurations that become "
+              print *,"closed when mirrored."
+              stop
+           end if
+        end do
+     end if
+
      ! We have now set the fullNodePointer (fullnPtr) and the
      ! fullCellPointer (fullCPtr) for all internal nodes. These were
      ! straightforward since by definition they are fully surrounded
