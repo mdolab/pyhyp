@@ -87,7 +87,15 @@ subroutine setup(fileName, fileType)
 
      ! Now we will call pointReduce to remove any repeated edge nodes.
      ! link maps from allEdgeNodes to uniquePts
-     call pointReduce(allEdgeNodes, iNode, nodeTol, uniquePts, link, nUnique)
+     if (noPointReduce) then 
+        uniquePts = allEdgeNodes
+        nUnique = iNode
+        do i=1, iNode
+           link(i) = i
+        end do
+     else
+        call pointReduce(allEdgeNodes, iNode, nodeTol, uniquePts, link, nUnique)
+     end if
 
      ! Dump edge/corner into l_index
      iNode = 0

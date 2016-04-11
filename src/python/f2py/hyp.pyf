@@ -22,6 +22,7 @@ python module hyp ! in
             logical :: nonlinear
             logical :: unattachededgesaresymmetry
             logical :: writemetrics
+            logical :: nopointreduce
             integer(kind=inttype) :: kspmaxits, preconlag, kspsubspacesize
             real(kind=realtype) :: marchdist
             real(kind=realtype) :: cmax

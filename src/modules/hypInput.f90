@@ -18,6 +18,7 @@ module hypInput
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
 
   logical ::  nonLinear, writeMetrics, unattachedEdgesAreSymmetry
+  logical :: noPointReduce
 
   ! Input boundary condition information
   integer(kind=intType), dimension(:, :), allocatable :: BCs
