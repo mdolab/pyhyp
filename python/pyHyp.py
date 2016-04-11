@@ -102,6 +102,11 @@ class pyHyp(object):
             # any necessary block to block connectivity
             'autoConnect':True,
 
+            # noPointReduce. Do not find duplicate nodes along
+            # edges. This must ONLY be used with single surface input
+            # files. 
+            'noPointReduce':False,
+
             # ---------------------------
             #        Grid Parameters
             # ---------------------------
@@ -261,6 +266,10 @@ class pyHyp(object):
         # the BC array:
         nBlocks = self.hyp.getnblocks(self._go('inputFile'), intFileType)
 
+        if self.getOption('noPointReduce') and nBlocks > 1:
+            raise Error('The noPointReduce option may only be true when '
+                        'a single surface grid is provided.')
+
         # The fortran BC information
         fBCs = numpy.zeros((4, nBlocks), order='f')
         fBCs[:, :] = self.hyp.hypinput.bcdefault
@@ -391,6 +400,7 @@ class pyHyp(object):
         """Internal function to set the options in pyHyp"""
         self.hyp.hypinput.n = self._go('N')
         self.hyp.hypinput.nconstant = self._go('nConstant')
+        self.hyp.hypinput.nopointreduce = self._go('noPointReduce')
         self.hyp.hypinput.s0 = self._go('s0')
         self.hyp.hypinput.marchdist = self._go('marchdist')
         self.hyp.hypinput.ps0 = self._go('ps0')
