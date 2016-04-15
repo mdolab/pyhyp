@@ -24,7 +24,7 @@ History
 import os
 import numpy
 from mpi4py import MPI
-from . import MExt
+from . import hyp#MExt
 
 class Error(Exception):
     """
@@ -46,14 +46,249 @@ class Error(Exception):
         Exception.__init__(self)
 
 # =============================================================================
-# pyHyp class
+# pyHypMulti class
 # =============================================================================
-class pyHyp(object):
+class pyHypMulti(object):
+
     """
-    This is the main class pyHyp. It is used as the user interface to pyHyp. 
+    This is class can be used to run multiple pyHyp cases at once.
     """
 
-    def __init__(self, comm=None, options=None, debug=False, **kwargs):
+    def __init__(self, comm=None, options=None, commonOptions=None, debug=False, use_skip=True):
+
+        '''
+        The inititalization method will setup, run, and write all the results.
+        INPUTS:
+        options: dictionary or list of dictionaries
+                 This contains options for the extrusion of all several grids. An example of
+                 option dictionary is given below:
+
+                 options = {'epsE':4.0,
+                            'epsI':8.0,
+                            'outputFile':'corner_hyp.cgns',
+                            'skip':False}
+
+                 We can also set a list of dictionaries as input:
+
+                 options1 = {'epsE':4.0,
+                             'epsI':8.0,
+                             'outputFile':'corner1_hyp.cgns',
+                             'skip':False}
+                 options2 = {'epsE':2.0,
+                             'epsI':4.0,
+                             'outputFile':'corner2_hyp.cgns',
+                             'skip':False}
+                 options = [options1, options2]
+
+                 Each element of the list will be considered as a different case.
+                 These options will overwrite the default options (defined in the pyHyp class)
+                 and the common options (another argument of this method).
+
+        commomOptions: dictionary with options that should be applied to all cases in the
+                       options dictionary. See the 'defaulOptions' dictionary defined in
+                       the pyHyp class to see the available options.
+
+        use_skip: Each options dictionary may have a 'skip' option (which is set to False by
+                  default). Using use_skip to False will override all skip options and run all
+                  cases.
+        '''
+
+        # Set the possible MPI Intracomm
+        if comm is None:
+            comm = MPI.COMM_WORLD
+        self.comm = comm
+
+        # Convert input to list even if user gave a single element
+        if type(options) is list:
+            options_list = options[:]
+        else:
+            options_list = [options][:]
+
+        # We also want to set the 'options' variable name free
+        # to use it as an iterator in the next loops
+        del options
+
+        # Add unused common options to each set
+        for options in options_list:
+            for key in commonOptions:
+                if key not in options.keys():
+                    options[key] = commonOptions[key]
+            
+            # Also check if skip option is included
+            if 'skip' not in options.keys():
+                options['skip'] = False
+
+        # Initilize counter
+        index = 0
+
+        # Get the number of grids
+        self.numGrids = len(options_list)
+
+        # Initialize dictionary with results
+        self.results = {'name':[0]*self.numGrids,
+                        'outputFile':[0]*self.numGrids,
+                        'gridRatio':numpy.zeros(self.numGrids),
+                        'minQualityOverall':numpy.zeros(self.numGrids),
+                        'minVolumeOverall':numpy.zeros(self.numGrids),
+                        'skip':[0]*self.numGrids,
+                        }
+
+        # Loop over all elements in the options list
+        for options in options_list:
+
+            if options['skip'] is False and use_skip:
+
+                # Get processor ID
+                myid = self.comm.Get_rank()
+        
+                # Only the root processor will print
+                if myid == 0:
+                    print('')
+                    print('')
+                    print('Running case %d : %s'%(index,options['inputFile']))
+                    print('')
+
+                # Create pyHyp object using the corresponding options
+                hypGrid = pyHyp(comm, options, debug)
+
+                # Run it
+                hypGrid.run()
+
+                # Write outputs
+                hypGrid.writeOutput()
+
+                # Save results
+                self.results['name'][index] = hypGrid.options['inputfile']
+                self.results['outputFile'][index] = hypGrid.options['outputfile']
+                self.results['gridRatio'][index] = hypGrid.hyp.hypdata.gridratio
+                self.results['minQualityOverall'][index] = hypGrid.hyp.hypdata.minqualityoverall
+                self.results['minVolumeOverall'][index] = hypGrid.hyp.hypdata.minvolumeoverall
+                self.results['skip'][index] = hypGrid.options['skip']
+                
+                # Delete object to free memory
+                del hypGrid
+
+                # Increment counter
+                index = index + 1
+
+            else:
+
+                # Get input file name
+                try:
+                    inputFile = options['inputfile']
+                except:
+                    inputFile = options['inputFile']
+
+                # Check if output name exists or if we should get the
+                # the automatically generated one
+                try:
+                    outputFile = options['outputfile']
+                except:
+                    outputFile = options['outputFile']
+
+                if outputFile is None:
+                    # Get an automatic one
+                    outputFile = generateOutputName(inputFile,outputType='cgns')
+
+                # Save results
+                self.results['name'][index] = inputFile
+                self.results['outputFile'][index] = outputFile
+                self.results['gridRatio'][index] = 'N/A'
+                self.results['minQualityOverall'][index] = 'N/A'
+                self.results['minVolumeOverall'][index] = 'N/A'
+                self.results['skip'][index] = True
+
+        # Print the log
+        self.writeLog()
+
+    def writeLog(self):
+        """
+        This will print a log with important information regarding all grids
+        """
+
+        # Get processor ID
+        myid = self.comm.Get_rank()
+        
+        # Only the root processor will print
+        if myid == 0:
+
+            print('')
+            print('')
+            print('')
+            print('='*40)
+            print(' '*12 + 'pyHyp Summary' + ' '*12)
+            print('='*40)
+
+            print('')
+            print('----+-------------+-----------+-------------------+------------------')
+            print(' ID |  grid name  | gridRatio | minQualityOverall | minVolumeOverall ')
+            print('----+-------------+-----------+-------------------+------------------')
+
+            for index in range(self.numGrids):
+
+                # Crop filename
+                try:
+                    filename = self.results['name'][index][:11]
+                except:
+                    filename = self.results['name'][index]
+
+                # Get remaining data
+                gridRatio = self.results['gridRatio'][index]
+                minQualityOverall = self.results['minQualityOverall'][index]
+                minVolumeOverall = self.results['minVolumeOverall'][index]
+                
+                # Format string that will be printed
+                log_string = ' %02d '%index + '|' + \
+                             ' {0: <11} '.format(filename) + '|' + \
+                             ' {:9.7f} '.format(gridRatio) + '|' + \
+                             ' '*4 + '{:9.8f}'.format(minQualityOverall) + ' '*5 + '|' + \
+                             ' '*4 + '{:9.5e}'.format(minVolumeOverall) + ' '*4
+
+                print(log_string)
+
+            print('----+-------------+-----------+-------------------+------------------')
+            print('')
+            print('')
+
+    def combineCGNS(self,combinedFile='combined.cgns',additionalGrids=[''],use_skip=True):
+        """
+        This will gather all newly generated grids and combine them in
+        a single cgns file. This only works for CGNS files
+        """
+        
+        # Start cgns_utils command line
+        command = 'cgns_utils combine '
+
+        # Add names of generated grids
+        if use_skip:
+            selectedGrids = [self.results['outputFile'][ii] for ii in range(self.numGrids) \
+                             if not self.results['skip'][ii]]
+        else:
+            selectedGrids = self.results['outputFile']
+        command = command + ' '.join(selectedGrids) + ' '
+
+        # Add names of additional grids
+        command = command + ' '.join(additionalGrids) + ' '
+
+        # Add combined file
+        command = command + combinedFile
+
+        # Run cgns_utils
+        print('COMBINE COMMAND:')
+        print(command)
+        print('')
+        os.system(command)
+
+        # Print log
+        print('Combined CGNS files into %s'%combinedFile)
+
+# =============================================================================
+# pyHyp class
+# =============================================================================
+
+class pyHyp(object):
+
+    def __init__(self, comm=None, options=None, debug=False):
         """
         Create the pyHyp object. 
 
@@ -70,9 +305,14 @@ class pyHyp(object):
             Flag used to specify if debugging. This only needs to be
             set to true when using a symbolic debugger. 
             """
-            
+
+        # Set the possible MPI Intracomm
+        if comm is None:
+            comm = MPI.COMM_WORLD
+        self.comm = comm
+
         # Default options for hyperbolic generation
-        self.defaultOptions = {
+        defaultOptions = {
             # ---------------------------
             #        Input Information
             # ---------------------------
@@ -83,6 +323,9 @@ class pyHyp(object):
             # Input file type
             'fileType':'plot3d',
 
+            # Flag to entirely skip the grid generation of this block
+            'skip':False,
+
             # Type of extrusion: hyperbolic or elliptic
             'mode':'hyperbolic',
 
@@ -92,7 +335,7 @@ class pyHyp(object):
             # Outerface boundary condition: farfield or overset
             'outerFaceBC':'farfield',
 
-            # Boundary condition information for speicific block edges
+            # Boundary condition information for specific block edges
             'BC':{},
 
             # Optional names for wall families
@@ -225,29 +468,33 @@ class pyHyp(object):
             # ---------------------------
             # Debugging option to write grid metrics. Hyperbolic only
             'writeMetrics': False, 
+
+            # Output format
+            'outputType':'cgns',
+
+            # Output filename (if None, an automatic one will be generated by
+            # appending "_hyp" to the input filename).
+            'outputFile':None,
             }
-        self.defaultOptionKeys = set(k.lower() for k in self.defaultOptions)
+
+        # Get keys for every option
+        self.defaultOptionKeys = set(k.lower() for k in defaultOptions)
 
         # Import and set the hyp module
-        curDir = os.path.dirname(os.path.realpath(__file__))
-        self.hyp = MExt.MExt('hyp', [curDir], debug=debug)._module
+        #curDir = os.path.dirname(os.path.realpath(__file__))
+        self.hyp = hyp#MExt.MExt('hyp', [curDir], debug=debug)._module
    
-        # Set the possible MPI Intracomm
-        if comm is None:
-            comm = MPI.COMM_WORLD
-        self.comm = comm
-
         # Initialize PETSc and MPI if not already done so:
         self.hyp.initpetsc(self.comm.py2f())
 
         # Use supplied options
         if options is None:
-            raise Error("The options= keyword argument is *NOT* optional. "
+            raise Error("The options = keyword argument is *NOT* optional. "
                         "It must always be provided")
 
         # Setup the options
         self.options = {}
-        self._checkOptions(options)
+        self._checkOptions(options, defaultOptions)
 
         # Set the fortan options
         self._setOptions()
@@ -286,7 +533,7 @@ class pyHyp(object):
                  'xyconst':self.hyp.hypinput.bcxyconst,
                  'yzconst':self.hyp.hypinput.bcyzconst,
                  'xzconst':self.hyp.hypinput.bcxzconst}
-
+        
         edgeMap = {'ilow':self.hyp.hypinput.ilow-1,
                    'ihigh':self.hyp.hypinput.ihigh-1,
                    'jlow':self.hyp.hypinput.jlow-1,
@@ -301,7 +548,7 @@ class pyHyp(object):
                 lKey = edgeKey.lower()
                 if lKey not in edgeMap.keys():
                     raise Error("Boundary edge specification must be one of: "
-                               "'iLow', 'iHigh', 'jLow', or 'jHigh'. %s"%helpStr)
+                                "'iLow', 'iHigh', 'jLow', or 'jHigh'. %s"%helpStr)
                 BCToSet = BCs[blkBC][edgeKey].lower()
                 if BCToSet.lower() not in BCMap.keys():
                     raise Error("Boundary condition specification unknown. Must be one of: "
@@ -350,15 +597,19 @@ class pyHyp(object):
         """
         Run given using the options given
         """
-        if self._go('mode').lower() == 'hyperbolic':
-            self.hyp.runhyperbolic()
-        elif self._go('mode').lower() == 'elliptic':
-            self.hyp.setuppanels()
-            self.hyp.runelliptic()
+        if not self.options['skip']:
+            if self._go('mode').lower() == 'hyperbolic':
+                self.hyp.runhyperbolic()
+            elif self._go('mode').lower() == 'elliptic':
+                self.hyp.setuppanels()
+                self.hyp.runelliptic()
+            else:
+                raise Error("Invalid parameter value for mode. Must be one "
+                            "of 'elliptic' or 'hyperbolic'")
+            self.gridGenerated = True
         else:
-            raise Error("Invalid parameter value for mode. Must be one "
-                        "of 'elliptic' or 'hyperbolic'")
-        self.gridGenerated = True
+            print('Skipped generation of this grid')
+            self.gridGenerated = False
 
     def writePlot3D(self, fileName):
         """After we have generated a grid, write it out to a plot3d
@@ -384,6 +635,35 @@ class pyHyp(object):
         if self.comm.rank == 0 and self._go('autoConnect'):
             os.system('cgns_utils connect %s'%fileName)
         self.comm.barrier()
+
+    def writeOutput(self, fileName=None, fileType=None):
+        """
+        This selects the output type based on what is specified
+        in the options
+        """
+        
+        # Get desired output type from options, unless provided
+        if fileType is None:
+            outputType = self.options['outputtype']
+        else:
+            outputType = fileType
+
+        # Check if the user specified name in the options
+        if fileName is None:
+            fileName = self.options['outputfile']
+
+        # If no name is specified even in the options, then
+        # we generate one
+        if fileName is None:
+            fileName = generateOutputName(self.options['inputfile'],outputType=outputType)
+
+        # Update the name stored in the options for future uses
+        self.options['outputfile'] = fileName
+
+        if outputType == 'cgns':
+            self.writeCGNS(fileName)
+        elif outputType == 'plot3d':
+            self.writePlot3d(fileName)
 
     def getSurfaceCoordinates(self):
         """Return the surface coordinates on this processor"""
@@ -436,7 +716,7 @@ class pyHyp(object):
         f = self._go('sourceStrengthFile')
         self.hyp.hypinput.sourcestrengthfile[0:len(f)] = f
 
-    def _checkOptions(self, options):
+    def _checkOptions(self, options, defaultOptions):
         """
         Check the solver options against the default ones
         and add option iff it is NOT in options
@@ -447,9 +727,9 @@ class pyHyp(object):
 
         # Check for the missing ones
         optionKeys = set(k.lower() for k in options)
-        for key in self.defaultOptions:
+        for key in defaultOptions:
             if not key.lower() in optionKeys:
-                self.setOption(key, self.defaultOptions[key])
+                self.setOption(key, defaultOptions[key])
 
     def __del__(self):
         """
@@ -560,7 +840,7 @@ class pyHyp(object):
         if name.lower() in self.defaultOptionKeys:
             return self.options[name.lower()]
         else:    
-            raise Error('getOption: %s is not a volid pyHyp option.'%name)
+            raise Error('getOption: %s is not a valid pyHyp option.'%name)
 
     def setOption(self, name, value):
         """
@@ -578,8 +858,37 @@ class pyHyp(object):
         if name.lower() in self.defaultOptionKeys:
             self.options[name.lower()] = value
         else:    
-            raise Error('setOption: %s is not a volid pyHyp option.'%name)
+            raise Error('setOption: %s is not a valid pyHyp option.'%name)
             
     def _go(self, name):
         """Internal short-cut function to make text a litle shorter"""
         return self.getOption(name)
+
+
+#=====================================================#
+
+def generateOutputName(inputFile, outputType=None):
+    """
+    This function will automatically create an output filename by
+    appending "_hyp" to the original filename.
+    """
+
+    # Get fileFormat from options if none is provided
+    if outputType is None:
+        outputType = self.options['outputtype']
+    else:
+        outputType = outputType.lower() # Use just lower case strings
+
+    # Get rid of the extension and add an 'hyp' to the end of the filename
+    outputFile = os.path.splitext(os.path.basename(inputFile))[0] + '_hyp'
+
+    # Add extension acording to output file type
+    if outputType == 'cgns':
+        outputFile = outputFile + '.cgns'
+    elif outputType == 'plot3d':
+        outputFile = outputFile + '.fmt'
+    else:
+        raise Error("Output file type not recognized.")
+
+    # Return the generated name
+    return outputFile

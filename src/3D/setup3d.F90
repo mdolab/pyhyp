@@ -997,7 +997,7 @@ subroutine setup(fileName, fileType)
 
   ! Finally finished with the full set of information so deallocate
   deallocate(fullnPtr, link, localFace, uniquePts, fullTopoType, fullBCType, &
-       fullBCVal)
+       fullBCVal, fullconn, fullcptr)
 
 end subroutine setup
 

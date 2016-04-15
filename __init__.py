@@ -1,1 +1,1 @@
-from .python.pyHyp import pyHyp
+from .python.pyHyp import pyHyp, pyHypMulti

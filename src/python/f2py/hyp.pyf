@@ -60,6 +60,9 @@ python module hyp ! in
 
         module hypdata
           integer(kind=inttype) :: nx
+          real(kind=realtype) :: gridratio
+          real(kind=realtype) :: minqualityoverall
+          real(kind=realtype) :: minvolumeoverall
         end module hypdata
 
         subroutine releasememory
