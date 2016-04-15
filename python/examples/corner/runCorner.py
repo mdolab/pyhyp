@@ -1,9 +1,16 @@
-from pyhyp import pyHyp
+from pyhyp import pyHyp, pyHypMulti
 
-fileName = 'plate_surf.cgns'
+'''
+In this example we extrude a 90 deg corner twice using two different
+setting.
+This example shows how the dictionary format can be used to set up
+and run multiple cases at once
+'''
+
+fileName = 'corner.cgns'
 fileType = 'CGNS'
 
-options= {
+commonOptions= {
 
     # ---------------------------
     #        Input Parameters
@@ -11,11 +18,9 @@ options= {
     'inputFile':fileName,
     'fileType': 'CGNS',
     'unattachedEdgesAreSymmetry':False,
-    'outerFaceBC':'overset',
+    'outerFaceBC':'farfield',
     'autoConnect':True,
-    'BC':{1:{'jLow':'XYConst',
-             'iLow':'XConst', 
-             'iHigh':'XConst'}},
+    'BC':{},
     'families':'wall',
 
     # ---------------------------
@@ -43,6 +48,16 @@ options= {
     'volSmoothIter': 100,
 }
 
-hyp = pyHyp(options=options)
-hyp.run()
-hyp.writeCGNS()
+# Now set up specific options
+options1 = {'outputFile':'corner1_hyp.cgns'}
+
+options2 = {'epsE':4.0,
+            'epsI':8.0,
+            'outputFile':'corner2_hyp.cgns'}
+
+# Gather options in a list
+options = [options1,
+           options2]
+
+hyp = pyHypMulti(options=options,commonOptions=commonOptions)
+hyp.combineCGNS()

@@ -90,6 +90,7 @@ module hypData
   real(kind=realType) :: scaleDist
   real(kind=realType) :: gridRatio
   real(kind=realType) :: gridSensorMax, gridSensorMin, minQuality, deltaS, minR, minVolume
+  real(kind=realType) :: minQualityOverall = one, minVolumeOverall = one
   integer(kind=intType) :: marchIter, kspIts, nAverage
   real(kind=realType) ::  Xavg(3), cratio, sl, vBar
   integer(kind=intType) :: nSubIter, nSubIterPrev

@@ -25,6 +25,34 @@ subroutine releaseMemory
      deallocate(lnPtr)
   end if
 
+  if (allocated(families)) then
+     deallocate(families)
+  end if
+
+  if (allocated(cptr)) then
+     deallocate(cptr)
+  end if
+
+  if (allocated(topotype)) then
+     deallocate(topotype)
+  end if
+
+  if (allocated(bctype)) then
+     deallocate(bctype)
+  end if
+
+  if (allocated(bcval)) then
+     deallocate(bcval)
+  end if
+
+  if (allocated(ghost)) then
+     deallocate(ghost)
+  end if
+
+  if (allocated(conn)) then
+     deallocate(conn)
+  end if
+
   if (varsAllocated) then
      ! Destroy hyp system objects
      call KSPDestroy(hypKSP, ierr)

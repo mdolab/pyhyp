@@ -371,6 +371,10 @@ subroutine computeQualityLayer
   call mpi_Reduce(minVolume_local, minVolume, 1, MPI_DOUBLE, MPI_MIN, 0, hyp_comm_world, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
+  ! Check if these values with the overall minima
+  minQualityOverall = min(minQuality, minQualityOverall)
+  minVolumeOverall = min(minVolume, minVolumeOverall)
+
 end subroutine computeQualityLayer
 
 subroutine volume_hexa(points, V)
