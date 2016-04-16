@@ -24,7 +24,7 @@ History
 import os
 import numpy
 from mpi4py import MPI
-from . import hyp#MExt
+from . import hyp, MExt
 
 class Error(Exception):
     """
@@ -54,12 +54,12 @@ class pyHypMulti(object):
     This is class can be used to run multiple pyHyp cases at once.
     """
 
-    def __init__(self, comm=None, options=None, commonOptions=None, debug=False, use_skip=True):
+    def __init__(self, comm=None, options=None, commonOptions=None, debug=False, skipList = []):
 
         '''
         The inititalization method will setup, run, and write all the results.
         INPUTS:
-        options: dictionary or list of dictionaries
+        options: ORDERED dictionary or list of dictionaries.
                  This contains options for the extrusion of all several grids. An example of
                  option dictionary is given below:
 
@@ -74,23 +74,39 @@ class pyHypMulti(object):
                              'epsI':8.0,
                              'outputFile':'corner1_hyp.cgns',
                              'skip':False}
-                 options2 = {'epsE':2.0,
+                 options2 = 'cartesian.cgns'
+                 options3 = {'epsE':2.0,
                              'epsI':4.0,
                              'outputFile':'corner2_hyp.cgns',
                              'skip':False}
-                 options = [options1, options2]
+                 options = [options1, options2, options3]
 
-                 Each element of the list will be considered as a different case.
+                 AAAAAAND ... We can also set a dictionary of dictionaries as input:
+
+                 options{'case1'} = {'epsE':4.0,
+                                     'epsI':8.0,
+                                     'outputFile':'corner1_hyp.cgns',
+                                     'skip':False}
+                 options{'block'} = 'cartesian.cgns'
+                 options{'case2'} = {'epsE':2.0,
+                                     'epsI':4.0,
+                                     'outputFile':'corner2_hyp.cgns',
+                                     'skip':False}
+
+                 Each element of the list/dictionary will be considered as a different case.
+                 One of the elements can be a string specifying a CGNS file that should be combined
+                 with the other grids in the end. pyHyp will not do anything with this file except
+                 combine it with the generated grids.
                  These options will overwrite the default options (defined in the pyHyp class)
                  and the common options (another argument of this method).
+                 If the user gives a list, this will be converted to a dictionary with integers
+                 as keys. Remember this when setting the skip list for unnamed cases.
 
         commomOptions: dictionary with options that should be applied to all cases in the
                        options dictionary. See the 'defaulOptions' dictionary defined in
                        the pyHyp class to see the available options.
 
-        use_skip: Each options dictionary may have a 'skip' option (which is set to False by
-                  default). Using use_skip to False will override all skip options and run all
-                  cases.
+        skip_list: list containing names of cases that should be skipped.
         '''
 
         # Set the possible MPI Intracomm
@@ -98,45 +114,89 @@ class pyHypMulti(object):
             comm = MPI.COMM_WORLD
         self.comm = comm
 
-        # Convert input to list even if user gave a single element
+        # Convert input to dictionary even if user gave a single element
+        if type(options) is dict:
+            optionsDict = options[:]
         if type(options) is list:
-            options_list = options[:]
+            # Convert list to dictionary using integers as keys
+            optionsDict = {k:v for (k,v) in zip(range(len(options)),options[:])}
         else:
-            options_list = [options][:]
-
-        # We also want to set the 'options' variable name free
-        # to use it as an iterator in the next loops
-        del options
+            # Use gave a single option
+            optionsDict = {0:options[:]}
 
         # Add unused common options to each set
-        for options in options_list:
+        for name in optionsDict:
             for key in commonOptions:
-                if key not in options.keys():
-                    options[key] = commonOptions[key]
+                if key not in optionsDict[name].keys():
+                    optionsDict[name][key] = commonOptions[key]
             
-            # Also check if skip option is included
-            if 'skip' not in options.keys():
-                options['skip'] = False
-
         # Initilize counter
         index = 0
 
         # Get the number of grids
-        self.numGrids = len(options_list)
+        self.numGrids = len(optionsDict)
 
         # Initialize dictionary with results
-        self.results = {'name':[0]*self.numGrids,
+        self.results = {'name':optionsDict.keys(),
                         'outputFile':[0]*self.numGrids,
-                        'gridRatio':numpy.zeros(self.numGrids),
-                        'minQualityOverall':numpy.zeros(self.numGrids),
-                        'minVolumeOverall':numpy.zeros(self.numGrids),
-                        'skip':[0]*self.numGrids,
+                        'gridRatio':[0]*self.numGrids,
+                        'minQualityOverall':[0]*self.numGrids,
+                        'minVolumeOverall':[0]*self.numGrids,
                         }
 
         # Loop over all elements in the options list
-        for options in options_list:
+        for optionName in optionsDict:
 
-            if options['skip'] is False and use_skip:
+            options = optionsDict[optionName]
+
+            if type(options) is str:
+
+                # Just set up relationships to combine it with the other grids
+                # later on
+                self.results['name'][index] = optionName
+                self.results['outputFile'][index] = options
+                self.results['gridRatio'][index] = 'N/A'
+                self.results['minQualityOverall'][index] = 'N/A'
+                self.results['minVolumeOverall'][index] = 'N/A'
+
+                # Increment counter
+                index = index + 1
+
+            elif optionName in skipList:
+                print('Skipping case: ',optionName)
+
+                # Get input file name
+                try:
+                    inputFile = options['inputfile']
+                except:
+                    inputFile = options['inputFile']
+
+                # Check if output name exists or if we should get the
+                # the automatically generated one
+                try:
+                    outputFile = options['outputfile']
+                except:
+                    try:
+                        outputFile = options['outputFile']
+                    except: # User probably did not set neither in options or common options
+                        outputFile = None
+
+                if outputFile is None:
+                    # Get an automatic one
+                    outputFile = generateOutputName(inputFile,outputType='cgns')
+
+                # Save results
+                self.results['name'][index] = optionName
+                self.results['outputFile'][index] = outputFile
+                self.results['gridRatio'][index] = 'skip'
+                self.results['minQualityOverall'][index] = 'skip'
+                self.results['minVolumeOverall'][index] = 'skip'
+
+
+                # Increment counter
+                index = index + 1
+
+            elif type(options) is dict:
 
                 # Get processor ID
                 myid = self.comm.Get_rank()
@@ -158,45 +218,17 @@ class pyHypMulti(object):
                 hypGrid.writeOutput()
 
                 # Save results
-                self.results['name'][index] = hypGrid.options['inputfile']
+                self.results['name'][index] = optionName
                 self.results['outputFile'][index] = hypGrid.options['outputfile']
-                self.results['gridRatio'][index] = hypGrid.hyp.hypdata.gridratio
-                self.results['minQualityOverall'][index] = hypGrid.hyp.hypdata.minqualityoverall
-                self.results['minVolumeOverall'][index] = hypGrid.hyp.hypdata.minvolumeoverall
-                self.results['skip'][index] = hypGrid.options['skip']
+                self.results['gridRatio'][index] = float(hypGrid.hyp.hypdata.gridratio)
+                self.results['minQualityOverall'][index] = float(hypGrid.hyp.hypdata.minqualityoverall)
+                self.results['minVolumeOverall'][index] = float(hypGrid.hyp.hypdata.minvolumeoverall)
                 
                 # Delete object to free memory
                 del hypGrid
 
                 # Increment counter
                 index = index + 1
-
-            else:
-
-                # Get input file name
-                try:
-                    inputFile = options['inputfile']
-                except:
-                    inputFile = options['inputFile']
-
-                # Check if output name exists or if we should get the
-                # the automatically generated one
-                try:
-                    outputFile = options['outputfile']
-                except:
-                    outputFile = options['outputFile']
-
-                if outputFile is None:
-                    # Get an automatic one
-                    outputFile = generateOutputName(inputFile,outputType='cgns')
-
-                # Save results
-                self.results['name'][index] = inputFile
-                self.results['outputFile'][index] = outputFile
-                self.results['gridRatio'][index] = 'N/A'
-                self.results['minQualityOverall'][index] = 'N/A'
-                self.results['minVolumeOverall'][index] = 'N/A'
-                self.results['skip'][index] = True
 
         # Print the log
         self.writeLog()
@@ -220,9 +252,9 @@ class pyHypMulti(object):
             print('='*40)
 
             print('')
-            print('----+-------------+-----------+-------------------+------------------')
-            print(' ID |  grid name  | gridRatio | minQualityOverall | minVolumeOverall ')
-            print('----+-------------+-----------+-------------------+------------------')
+            print('+----+-------------+-----------+-------------------+------------------+')
+            print('| ID |  grid name  | gridRatio | minQualityOverall | minVolumeOverall |')
+            print('+----+-------------+-----------+-------------------+------------------+')
 
             for index in range(self.numGrids):
 
@@ -238,19 +270,24 @@ class pyHypMulti(object):
                 minVolumeOverall = self.results['minVolumeOverall'][index]
                 
                 # Format string that will be printed
-                log_string = ' %02d '%index + '|' + \
-                             ' {0: <11} '.format(filename) + '|' + \
-                             ' {:9.7f} '.format(gridRatio) + '|' + \
-                             ' '*4 + '{:9.8f}'.format(minQualityOverall) + ' '*5 + '|' + \
-                             ' '*4 + '{:9.5e}'.format(minVolumeOverall) + ' '*4
+                log_string1 = '| %02d '%index + '|' + \
+                              ' {0: <11} '.format(filename) + '|'
+                if type(gridRatio) is str:
+                    log_string2 = ' {0: <9} '.format(gridRatio) + '|' + \
+                                  ' '*4 + '{0: <10}'.format(minQualityOverall) + ' '*5 + '|' + \
+                                  ' '*4 + '{0: <10}'.format(minVolumeOverall) + ' '*4 + '|'
+                else:
+                    log_string2 = ' {:9.7f} '.format(gridRatio) + '|' + \
+                                  ' '*4 + '{:9.8f}'.format(minQualityOverall) + ' '*5 + '|' + \
+                                  ' '*4 + '{:8.4e}'.format(minVolumeOverall) + ' '*4 + '|'
 
-                print(log_string)
+                print(log_string1+log_string2)
 
-            print('----+-------------+-----------+-------------------+------------------')
+            print('+----+-------------+-----------+-------------------+------------------+')
             print('')
             print('')
 
-    def combineCGNS(self,combinedFile='combined.cgns',additionalGrids=[''],use_skip=True):
+    def combineCGNS(self,combinedFile='combined.cgns',additionalGrids=[''],skipList=[]):
         """
         This will gather all newly generated grids and combine them in
         a single cgns file. This only works for CGNS files
@@ -260,11 +297,8 @@ class pyHypMulti(object):
         command = 'cgns_utils combine '
 
         # Add names of generated grids
-        if use_skip:
-            selectedGrids = [self.results['outputFile'][ii] for ii in range(self.numGrids) \
-                             if not self.results['skip'][ii]]
-        else:
-            selectedGrids = self.results['outputFile']
+        selectedGrids = [self.results['outputFile'][ii] for ii in range(self.numGrids) \
+                         if self.results['name'][ii] not in skipList]
         command = command + ' '.join(selectedGrids) + ' '
 
         # Add names of additional grids
@@ -273,14 +307,18 @@ class pyHypMulti(object):
         # Add combined file
         command = command + combinedFile
 
-        # Run cgns_utils
-        print('COMBINE COMMAND:')
-        print(command)
-        print('')
-        os.system(command)
+        # Run cgns_utils only on first proc
+        # Get processor ID
+        myid = self.comm.Get_rank()
+        # Only the root processor will print
+        if myid == 0:
+            print('COMBINE COMMAND:')
+            print(command)
+            print('')
+            os.system(command)
 
-        # Print log
-        print('Combined CGNS files into %s'%combinedFile)
+            # Print log
+            print('Combined CGNS files into: %s'%combinedFile)
 
 # =============================================================================
 # pyHyp class
@@ -481,8 +519,8 @@ class pyHyp(object):
         self.defaultOptionKeys = set(k.lower() for k in defaultOptions)
 
         # Import and set the hyp module
-        #curDir = os.path.dirname(os.path.realpath(__file__))
-        self.hyp = hyp#MExt.MExt('hyp', [curDir], debug=debug)._module
+        curDir = os.path.dirname(os.path.realpath(__file__))
+        self.hyp = MExt.MExt('hyp', [curDir], debug=debug)._module
    
         # Initialize PETSc and MPI if not already done so:
         self.hyp.initpetsc(self.comm.py2f())

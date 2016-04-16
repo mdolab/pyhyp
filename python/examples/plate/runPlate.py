@@ -45,4 +45,4 @@ options= {
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS()
+hyp.writeCGNS('face3D.cgns')

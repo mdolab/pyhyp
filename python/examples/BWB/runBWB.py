@@ -39,5 +39,5 @@ options= {
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS()
+hyp.writeCGNS('bwb.cgns')
 

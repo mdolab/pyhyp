@@ -77,5 +77,5 @@ options= {
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS()
+hyp.writeCGNS('naca0012_rans.cgns')
 
