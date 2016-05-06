@@ -894,6 +894,66 @@ subroutine addMissing(nList, n1, n2, n3)
   end do
 end subroutine addMissing
 
+subroutine computeCornerAngle(normal1,normal2,edgeVector,angle)
+
+  ! This subroutine computes the corner angle between two faces. The geometry
+  ! is shown below:
+  !
+  !           B
+  !  +--------+--------+
+  !  |        |        |
+  !  | face1  |  face2 |
+  !  |        |        |
+  !  |        |<-edge  |
+  !  +--------+--------+
+  !           A
+  !
+  ! INPUTS:
+  ! normal1 is the normal of face 1 (shouldn't be normalized)
+  ! normal2 is the normal of face 2 (shouldn't be normalized)
+  ! edgeVector should be a vector defined from A to B.
+  !
+  ! OUTPUTS:
+  ! angle: angle between corners from -pi to pi. Positive for convex corners.
+  !
+  ! Ney Secco - 2016
+
+  use precision
+  implicit none
+
+  ! Input parameters
+  real(kind=realType), intent(in) :: normal1(3), normal2(3), edgeVector(3)
+
+  ! Output parameters
+  real(kind=realType), intent(out) :: angle
+
+  ! Working variables
+  real(kind=realType) :: orthog(3), proj, n1norm(3), n2norm(3)
+
+  ! EXECUTION
+
+  ! Normalize the normals
+  n1norm = normal1/norm2(normal1)
+  n2norm = normal2/norm2(normal2)
+
+  ! Compute the angle between normals
+  angle = acos(dot_product(n1norm,n2norm))
+
+  ! Find vector orthogonal to normals, from face 1 to face 2
+  call cross_prod(n1norm, n2norm, orthog)
+
+  ! Compute projection of the orthogonal vector along the edge vector
+  proj = dot_product(orthog, edgeVector)
+
+  ! If the orthogonal vector points in the same direction of the edge vector,
+  ! then we have a convex corner. Otherwise, we have a concave corner, and
+  ! we need to add a negative sign to the angle
+  if (proj < 0) then
+     angle = -angle
+  end if
+
+end subroutine computeCornerAngle
+
 ! subroutine getBCCorner(bcType, p0, p1, p2, p3, p4)
 !   ! Apply the boundary condition to compute p3 and p4 in the following
 !   ! situation:

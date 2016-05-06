@@ -25,6 +25,8 @@ import os
 import numpy
 from mpi4py import MPI
 from . import hyp, MExt
+from collections import OrderedDict
+from copy import deepcopy
 
 class Error(Exception):
     """
@@ -68,7 +70,7 @@ class pyHypMulti(object):
                             'outputFile':'corner_hyp.cgns',
                             'skip':False}
 
-                 We can also set a list of dictionaries as input:
+                 We can set a list of dictionaries as input:
 
                  options1 = {'epsE':4.0,
                              'epsI':8.0,
@@ -81,8 +83,10 @@ class pyHypMulti(object):
                              'skip':False}
                  options = [options1, options2, options3]
 
-                 AAAAAAND ... We can also set a dictionary of dictionaries as input:
+                 OOOORRRR ... We can also set an ORDERED dictionary of dictionaries as input:
 
+                 from collections import OrderedDict
+                 options = OrderedDict()
                  options{'case1'} = {'epsE':4.0,
                                      'epsI':8.0,
                                      'outputFile':'corner1_hyp.cgns',
@@ -96,7 +100,7 @@ class pyHypMulti(object):
                  Each element of the list/dictionary will be considered as a different case.
                  One of the elements can be a string specifying a CGNS file that should be combined
                  with the other grids in the end. pyHyp will not do anything with this file except
-                 combine it with the generated grids.
+                 combine it with the generated grids in the corresponding order.
                  These options will overwrite the default options (defined in the pyHyp class)
                  and the common options (another argument of this method).
                  If the user gives a list, this will be converted to a dictionary with integers
@@ -114,21 +118,29 @@ class pyHypMulti(object):
             comm = MPI.COMM_WORLD
         self.comm = comm
 
+        # Get processor ID
+        myid = self.comm.Get_rank()
+
         # Convert input to dictionary even if user gave a single element
         if type(options) is dict:
-            optionsDict = options[:]
-        if type(options) is list:
+            raise Error("pyHypMulti only accepts Ordered Dictionaries or Lists as inputs." + \
+                        " Declare your options using options=OrderedDict()")
+        elif type(options) is list:
+            # Set ordered dict
+            optionsDict = OrderedDict()
             # Convert list to dictionary using integers as keys
             optionsDict = {k:v for (k,v) in zip(range(len(options)),options[:])}
         else:
-            # Use gave a single option
-            optionsDict = {0:options[:]}
+            # User gave an ordered dictionary
+            optionsDict = deepcopy(options)
 
         # Add unused common options to each set
         for name in optionsDict:
-            for key in commonOptions:
-                if key not in optionsDict[name].keys():
-                    optionsDict[name][key] = commonOptions[key]
+            # Avoid options that are just strings indicating volume grids
+            if type(optionsDict[name]) is not str:
+                for key in commonOptions:
+                    if key not in optionsDict[name].keys():
+                        optionsDict[name][key] = commonOptions[key]
             
         # Initilize counter
         index = 0
@@ -163,7 +175,8 @@ class pyHypMulti(object):
                 index = index + 1
 
             elif optionName in skipList:
-                print('Skipping case: ',optionName)
+                if myid == 0:
+                    print('Skipping case: ',optionName)
 
                 # Get input file name
                 try:
@@ -197,10 +210,7 @@ class pyHypMulti(object):
                 index = index + 1
 
             elif type(options) is dict:
-
-                # Get processor ID
-                myid = self.comm.Get_rank()
-        
+      
                 # Only the root processor will print
                 if myid == 0:
                     print('')
@@ -416,6 +426,10 @@ class pyHyp(object):
 
             # splayCornerOrthogonality
             'splayCornerOrthogonality':0.2,
+
+            # Maximum convex corner angle necessary to trigger the node averaging.
+            # It should be in degrees.
+            'cornerAngle':60.0,
 
             # ---------------------------
             #   Elliptic Parameters
@@ -734,6 +748,7 @@ class pyHyp(object):
         self.hyp.hypinput.splay = self._go('splay')
         self.hyp.hypinput.splayedgeorthogonality = self._go('splayEdgeOrthogonality')
         self.hyp.hypinput.splaycornerorthogonality = self._go('splayCornerOrthogonality')
+        self.hyp.hypinput.cornerangle = self._go('cornerangle')*numpy.pi/180
         self.hyp.hypinput.kspreltol = self._go('kspRelTol')
         self.hyp.hypinput.kspmaxits = self._go('kspMaxIts')
         self.hyp.hypinput.nonlinear = self._go('nonLinear')

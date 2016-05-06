@@ -28,6 +28,7 @@ python module hyp ! in
             real(kind=realtype) :: cmax
             real(kind=realtype) :: nodetol
             real(kind=realtype) :: symtol
+            real(kind=realtype) :: cornerangle
             integer(kind=inttype), parameter :: bcdefault = -1
             integer(kind=inttype), parameter :: bcsplay = 0
             integer(kind=inttype), parameter :: bcxsymm = 1

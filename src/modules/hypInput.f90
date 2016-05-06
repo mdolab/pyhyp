@@ -12,7 +12,7 @@ module hypInput
   real(kind=realType) :: slexp
   real(kind=realType) :: epsE, volCoef, volBlend, epsI, theta
   real(kind=realType) :: kspRelTol, cmax, marchDist
-  real(kind=realType) :: nodeTol, symTol
+  real(kind=realType) :: nodeTol, symTol, cornerAngle
   real(kind=realType) :: splay, splayEdgeOrthogonality, splayCornerOrthogonality
   integer(kind=intType) :: N, nConstant
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
