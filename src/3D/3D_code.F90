@@ -747,7 +747,7 @@ subroutine calcResidual
         if (maxAlpha > pi - cornerAngle) then 
            ! Flag this node as having to be averaged:
            averageNode = .True. 
-           print *,xx0
+           !print *,xx0
         end if
            
         ! Metric correction
