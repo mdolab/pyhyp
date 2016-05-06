@@ -219,6 +219,12 @@ subroutine setup(fileName, fileType)
            end if
         end do
         stop
+
+     else
+
+        ! Say everything is ok
+        print *,'Normals are consistent!'
+
      end if
 
      ! We just determined the number of nodes conected to each
