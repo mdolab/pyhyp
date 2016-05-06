@@ -474,7 +474,7 @@ subroutine calcResidual
   real(kind=realType), dimension(3) :: rPlusjHat, rPluskHat, nhat, G, PinvG
   real(kind=realType), dimension(3,3) :: Q1, Q2, P, eye, PinvQ1, PinvQ2, Pinv
   real(kind=realType), dimension(3,3) :: blk0, blk1, blk2, blk3, blk4
-  real(kind=realType) :: a_ksi, a_eta, De(3), factor, alpha, beta, ovrSum1, ovrSum2
+  real(kind=realType) :: a_ksi, a_eta, De(3), factor, alpha, beta, ovrSum1, ovrSum2, maxAlpha
   real(kind=realType) :: d_ksi, d_eta, tmp1, tmp2, tmp, thetam, Rksi, Reta, N_ksi, N_eta
   real(kind=realType) :: dist, coef,  deltaVovrDetC, detC, largeWeight, smallWeight, eps_x
   logical :: averageNode
@@ -482,6 +482,11 @@ subroutine calcResidual
   ! METRIC CORRECTION
   real(kind=realType) :: r_zeta_p(3), r_eta_p(3), r_ksi_p(3), nu_mc
   real(kind=realType) :: rPlusj(3), rMinusj(3), rPlusk(3), rMinusk(3), r_cross(3)
+
+  ! CORNER CHECK
+  real(kind=realType) :: normFace1(3), normFace2(3), normFace3(3), normFace4(3)
+  real(kind=realType) :: normFace12(3), normFace13(3), normFace24(3), normFace34(3)
+  real(kind=realType) :: nAux(3)
 
   ! This routine must do everything required to evaluate the full
   ! non-linear residual
@@ -700,9 +705,49 @@ subroutine calcResidual
         ! Here we detect if we have a *very* sharp corner and modify
         ! what we do at this point. 
 
-        if (alpha > pi-pi/3 .or. beta > pi-pi/3) then 
+        ! Each node has four neighbors, As shown below:
+        !
+        !        +------(j,k+1)------+
+        !        |  face 1 | face 2  |
+        !        |         |         |
+        !     (j-1,k)----(j,k)----(j+1,k)
+        !        |         |         |
+        !        |  face 3 | face 4  |
+        !        +------(j,k-1)------+
+        !
+        !
+
+        ! First we will compute approximate face normals for each face.
+        ! For instance, for face 1 we compute the cross product of the
+        ! vectors connecting (i,j) to (i,j+1) and (i-1,j), and so on
+
+        call cross_prod(rPluskHat, rMinusjHat, normFace1)
+        call cross_prod(rPlusjHat, rPluskHat, normFace2)
+        call cross_prod(rMinuskHat, rPlusjHat, normFace4)
+        call cross_prod(rMinusjHat, rMinuskHat, normFace3)
+
+        ! Initialize maximum corner angle found so far
+        maxAlpha = -1.57
+
+        ! Check the corner angles between each pair of faces
+        ! Faces 1 and 2
+        call computeCornerAngle(normFace1, normFace2, rPluskHat, alpha)
+        maxAlpha = max(maxAlpha, alpha)
+        ! Faces 2 and 4
+        call computeCornerAngle(normFace2, normFace4, rPlusjHat, alpha)
+        maxAlpha = max(maxAlpha, alpha)
+        ! Faces 4 and 3
+        call computeCornerAngle(normFace4, normFace3, rMinuskHat, alpha)
+        maxAlpha = max(maxAlpha, alpha)
+        ! Faces 3 and 1
+        call computeCornerAngle(normFace3, normFace1, rMinusjHat, alpha)
+        maxAlpha = max(maxAlpha, alpha)
+
+        ! Check maximum corner angle
+        if (maxAlpha > pi - cornerAngle) then 
            ! Flag this node as having to be averaged:
            averageNode = .True. 
+           print *,xx0
         end if
            
         ! Metric correction
