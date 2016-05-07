@@ -190,7 +190,10 @@ subroutine writeCGNS(fileName)
            ptRange(2, :) = jl
         end select
 
-        if (BCs(iEdge, iPatch) == BCSplay) then 
+        if (BCs(iEdge, iPatch) == BCSplay .or. &
+           BCs(iEdge, iPatch) == BCXConst .or. &
+           BCs(iEdge, iPatch) == BCYConst .or. &
+           BCs(iEdge, iPatch) == BCZConst) then 
            call writeBC(CG_UserDefined, ptRange, "Overset")
         else if (BCs(iEdge, iPatch) == BCXSymm .or. &
              BCs(iEdge, iPatch) == BCYSymm .or. &
