@@ -366,7 +366,10 @@ class pyHyp(object):
             # ---------------------------
 
             # Input surface file. 
-            'inputFile':'default.fmt',
+            'inputFile':'',
+
+            # Explict numpy arrays of patches
+            'patches':[],
 
             # Input file type
             'fileType':'plot3d',
@@ -555,16 +558,26 @@ class pyHyp(object):
         # Convert file type to integer
         fileType = {'cgns':self.hyp.hypinput.cgnsfiletype, 
                     'plot3d':self.hyp.hypinput.plot3dfiletype}
+                    
         intFileType = fileType[self._go('fileType').lower()]
 
-        # Check if input file exists.
-        if not os.path.isfile(self._go('inputFile')):
-            raise Error('Input file \'%s\' not found.'%self._go('inputFile'))
+        # Determine how we are getting data: by Input file or
+        # explictly by patches. 
+        patchInput = False
+        patches = self._go('patches')
 
-        # Determine the number of blocks we have so we can initialize
-        # the BC array:
-        nBlocks = self.hyp.getnblocks(self._go('inputFile'), intFileType)
+        if len(patches) > 0:
+            patchInput = True
+            nBlocks = len(patches)
+        if not patchInput:
+            if not os.path.isfile(self._go('inputFile')):
+                raise Error('Input file \'%s\' not found.'%self._go('inputFile'))
 
+            # Determine the number of blocks we have so we can initialize
+            # the BC array:
+            nBlocks = self.hyp.getnblocks(self._go('inputFile'), intFileType)
+
+        self.hyp.allocatefamilies(nBlocks)
         if self.getOption('noPointReduce') and nBlocks > 1:
             raise Error('The noPointReduce option may only be true when '
                         'a single surface grid is provided.')
@@ -637,10 +650,17 @@ class pyHyp(object):
                         "one-based keys for the blocks may be used to specify individual "
                         "families for each block.\n Examples: 'families':'fuselage' or"
                         "'families':{'1:'fuselage', 2:'wing'}.")
-                
+
         # Set our family information in fortran
         for i in range(nBlocks):
             self.hyp.setfamily(i+1, fFamilies[i])
+
+        # Explictly set patches if necessary
+        if patchInput:
+            self.hyp.setnumberpatches(len(patches))
+            for i in range(len(patches)):
+                self.hyp.setpatch(i+1, patches[i])
+            intFileType = self.hyp.hypinput.patchinput
 
         # Now run the fortran setup.
         self.hyp.setup(self._go('inputFile'), intFileType)

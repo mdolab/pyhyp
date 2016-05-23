@@ -56,6 +56,8 @@ subroutine setup(fileName, fileType)
         call readCGNS(fileName)
      else if (fileType .eq. plot3dFileType) then ! We have a Plot3d file
         call readPlot3d(fileName)
+     else if (fileType .eq. patchInput) then 
+        ! Nothing extra to do. 
      end if fType
 
      ! Now we can create the final connectivity
@@ -1059,10 +1061,16 @@ subroutine getNBlocks(fileName, fileType, nBlocks)
      close(7)
   end if fType
 
-  ! Allocate the families array since we know the number of patches
-  allocate(families(nBlocks))
-
 end subroutine getNBlocks
+
+subroutine allocateFamilies(NFam)
+  use hypData
+  use hypInput
+  implicit none
+  integer(kind=intType), intent(in) :: nFam
+  allocate(families(nFam))
+
+end subroutine allocateFamilies
 
 subroutine setFamily(i, fam)
 

@@ -52,6 +52,7 @@ python module hyp ! in
             integer(kind=inttype), parameter,optional :: eval_exact=0
             integer(kind=inttype), parameter :: cgnsfiletype=1
             integer(kind=inttype), parameter :: plot3dfiletype=2
+            integer(kind=inttype), parameter :: patchinput=3
             character(len=512) :: sourcestrengthfile
             integer(kind=inttype) :: outerfacetype
             integer(kind=inttype), parameter:: outerfacefarfield = 1
@@ -74,6 +75,19 @@ python module hyp ! in
           integer(kind=inttype) intent(in) :: filetype
         end subroutine setup
 
+        subroutine setnumberpatches(n) ! in :test:setPatches.F90
+            use hypdata
+            integer(kind=inttype) intent(in) :: n
+        end subroutine setnumberpatches
+
+        subroutine setpatch(ii,xpatch,il,jl) ! in :test:setPatches.F90
+            use hypdata
+            integer(kind=inttype) intent(in) :: ii
+            real(kind=realtype) dimension(il,jl,3),intent(in) :: xpatch
+            integer(kind=inttype), optional,intent(in),check(shape(xpatch,0)==il),depend(xpatch) :: il=shape(xpatch,0)
+            integer(kind=inttype), optional,intent(in),check(shape(xpatch,1)==jl),depend(xpatch) :: jl=shape(xpatch,1)
+        end subroutine setpatch
+
         subroutine setfamily(i,fam) ! in :test:setup3d.F90
           use hypinput
           integer(kind=inttype) intent(in) :: i
@@ -86,6 +100,10 @@ python module hyp ! in
           integer(kind=inttype), intent(out) :: nblocks
         end subroutine getnblocks
         
+        subroutine allocatefamilies(n)
+          integer(kind=intype), intent(in) :: n
+        end subroutine allocatefamilies
+
         subroutine setuppanels
         end subroutine setuppanels
  

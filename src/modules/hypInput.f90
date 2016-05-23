@@ -64,6 +64,7 @@ module hypInput
   ! FileType
   integer(kind=intType), parameter :: cgnsFileType = 1
   integer(kind=intType), parameter :: plot3dFileType = 2
+  integer(kind=intType), parameter :: patchInput = 3
 
   ! Farfield type selection
   integer(kind=intType) :: outerFaceType

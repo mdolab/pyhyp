@@ -25,6 +25,7 @@ FF90_OBJECTS =	3D_code.o\
 		smoothing.o\
 		readCGNS.o\
 		readPlot3d.o\
+		setPatches.o\
 
 all:
 	$(PMAKE)  src
