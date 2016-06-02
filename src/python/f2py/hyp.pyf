@@ -74,6 +74,14 @@ python module hyp ! in
           character*(*) intent(in) :: filename
           integer(kind=inttype) intent(in) :: filetype
         end subroutine setup
+        subroutine readfamily(cgnsfile,iblock,family,foundfam) ! in :test:readCGNS.F90
+            use communication
+            use hypdata
+            character*(*) intent(in) :: cgnsfile
+            integer(kind=inttype) intent(in) :: iblock
+            character*32 intent(out) :: family
+            logical intent(out) :: foundfam
+        end subroutine readfamily
 
         subroutine setnumberpatches(n) ! in :test:setPatches.F90
             use hypdata

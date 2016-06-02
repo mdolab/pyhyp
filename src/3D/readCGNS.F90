@@ -127,3 +127,76 @@ subroutine readCGNS(cgnsFile)
 
 end subroutine readCGNS
 
+
+subroutine readFamily(cgnsFile, iBlock, family, foundFam)
+
+  use hypData
+  use communication
+  implicit none
+  include 'cgnslib_f.h'
+
+  ! Input/Output Arguments
+  character*(*),intent(in) :: cgnsFile
+  integer(kind=intType), intent(in) :: iBlock
+  character*32,intent(out) :: family
+  logical, intent(out) :: foundFam
+
+  ! Working
+  integer(kind=intType) :: cg, ierr, i
+  integer(kind=intType) :: base, nBoco
+  integer(kind=intType) :: nbocos, iBC, bocoType, bocoIndex
+  integer(kind=intType) :: NormalIndex(3), NormalListSize, NormalDataType, ndataset
+  integer(kind=intType) :: ptset_type, npnts, pts(2,2), normalList
+  character*32 :: zoneName, bocoName
+
+  family = ""
+  call cg_open_f(trim(cgnsFile), CG_MODE_READ, cg, ierr)
+  if (ierr /= CG_OK) call cg_error_exit_f
+
+  base = 1
+  call cg_goto_f(cg, base, ierr, 'end')
+  if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+  ! Get number of bocos
+  call cg_nbocos_f(cg, base, iBlock, nBoco, ierr)
+  if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+  foundFam = .False.
+  do iBC=1, nBoco
+
+     call cg_boco_info_f(cg, base, iBlock, iBC, bocoName, bocoType, &
+          ptset_type, npnts, NormalIndex, NormalListSize, NormalDataType, nDataSet, ierr)
+     if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+     if (bocoType == BCWall .or. bocoType == BCWallInviscid .or. &
+          bocoType == BCWallViscous .or. bocoType == BCWallViscousHeatFlux .or. &
+          bocoType == BCWallViscousIsothermal) then 
+        
+        call cg_boco_read_f(cg, base, iBlock, iBC, pts, Integer, ierr)
+        if (ierr .eq. CG_ERROR) call cg_error_exit_f
+
+        ! Make sure it is a surface condition
+        if (pts(1, 2)-pts(1, 1) > 0 .and. pts(2,2) - pts(2, 1) > 0) then 
+           ! It is a surface BC
+
+           call cg_goto_f(cg, base, ierr, "Zone_t", iBlock, "ZoneBC_t",1, "BC_t", iBC, "end")
+           if (ierr == 0) then ! Node exits
+              if (.not. foundFam) then 
+
+                 ! Get family name
+                 call cg_famname_read_f(family, ierr)
+                 if (ierr .eq. CG_ERROR) call cg_error_exit_f
+                 foundFam = .True.
+              else
+                 print *, 'Warning: multiple families found for block ', iBlock ,'Only the first is used.'
+              end if
+           end if
+        end if
+     end if
+  end do
+
+  ! Close file
+  call cg_close_f(cg, ierr)
+  if (ierr /= CG_OK) call cg_error_exit_f
+
+end subroutine readFamily

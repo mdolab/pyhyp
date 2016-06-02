@@ -634,6 +634,18 @@ class pyHyp(object):
         for i in range(nBlocks):
             fFamilies.append("Wall")
 
+        # If we were given a CGNS file we might have families
+        # there. So load them and overwrite the default. 
+        if intFileType == self.hyp.hypinput.cgnsfiletype:
+            if self.comm.rank == 0:
+                for i in range(nBlocks):
+                    family, foundFam  = self.hyp.readfamily(self._go('inputFile'), i+1)
+                    if foundFam and len(family.strip()) > 0:
+                        fFamilies[i] = family.strip()
+            fFamilies = self.comm.bcast(fFamilies)
+
+        # If we have explictly other families given, these will
+        # overwrite anything we already have. 
         if isinstance(families, str):
             for i in range(nBlocks):
                 fFamilies[i] = families
