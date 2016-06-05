@@ -141,7 +141,7 @@ class pyHypMulti(object):
                 for key in commonOptions:
                     if key not in optionsDict[name].keys():
                         optionsDict[name][key] = commonOptions[key]
-            
+
         # Initilize counter
         index = 0
 
@@ -210,7 +210,7 @@ class pyHypMulti(object):
                 index = index + 1
 
             elif type(options) is dict:
-      
+
                 # Only the root processor will print
                 if myid == 0:
                     print('')
@@ -233,7 +233,7 @@ class pyHypMulti(object):
                 self.results['gridRatio'][index] = float(hypGrid.hyp.hypdata.gridratio)
                 self.results['minQualityOverall'][index] = float(hypGrid.hyp.hypdata.minqualityoverall)
                 self.results['minVolumeOverall'][index] = float(hypGrid.hyp.hypdata.minvolumeoverall)
-                
+
                 # Delete object to free memory
                 del hypGrid
 
@@ -250,7 +250,7 @@ class pyHypMulti(object):
 
         # Get processor ID
         myid = self.comm.Get_rank()
-        
+
         # Only the root processor will print
         if myid == 0:
 
@@ -278,7 +278,7 @@ class pyHypMulti(object):
                 gridRatio = self.results['gridRatio'][index]
                 minQualityOverall = self.results['minQualityOverall'][index]
                 minVolumeOverall = self.results['minVolumeOverall'][index]
-                
+
                 # Format string that will be printed
                 log_string1 = '| %02d '%index + '|' + \
                               ' {0: <11} '.format(filename) + '|'
@@ -302,7 +302,7 @@ class pyHypMulti(object):
         This will gather all newly generated grids and combine them in
         a single cgns file. This only works for CGNS files
         """
-        
+
         # Start cgns_utils command line
         command = 'cgns_utils combine '
 
@@ -338,7 +338,7 @@ class pyHyp(object):
 
     def __init__(self, comm=None, options=None, debug=False):
         """
-        Create the pyHyp object. 
+        Create the pyHyp object.
 
         Parameters
         ----------
@@ -351,7 +351,7 @@ class pyHyp(object):
 
         debug : bool
             Flag used to specify if debugging. This only needs to be
-            set to true when using a symbolic debugger. 
+            set to true when using a symbolic debugger.
             """
 
         # Set the possible MPI Intracomm
@@ -365,7 +365,7 @@ class pyHyp(object):
             #        Input Information
             # ---------------------------
 
-            # Input surface file. 
+            # Input surface file.
             'inputFile':'',
 
             # Explict numpy arrays of patches
@@ -382,7 +382,7 @@ class pyHyp(object):
 
             # Unattached edges are symmetry plane
             'unattachedEdgesAreSymmetry':True,
-    
+
             # Outerface boundary condition: farfield or overset
             'outerFaceBC':'farfield',
 
@@ -398,23 +398,23 @@ class pyHyp(object):
 
             # noPointReduce. Do not find duplicate nodes along
             # edges. This must ONLY be used with single surface input
-            # files. 
+            # files.
             'noPointReduce':False,
 
             # ---------------------------
             #        Grid Parameters
             # ---------------------------
             # Number of layers:
-            'N': 65, 
+            'N': 65,
 
             # Initial off-wall spacing
-            's0':0.01, 
-            
+            's0':0.01,
+
             # Number of constant off-wall layers before beginning
             # stretch
             'nConstant':1,
 
-            # sMax': Distance to march. 
+            # sMax': Distance to march.
             'marchDist':50,
 
             # nodeTol: Tolerance for nodes to be treated as identical.
@@ -434,6 +434,12 @@ class pyHyp(object):
             # It should be in degrees.
             'cornerAngle':60.0,
 
+            # Coarsen: Automatically coarsen a mesh before starting
+            # extrusion. Coarsen=1 gives the same mesh
+            # (default). Coarsen=2 gives half the nodes in each direction.
+            # Coarsen=3 gives *quarter* the nodes in each direction etc.
+            'coarsen':1,
+
             # ---------------------------
             #   Elliptic Parameters
             # ---------------------------
@@ -450,11 +456,11 @@ class pyHyp(object):
             'useMatrixFree': True,
 
             # evalMode: Type of panel evaluation routine: One of
-            # exact, slow or fast. 
+            # exact, slow or fast.
             'evalMode': 'fast',
 
             # sourceStrengthFile: File to use to load/save the source
-            # strengths on the surface. 
+            # strengths on the surface.
             'sourceStrengthFile':'panelStrength.source',
 
             # ------------------------------------------
@@ -463,20 +469,20 @@ class pyHyp(object):
 
             # Maximum permissible ratio of marching direction length
             # to smallest in-plane edge.
-            'cMax':1.0, 
+            'cMax':1.0,
 
             #nonLinear: True/False. Use nonlinear scheme. Not
-            #currently working. 
-            'nonLinear': False, 
+            #currently working.
+            'nonLinear': False,
 
             #slExp: Exponent for Sl calc. Don't change this value
-            #unless you know what you are doing! 
-            'slExp': .15, 
+            #unless you know what you are doing!
+            'slExp': .15,
 
             # Initial off-wall spacing. Negative values will be
             # calculated automatically.
             'ps0': -1,
-            
+
             # Pseudo grid Spacing Ratio. Negative values will be
             # caculated automatically.
             'pGridRatio': -1,
@@ -486,43 +492,43 @@ class pyHyp(object):
             # ----------------------------------------
 
             # epsE: The explicit smoothing coefficient
-            'epsE': 1.0, 
+            'epsE': 1.0,
 
             # epsI: The implicit smoothing coefficient
-            'epsI': 2.0, 
+            'epsI': 2.0,
 
             # theta: The barth implicit smoothing coefficient
-            'theta': 3.0, 
+            'theta': 3.0,
 
             # volCoef: The volume smoothing coefficient for
             # pointJacobi iterations
-            'volCoef': .25, 
+            'volCoef': .25,
 
             # volBlend: The volume blending coefficient to force
             # uniform sizes in farfield
-            'volBlend': 0.0001, 
+            'volBlend': 0.0001,
 
             # volSmoothIter: The number of point-jacobi volume
             # smoothing iterations
-            'volSmoothIter': 100, 
-            
+            'volSmoothIter': 100,
+
             # -------------------------------
             #   Solution Parameters (Common)
             # -------------------------------
             # kspRelTol: Solution tolerance for linear system
-            'kspRelTol': 1e-8, 
-            
+            'kspRelTol': 1e-8,
+
             # Maximum number of iterations to run for linear system
-            'kspMaxIts': 500, 
+            'kspMaxIts': 500,
 
             # Subspace size for GMRES.
-            'kspSubspaceSize':50, 
+            'kspSubspaceSize':50,
 
             # ---------------------------
             #   Output Parameters
             # ---------------------------
             # Debugging option to write grid metrics. Hyperbolic only
-            'writeMetrics': False, 
+            'writeMetrics': False,
 
             # Output format
             'outputType':'cgns',
@@ -538,7 +544,7 @@ class pyHyp(object):
         # Import and set the hyp module
         curDir = os.path.dirname(os.path.realpath(__file__))
         self.hyp = MExt.MExt('hyp', [curDir], debug=debug)._module
-   
+
         # Initialize PETSc and MPI if not already done so:
         self.hyp.initpetsc(self.comm.py2f())
 
@@ -556,13 +562,13 @@ class pyHyp(object):
         self.gridGenerated = False
 
         # Convert file type to integer
-        fileType = {'cgns':self.hyp.hypinput.cgnsfiletype, 
+        fileType = {'cgns':self.hyp.hypinput.cgnsfiletype,
                     'plot3d':self.hyp.hypinput.plot3dfiletype}
-                    
+
         intFileType = fileType[self._go('fileType').lower()]
 
         # Determine how we are getting data: by Input file or
-        # explictly by patches. 
+        # explictly by patches.
         patchInput = False
         patches = self._go('patches')
 
@@ -598,12 +604,12 @@ class pyHyp(object):
                  'xyconst':self.hyp.hypinput.bcxyconst,
                  'yzconst':self.hyp.hypinput.bcyzconst,
                  'xzconst':self.hyp.hypinput.bcxzconst}
-        
+
         edgeMap = {'ilow':self.hyp.hypinput.ilow-1,
                    'ihigh':self.hyp.hypinput.ihigh-1,
                    'jlow':self.hyp.hypinput.jlow-1,
                    'jhigh':self.hyp.hypinput.jhigh-1}
-                 
+
         helpStr = "An example of a boundary specification is:  'BC':{1:{'iLow':'ySymm'}, 2:{'jHigh':'splay'}}"
         for blkBC in BCs:
             if blkBC < 1 or blkBC > nBlocks or not isinstance(blkBC, int):
@@ -620,7 +626,7 @@ class pyHyp(object):
                                 "'splay', 'BCXSymm', 'BCYSymm', 'BCZSymm', "
                                 "'BCXConst', 'BCYConst', 'BCZConst, 'BCXYConst, "
                                 "'BCYZConst or BCXZConst'. %s"%helpStr)
-                    
+
                 fBCs[edgeMap[lKey], blkBC-1] = BCMap[BCToSet]
 
         # Set the boundary condition information into fortran
@@ -630,12 +636,12 @@ class pyHyp(object):
         families = self._go('families')
 
         fFamilies = []
-        # Set default a default name of "wall". 
+        # Set default a default name of "wall".
         for i in range(nBlocks):
             fFamilies.append("Wall")
 
         # If we were given a CGNS file we might have families
-        # there. So load them and overwrite the default. 
+        # there. So load them and overwrite the default.
         if intFileType == self.hyp.hypinput.cgnsfiletype:
             if self.comm.rank == 0:
                 for i in range(nBlocks):
@@ -645,7 +651,7 @@ class pyHyp(object):
             fFamilies = self.comm.bcast(fFamilies)
 
         # If we have explictly other families given, these will
-        # overwrite anything we already have. 
+        # overwrite anything we already have.
         if isinstance(families, str):
             for i in range(nBlocks):
                 fFamilies[i] = families
@@ -698,7 +704,7 @@ class pyHyp(object):
     def writePlot3D(self, fileName):
         """After we have generated a grid, write it out to a plot3d
         file for the user to look at"""
-        
+
         if self.gridGenerated:
             self.hyp.writeplot3d(fileName)
         else:
@@ -706,7 +712,7 @@ class pyHyp(object):
                         "command before trying to write the grid!")
 
     def writeCGNS(self, fileName):
-        """After we have generated a grid, write it out in a properly 
+        """After we have generated a grid, write it out in a properly
         formatted 1-Cell wide CGNS file suitable for running in SUmb."""
 
         if not self.gridGenerated:
@@ -725,7 +731,7 @@ class pyHyp(object):
         This selects the output type based on what is specified
         in the options
         """
-        
+
         # Get desired output type from options, unless provided
         if fileType is None:
             outputType = self.options['outputtype']
@@ -781,6 +787,7 @@ class pyHyp(object):
         self.hyp.hypinput.splayedgeorthogonality = self._go('splayEdgeOrthogonality')
         self.hyp.hypinput.splaycornerorthogonality = self._go('splayCornerOrthogonality')
         self.hyp.hypinput.cornerangle = self._go('cornerangle')*numpy.pi/180
+        self.hyp.hypinput.coarsen = self._go('coarsen')
         self.hyp.hypinput.kspreltol = self._go('kspRelTol')
         self.hyp.hypinput.kspmaxits = self._go('kspMaxIts')
         self.hyp.hypinput.nonlinear = self._go('nonLinear')
@@ -790,7 +797,7 @@ class pyHyp(object):
         self.hyp.hypinput.farfieldtol = self._go('farFieldTolerance')
         self.hyp.hypinput.usematrixfree = self._go('useMatrixFree')
         self.hyp.hypinput.unattachededgesaresymmetry = self._go('unattachEdedgesAreSymmetry')
-        modes = {'exact':self.hyp.hypinput.eval_exact, 
+        modes = {'exact':self.hyp.hypinput.eval_exact,
                  'slow':self.hyp.hypinput.eval_slow,
                  'fast':self.hyp.hypinput.eval_fast}
         self.hyp.hypinput.evalmode = modes[self._go('evalMode').lower()]
@@ -824,23 +831,23 @@ class pyHyp(object):
 
     def writeLayer(self, fileName, layer=1, meshType='plot3d', partitions=True):
         """
-        Write a single mesh layer out to a file for visualization or for other purposes. 
-        
+        Write a single mesh layer out to a file for visualization or for other purposes.
+
         Parameters
         ----------
         fileName : str
             Filename to use. Should have .fmt extension for plot3d or .dat for tecplot
         layer : int
             Index of layer to print. Values greater than 1 are only valid if the mesh
-            has already been extruded. 
+            has already been extruded.
         meshType : str
             Type of mesh to write. The two valid arguments are 'plot3d' and 'fe'. The plot3d
-            will write the mesh in the original plot3d format while the FE mesh is the 
-            unstructured internal representation. 
+            will write the mesh in the original plot3d format while the FE mesh is the
+            unstructured internal representation.
         partitions : bool
             This flag which is only used for the 'fe' mesh type option will write a separate
-            zone for each partition on each processor. This is useful for visualizing the 
-            parallel mesh decomposition. 
+            zone for each partition on each processor. This is useful for visualizing the
+            parallel mesh decomposition.
         """
         if meshType.lower() == 'plot3d':
             self.hyp.writelayerplot3d(fileName, layer)
@@ -849,8 +856,8 @@ class pyHyp(object):
 
     def freezeEdge(self, blockID, edge, dstar):
         """
-        Specifiy an edge that will be frozen. 
-        
+        Specifiy an edge that will be frozen.
+
         Parameters
         ----------
         blockID : integer
@@ -858,7 +865,7 @@ class pyHyp(object):
         edge : str
             String specified for edge. One of 'ilow', 'ihigh', 'jlow', 'jhigh'
         dstart : float
-            How much these nodes will influence points around it. 
+            How much these nodes will influence points around it.
         """
         assert edge.lower() in ['ilow', 'ihigh', 'jlow', 'jhigh']
         self.hyp.freezeedge(blockID, edge, dstar)
@@ -866,18 +873,18 @@ class pyHyp(object):
     def freezeFaces(self, blockIDs, dstar):
         """
         Specifiy one or more faces (blocks) that will be frozen
-        
+
         Parameters
         ----------
         blockIDs : integer or list
             Index of block(s) IN ONE BASED ORDERING.
         dstart : float
-            How much these nodes will influence points around it. 
+            How much these nodes will influence points around it.
         """
         blockIDs = numpy.array(blockIDs).astype('intc')
         self.hyp.freezefaces(blockIDs, dstar)
 
-    
+
     def surfaceSmooth(self, nIter, stepSize, surfFile=None):
         """
         Run smoothing iterations on the body surface
@@ -888,9 +895,9 @@ class pyHyp(object):
             Number of iterations to run
         stepSize : float
             Size of step. Must be < 1. Usually less than 0.1 for stability
-            reasons. 
+            reasons.
         """
-        
+
         if surfFile is not None:
             try:
                 from pygeo import pyGeo
@@ -898,7 +905,7 @@ class pyHyp(object):
                 raise Error("pyGeo must be available to use the surface "
                             "reprojection object. Try again without specifying "
                             "the surfFile option.")
-        
+
             geoSurf = pyGeo('iges', fileName=surfFile)
             self.hyp.allocatesurfaces(geoSurf.nSurf)
             for iSurf in range(geoSurf.nSurf):
@@ -906,10 +913,10 @@ class pyHyp(object):
                 self.hyp.setsurface(iSurf+1, surf.ku, surf.kv, surf.tu, surf.tv, surf.coef.T)
 
         self.hyp.smoothwrap(nIter, stepSize)
-    
+
     def getOption(self, name):
         """
-        Return the value of the requested option. 
+        Return the value of the requested option.
 
         Parameters
         ----------
@@ -919,17 +926,17 @@ class pyHyp(object):
         Returns
         -------
         value : varries
-           Return the curent value of the option.         
+           Return the curent value of the option.
         """
 
         if name.lower() in self.defaultOptionKeys:
             return self.options[name.lower()]
-        else:    
+        else:
             raise Error('getOption: %s is not a valid pyHyp option.'%name)
 
     def setOption(self, name, value):
         """
-        Set the value of the requested option. 
+        Set the value of the requested option.
 
         Parameters
         ----------
@@ -942,9 +949,9 @@ class pyHyp(object):
 
         if name.lower() in self.defaultOptionKeys:
             self.options[name.lower()] = value
-        else:    
+        else:
             raise Error('setOption: %s is not a valid pyHyp option.'%name)
-            
+
     def _go(self, name):
         """Internal short-cut function to make text a litle shorter"""
         return self.getOption(name)

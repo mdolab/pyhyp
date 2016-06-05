@@ -24,7 +24,7 @@ module hypData
 
   ! The local number of nodes
   integer(kind=intType) :: nx
-  
+
   ! List of petsc vectors. One for each k-plane
   Vec, dimension(:), allocatable :: X
 
@@ -39,7 +39,7 @@ module hypData
 
   ! Node pointer array storing neighbours for each node. One is for
   ! local indexing in the ghosted array, the other is the global
-  ! ordering for assembly. 
+  ! ordering for assembly.
   integer(kind=intType), dimension(:, :), allocatable :: gnPtr
   integer(kind=intType), dimension(:, :), allocatable :: lnPtr
   integer(kind=intType), dimension(:, :), allocatable :: cPtr, fullcPtr
@@ -74,14 +74,15 @@ module hypData
      ! X: Coordinates of the patch
      real(kind=realType), dimension(:, :, :), pointer :: X
 
-     ! Array determining the freezing weights of the nodes. 
+     ! Array determining the freezing weights of the nodes.
      real(kind=realType), dimension(:, :), allocatable :: weights
-     
+
   end type patchType
 
   ! This is only needed by the Elliptical generator
   integer(kind=intType) :: nPatch
   type(patchType), dimension(:), allocatable :: patches
+  type(patchType), dimension(:), allocatable :: patchIO
 
   ! ---------------------------------------
   !    Marching Iteration/Monitoring Data

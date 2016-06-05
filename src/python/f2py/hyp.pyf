@@ -1,5 +1,5 @@
 !    -*- f90 -*-
-python module hyp ! in 
+python module hyp ! in
     interface  ! in :hyp
         module hypinput ! in :hyp:hypInput.f90
             use precision
@@ -12,6 +12,7 @@ python module hyp ! in
             integer(kind=inttype) :: n
             integer(kind=inttype) :: nconstant
             integer(kind=inttype) :: volsmoothiter
+            integer(kind=inttype) :: coarsen
             real(kind=realtype) :: slexp
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
@@ -107,29 +108,29 @@ python module hyp ! in
           integer(kind=inttype), intent(in) :: filetype
           integer(kind=inttype), intent(out) :: nblocks
         end subroutine getnblocks
-        
+
         subroutine allocatefamilies(n)
           integer(kind=intype), intent(in) :: n
         end subroutine allocatefamilies
 
         subroutine setuppanels
         end subroutine setuppanels
- 
+
         subroutine runhyperbolic
         end subroutine runhyperbolic
 
         subroutine runelliptic
         end subroutine runelliptic
 
-        subroutine writecgns(filename) 
+        subroutine writecgns(filename)
           character*(*) :: filename
         end subroutine writecgns
 
         subroutine initpetsc(comm)
           integer(kind=inttype) :: comm
         end subroutine initpetsc
-        
-        subroutine writeplot3d(filename) 
+
+        subroutine writeplot3d(filename)
             character*(*) :: filename
           end subroutine writeplot3d
 
