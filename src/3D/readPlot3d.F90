@@ -17,7 +17,7 @@ subroutine readPlot3d(fileName)
   open(unit=7, form='formatted', file=fileName)
   read(7, *) nPatch
 
-  allocate(patchSizes(3, nPatch), patches(nPatch))
+  allocate(patchSizes(3, nPatch), patchIO(nPatch))
 
   ! Read all block sizes
   read(7,*) (patchSizes(1, i), patchSizes(2, i), patchSizes(3, i), i=1, nPatch)
@@ -32,18 +32,15 @@ subroutine readPlot3d(fileName)
 
   ! Now allocate and read all the blocks from the plot3d file
   do  ii=1, nPatch
-     patches(ii)%il = patchSizes(1, ii)
-     patches(ii)%jl = patchSizes(2, ii)
+     patchIO(ii)%il = patchSizes(1, ii)
+     patchIO(ii)%jl = patchSizes(2, ii)
 
      ! Allocate space for the grid coordinates on the patch and read
-     allocate(patches(ii)%X(3, patches(ii)%il, patches(ii)%jl))
-     allocate(patches(ii)%l_index(patches(ii)%il, patches(ii)%jl))
-     allocate(patches(ii)%weights(patches(ii)%il, patches(ii)%jl))
-     patches(ii)%weights(:, :) = zero
+     allocate(patchIO(ii)%X(3, patchIO(ii)%il, patchIO(ii)%jl))
 
-     read(7, *) (( patches(ii)%X(1, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-     read(7, *) (( patches(ii)%X(2, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
-     read(7, *) (( patches(ii)%X(3, i, j), i=1,patches(ii)%il), j=1,patches(ii)%jl)
+     read(7, *) (( patchIO(ii)%X(1, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
+     read(7, *) (( patchIO(ii)%X(2, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
+     read(7, *) (( patchIO(ii)%X(3, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
   enddo
   deallocate(patchSizes)
 

@@ -1,6 +1,6 @@
 module hypInput
   use precision
-  
+
   implicit none
 
   ! This module contains the input information for the hyperbolic grid
@@ -16,6 +16,7 @@ module hypInput
   real(kind=realType) :: splay, splayEdgeOrthogonality, splayCornerOrthogonality
   integer(kind=intType) :: N, nConstant
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
+  integer(kind=intType) :: coarsen
 
   logical ::  nonLinear, writeMetrics, unattachedEdgesAreSymmetry
   logical :: noPointReduce
@@ -60,7 +61,7 @@ module hypInput
   integer(kind=intType), parameter :: iHigh = 2
   integer(kind=intType), parameter :: jLow  = 3
   integer(kind=intType), parameter :: jHigh = 4
-  
+
   ! FileType
   integer(kind=intType), parameter :: cgnsFileType = 1
   integer(kind=intType), parameter :: plot3dFileType = 2

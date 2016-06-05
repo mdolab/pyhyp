@@ -21,7 +21,7 @@ subroutine readCGNS(cgnsFile)
   real(kind=realType), dimension(:, :), allocatable :: coor
   character*32 :: baseName, zoneName, bocoName, DatasetName
 
-  if (myid == 0) then 
+  if (myid == 0) then
      ! Open and get the number of zones:
      call cg_open_f(trim(cgnsFile), CG_MODE_READ, cg, ierr)
      if (ierr /= CG_OK) call cg_error_exit_f
@@ -51,14 +51,14 @@ subroutine readCGNS(cgnsFile)
         call cg_zone_type_f(cg, base, i, zoneType, ierr)
         if (ierr /= CG_OK) call cg_error_exit_f
 
-        if (zoneType == Unstructured) then 
+        if (zoneType == Unstructured) then
            print *, 'Cannot do unstructured zones!'
            stop
         end if
      end do
 
-     !Allocate patches
-     allocate(patches(nZones))
+     !Allocate patchIO
+     allocate(patchIO(nZones))
 
      ! Populate patch with block information
      do iZone=1, nZones
@@ -67,16 +67,11 @@ subroutine readCGNS(cgnsFile)
         if (ierr /= CG_OK) call cg_error_exit_f
 
         ! Store patch size
-        patches(iZone)%il = dims(1)
-        patches(iZone)%jl = dims(2)
+        patchIO(iZone)%il = dims(1)
+        patchIO(iZone)%jl = dims(2)
 
         ! Allocate coordinates array
-        allocate(patches(iZone)%X(3, dims(1), dims(2)))
-
-        ! Allocate extra stuff
-        allocate(patches(iZone)%l_index(dims(1), dims(2)))
-        allocate(patches(iZone)%weights(dims(1), dims(2)))
-        patches(iZone)%weights = 0
+        allocate(patchIO(iZone)%X(3, dims(1), dims(2)))
 
         ! Allocate auxiliary variable to load coordinates
         allocate(coor(dims(1), dims(2)))
@@ -88,7 +83,7 @@ subroutine readCGNS(cgnsFile)
 
         do j=1, dims(2)
            do i=1, dims(1)
-              patches(iZone)%X(1,i,j) = coor(i, j)
+              patchIO(iZone)%X(1,i,j) = coor(i, j)
            end do
         end do
 
@@ -99,7 +94,7 @@ subroutine readCGNS(cgnsFile)
 
         do j=1, dims(2)
            do i=1, dims(1)
-              patches(iZone)%X(2,i,j) = coor(i, j)
+              patchIO(iZone)%X(2,i,j) = coor(i, j)
            end do
         end do
 
@@ -110,7 +105,7 @@ subroutine readCGNS(cgnsFile)
 
         do j=1, dims(2)
            do i=1, dims(1)
-              patches(iZone)%X(3,i,j) = coor(i, j)
+              patchIO(iZone)%X(3,i,j) = coor(i, j)
            end do
         end do
 
@@ -170,18 +165,18 @@ subroutine readFamily(cgnsFile, iBlock, family, foundFam)
 
      if (bocoType == BCWall .or. bocoType == BCWallInviscid .or. &
           bocoType == BCWallViscous .or. bocoType == BCWallViscousHeatFlux .or. &
-          bocoType == BCWallViscousIsothermal) then 
-        
+          bocoType == BCWallViscousIsothermal) then
+
         call cg_boco_read_f(cg, base, iBlock, iBC, pts, Integer, ierr)
         if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
         ! Make sure it is a surface condition
-        if (pts(1, 2)-pts(1, 1) > 0 .and. pts(2,2) - pts(2, 1) > 0) then 
+        if (pts(1, 2)-pts(1, 1) > 0 .and. pts(2,2) - pts(2, 1) > 0) then
            ! It is a surface BC
 
            call cg_goto_f(cg, base, ierr, "Zone_t", iBlock, "ZoneBC_t",1, "BC_t", iBC, "end")
            if (ierr == 0) then ! Node exits
-              if (.not. foundFam) then 
+              if (.not. foundFam) then
 
                  ! Get family name
                  call cg_famname_read_f(family, ierr)
