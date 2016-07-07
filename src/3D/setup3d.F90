@@ -503,11 +503,13 @@ subroutine setup(fileName, fileType)
               if (fullTopoType(iNode) == topoEdge .and. BCs(iEdge, ii) == BCDefault) then
                  if (unattachedEdgesAreSymmetry) then
                     ! Determine which symm type we need:
-                    xSum(1) = abs(sum(xptr(1, :)))
-                    xSum(2) = abs(sum(xptr(2, :)))
-                    xSum(3) = abs(sum(xptr(3, :)))
+                    xSum(1) = sum(abs(xptr(1, :)))
+                    xSum(2) = sum(abs(xptr(2, :)))
+                    xSum(3) = sum(abs(xptr(3, :)))
+                    
                     ! take dimension with lowest val
                     i = minloc(xSum, 1)
+
                     if (i== 1) then
                        BCs(iEdge, ii) = BCXsymm
                     else if(i==2) then
