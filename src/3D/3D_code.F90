@@ -1071,6 +1071,18 @@ subroutine updateBCs
         ! BC may update our node
         xx(3*i-2:3*i) = xx0
 
+     else if (topoType(i) == topoCorner) then
+
+        ! Extract our own node
+        xx0 = xx(3*i-2:3*i)
+
+        ! Other nodes are not significant. 
+        call getBC(BCType(1, i), bcVal(1, :, i), .False., &
+             splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
+        
+        ! BC may update our node
+        xx(3*i-2:3*i) = xx0
+
      end if
   end do masterNodeLoop
 
