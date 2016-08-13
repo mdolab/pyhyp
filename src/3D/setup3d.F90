@@ -813,6 +813,13 @@ subroutine setup(fileName, fileType)
            fullcPtr(3, i) = f(2)
            fullcPtr(4, i) = f(3)
 
+           ! We need to set the BC Data here too. 
+           fullBCType(1, i) = fullBCType(1, fullnPtr(2, i))
+           fullBCVal(1, :, i) = fullBCVal(1, :, fullnPtr(2, i))
+
+           fullBCType(2, i) = fullBCType(1, fullnPtr(5, i))
+           fullBCVal(2, :, i) = fullBCVal(1, :, fullnPtr(5, i))
+
         end if
      end do
 
