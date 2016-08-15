@@ -112,6 +112,10 @@ module hypData
   VecScatter allScatter
   Vec allGlobalNodes
 
+  ! Temp Petsc variables for setting up KSP
+  PC globalPC, subPC
+  KSP subKSP
+
   ! Elliptic variables
   Mat ellipMat, ellipPCMat
   Vec ellipRHS, ellipSol, localSol
