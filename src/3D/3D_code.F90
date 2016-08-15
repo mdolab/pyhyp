@@ -398,9 +398,7 @@ subroutine initialGuess(Xnew)
      
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual()
-
-     call KSPSetOperators(hypKSP, hypMat, hypMat, ierr)
-     call EChk(ierr, __FILE__, __LINE__)
+     call setupPETScKsp()
      
      ! Now solve the system
      timeA = mpi_wtime()
@@ -1071,7 +1069,7 @@ subroutine updateBCs
         ! BC may update our node
         xx(3*i-2:3*i) = xx0
 
-     else if (topoType(i) == topoCorner) then
+     else if (topoType(i) == topoLCorner) then
 
         ! Extract our own node
         xx0 = xx(3*i-2:3*i)
@@ -1194,22 +1192,6 @@ subroutine create3DPetscVars
      call vecDuplicate(xLocal, Xlocalm1, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
-     ! This should come as a option, but we'll put it here for now.
-
-     call PetscOptionsSetValue("-sub_pc_factor_levels", "1", ierr)
-     call EChk(ierr, __FILE__, __LINE__)
-
-     call PetscOptionsSetValue("-pc_type", "asm", ierr)
-     call EChk(ierr, __FILE__, __LINE__)
-
-     ! call PetscOptionsSetValue("-ksp_monitor", "", ierr)
-     ! call EChk(ierr, __FILE__, __LINE__)
-
-     ! call PetscOptionsSetValue("-ksp_monitor_true_residual", "", ierr)
-     ! call EChk(ierr, __FILE__, __LINE__)
-     
-     call PetscOptionsSetValue("-sub_pc_asm_overlap", "1", ierr)
-     call EChk(ierr, __FILE__, __LINE__)
 
      ! Create the KSP object
      call KSPCreate(petsc_comm_world, hypKSP, ierr)
@@ -1217,7 +1199,10 @@ subroutine create3DPetscVars
 
      call KSPSetFromOptions(hypKSP, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     
+
+     call KSPSetType(hypKSP, 'gmres', ierr)
+     call EChk(ierr, __FILE__, __LINE__)
+
      call KSPGMRESSetRestart(hypKSP, kspSubspacesize, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
@@ -1226,8 +1211,58 @@ subroutine create3DPetscVars
 
      call KSPSetTolerances(hypKSP, kspRelTol, 1e-30, 1e5, kspMaxIts, ierr)
      call EChk(ierr, __FILE__, __LINE__)
+
+
      
      varsAllocated = .True.
      !call MatSetOption(hypMat, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
   end if
 end subroutine create3DPetscVars
+
+
+subroutine setupPETScKSP
+
+
+  use hypData
+  implicit none
+
+  ! Special routine for setting up PETSc hypKSP object. It is getting
+  ! progressively more difficult to manually setup KSP objects with
+  ! PETSc, hence this routine is now needed for PETSc 3.7.
+  integer(kind=intType) :: nlocal, first, ierr
+
+
+  ! Setup the KSP object. 
+  call KSPGetPC(hypKSP, globalPC, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+
+  call PCSetType(globalPC, "asm", ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  call KSPSetup(hypKSP, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  ! Extract the ksp objects for each subdomain
+  call PCASMGetSubKSP(globalPC, nlocal, first, subksp, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  call KSPSetType(subksp, 'preonly', ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  ! Extract the preconditioner for subksp object.
+  call KSPGetPC(subksp, subpc, ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  ! The subpc type will almost always be ILU
+  call PCSetType(subpc, "ilu", ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  ! Setup the matrix ordering for the subpc object:
+  call PCFactorSetMatOrderingtype(subpc, "rcm", ierr)
+  call EChk(ierr, __FILE__, __LINE__)
+  
+  ! Set the ILU parameters
+  call PCFactorSetLevels(subpc, 1, ierr)
+  call EChk(ierr, __FILE__, __LINE__) 
+
+end subroutine setupPETScKSP
