@@ -607,11 +607,13 @@ subroutine setup(fileName, fileType)
                           call addMissing(nodeConn(1:3, iNode), fullnPtr(4, iNode), fullNPtr(3, iNode), &
                                fullNPtr(2, iNode))
                        end if
-                       fullBCType(1, iNode) = BCs(iEdge, ii)
+                       if (BCs(iEdge, ii) > fullBCType(1, iNode)) then 
+                          fullBCType(1, iNode) = BCs(iEdge, ii)
 
-                       ! Set the possible boundary condition value
-                       call setBCVal(fullBCType(1, iNode), xPtr(:, i), &
-                            fullBCVal(1, :, iNode))
+                          ! Set the possible boundary condition value
+                          call setBCVal(fullBCType(1, iNode), xPtr(:, i), &
+                               fullBCVal(1, :, iNode))
+                       end if
                     end if
                  end if
 
