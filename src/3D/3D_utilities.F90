@@ -25,22 +25,12 @@ subroutine computeStretch(L)
   ! Input Parameters
   integer(kind=intType), intent(in) :: L
 
-  ! Since we don't have a complex stretching function yet, we will
-  ! just use geometric progression which is usually close to what we
-  ! actually want in the marching direction anyway
-
-  if (L <= (nConstant+1)) then
-     ! First nConstant steps, deltaS to the desired initial grid
-     ! spacign given in HypInput
-     desiredDeltaS = s0
-  else
-     ! Otherwise, use the actual grid Ratio
-     desiredDeltaS = s0*gridRatio**(L-1-nConstant)
-  end if
+  ! Simply return the pre-computed distances
+  desiredDeltaS = fullDeltaS(L)
 
 end subroutine computeStretch
 
-subroutine calcGridRatio(N, s0, S, ratio)
+subroutine calcGridRatio (N, nStart, nEnd, s0, S, ratio)
   !***DESCRIPTION
   !
   !     Written by Gaetan Kenway
@@ -53,6 +43,12 @@ subroutine calcGridRatio(N, s0, S, ratio)
   !     ----------
   !     N : integer
   !         The number of nodes in sequence
+  !     nStart : integer
+  !         The number of intervals with constant spacing 
+  !         's0' at the beginning
+  !     nEnd : integer 
+  !         The number of constant sized intervals at the end. 
+  !         The actual spacing will be determined. 
   !     s0 : real
   !         The initial grid spacing
   !     S : real
@@ -61,39 +57,37 @@ subroutine calcGridRatio(N, s0, S, ratio)
   !     Returns
   !     -------
   !     ratio : real
-  !         The computed grid ratio that satifies, N, s0, and S.
-
+  !         The computed grid ratio that satifies all the inputs. 
+  use hypInput, only : fullDeltas
   use precision
 
   implicit none
 
   ! Input Parameters
-  integer(kind=intType), intent(in) :: N
+  integer(kind=intType), intent(in) :: N, nStart, nEnd
   real(kind=realType), intent(in) :: s0, S
 
   ! Output Parameters
   real(kind=realType), intent(out) :: ratio
 
   ! Working Parameters
-  integer(kind=intType) :: i, M
-  real(kind=realType) ::  r, a,b, c, f, fa, fb
+  integer(kind=intType) :: i, j
+  real(kind=realType) ::  r, a,b, c, f, fa, fb, curSize
 
   ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
   ! initial ratio and r is the grid ratio. 
-
-  M = N-1
 
   ! Do a bisection search
   ! Max and min bounds...root must be in here...
   a = one + 1e-8
   b = four
 
-  fa = S - s0*(1-a**M)/(1-a)
-  fb = S - s0*(1-b**M)/(1-b)
+  fa = func(a)
+  fb = func(b)
   do i=1, 100
      c = half*(a + b)
-     f = S - s0*(1-c**M)/(1-c)
-     if (abs(f) < 1e-6) then ! Converged
+     f = func(c)
+     if (abs(f) < 1e-10) then ! Converged
         exit
      end if
 
@@ -106,6 +100,59 @@ subroutine calcGridRatio(N, s0, S, ratio)
 
   ! Finally set the ratio variable to r
   ratio = c
+
+
+  ! And we precompute all stretches:
+  if (.not. allocated(fullDeltaS)) then 
+     allocate(fullDeltaS(2:N))
+  end if
+
+  
+  curSize = s0
+  do j=1, nStart
+     fullDeltaS(j+1) = curSize
+  end do
+
+  ! Next we have N - nStart - nEnd layers of exponential
+  do j=1, N - 1 - nStart - nEnd
+     curSize = curSize * ratio
+     fullDeltaS(nStart + j + 1) = curSize
+  end do
+
+  ! Finally we have the last nEnd constant layers
+  curSize = curSize * ratio
+  do j=1, nEnd
+     fullDeltaS(N - nEnd  + j) = curSize
+  end do
+
+  contains 
+    function func(r)
+
+      ! Evaluate the function we want to solve for:
+      real(kind=realType) :: r, func, curSize
+      integer(kind=intType) :: j
+
+      ! We will have nStart layers at the beginning. 
+      func = nStart * s0
+      curSize = s0
+
+      ! Next we will have M = N - nStart - nEnd layers of exponential
+      ! growth.
+      do j = 1, N - 1 - nStart - nEnd
+         curSize = curSize * r
+         func = func + curSize
+      end do
+
+      ! Last stretch
+      curSize = curSize * r
+
+      ! Now add the last nEnd layers of constant size
+      func = func + nEnd * curSize
+      
+      ! Finally the actual functio is S - func
+      func = S - func
+
+    end function func
 
 end subroutine calcGridRatio
 

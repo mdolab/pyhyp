@@ -262,15 +262,15 @@ class pyHypMulti(object):
             print('='*40)
 
             print('')
-            print('+----+-------------+-----------+-------------------+------------------+')
-            print('| ID |  grid name  | gridRatio | minQualityOverall | minVolumeOverall |')
-            print('+----+-------------+-----------+-------------------+------------------+')
+            print('+----+-----------------------+-----------+-------------------+------------------+')
+            print('| ID |       grid name       | gridRatio | minQualityOverall | minVolumeOverall |')
+            print('+----+-----------------------+-----------+-------------------+------------------+')
 
             for index in range(self.numGrids):
 
                 # Crop filename
                 try:
-                    filename = self.results['name'][index][:11]
+                    filename = self.results['name'][index][:21]
                 except:
                     filename = self.results['name'][index]
 
@@ -281,7 +281,7 @@ class pyHypMulti(object):
 
                 # Format string that will be printed
                 log_string1 = '| %02d '%index + '|' + \
-                              ' {0: <11} '.format(filename) + '|'
+                              ' {0: <21} '.format(filename) + '|'
                 if type(gridRatio) is str:
                     log_string2 = ' {0: <9} '.format(gridRatio) + '|' + \
                                   ' '*4 + '{0: <10}'.format(minQualityOverall) + ' '*5 + '|' + \
@@ -293,7 +293,7 @@ class pyHypMulti(object):
 
                 print(log_string1+log_string2)
 
-            print('+----+-------------+-----------+-------------------+------------------+')
+            print('+----+-----------------------+-----------+-------------------+------------------+')
             print('')
             print('')
 
@@ -412,7 +412,10 @@ class pyHyp(object):
 
             # Number of constant off-wall layers before beginning
             # stretch
-            'nConstant':1,
+            'nConstantStart':1,
+
+            # Number of constant layers at the end of the march.
+            'nConstantEnd':1,
 
             # sMax': Distance to march.
             'marchDist':50,
@@ -769,7 +772,8 @@ class pyHyp(object):
     def _setOptions(self):
         """Internal function to set the options in pyHyp"""
         self.hyp.hypinput.n = self._go('N')
-        self.hyp.hypinput.nconstant = self._go('nConstant')
+        self.hyp.hypinput.nconstantstart = self._go('nConstantStart')
+        self.hyp.hypinput.nconstantend = self._go('nConstantEnd')
         self.hyp.hypinput.nopointreduce = self._go('noPointReduce')
         self.hyp.hypinput.s0 = self._go('s0')
         self.hyp.hypinput.marchdist = self._go('marchdist')
