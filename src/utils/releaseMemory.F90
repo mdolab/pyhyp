@@ -17,6 +17,10 @@ subroutine releaseMemory
      deallocate(patches)
   end if
 
+  if (allocated(fullDeltaS)) then 
+     deallocate(fullDeltaS)
+  end if
+
   if (allocated(gnPtr)) then
      deallocate(gnPtr)
   end if

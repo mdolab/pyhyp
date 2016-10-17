@@ -15,7 +15,7 @@ subroutine runHyperbolic
   integer(kind=intType) :: i, ierr, idim, l, reason
   real(kind=realType) :: tmp
 
-  call calcGridRatio(N-(nConstant-1), s0, marchDist - s0*(nConstant-1), gridRatio)
+  call calcGridRatio(N, nConstantStart, nConstantEnd, s0, marchDist, gridRatio)
 
   ! Defaults/Error checking
   if (pGridRatio <=0) then 

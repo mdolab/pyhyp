@@ -14,12 +14,14 @@ module hypInput
   real(kind=realType) :: kspRelTol, cmax, marchDist
   real(kind=realType) :: nodeTol, symTol, cornerAngle
   real(kind=realType) :: splay, splayEdgeOrthogonality, splayCornerOrthogonality
-  integer(kind=intType) :: N, nConstant
+  integer(kind=intType) :: N, nConstantStart, nConstantEnd
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
   integer(kind=intType) :: coarsen
 
   logical ::  nonLinear, writeMetrics, unattachedEdgesAreSymmetry
   logical :: noPointReduce
+
+  real(kind=realType), dimension(:), allocatable :: fullDeltaS
 
   ! Input boundary condition information
   integer(kind=intType), dimension(:, :), allocatable :: BCs
