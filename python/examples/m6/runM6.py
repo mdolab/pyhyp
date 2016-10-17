@@ -20,7 +20,7 @@ options= {
     'N': 81,
     's0':1.5e-5,
     'marchDist':30,
-    'nConstant':1,
+    'nConstantStart':1,
     
     # ---------------------------
     #   Pseudo Grid Parameters
