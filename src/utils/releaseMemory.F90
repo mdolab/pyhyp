@@ -57,6 +57,10 @@ subroutine releaseMemory
      deallocate(conn)
   end if
 
+  if (allocated(volSmoothSchedule)) then 
+     deallocate(volSmoothSchedule)
+  end if
+
   if (varsAllocated) then
      ! Destroy hyp system objects
      call KSPDestroy(hypKSP, ierr)

@@ -249,14 +249,29 @@ subroutine volumeSmooth
   implicit none
 
   ! Working Parameters
-  real(kind=realType) :: factor, nNeighbors, vSum
-  integer(kind=intType) :: i, iSize, iter, ierr, ii,jj
+  real(kind=realType) :: factor, nNeighbors, vSum, frac, low, high
+  integer(kind=intType) :: i, iSize, iter, ierr, ii,jj, nIter
   real(kind=realType), allocatable, dimension(:) :: Vtmp
-  real(kind=realType) :: timea, timeb
   logical :: search
 
-  ! Do a Jacobi volume smooth
+  if (allocated(volSmoothSchedule)) then 
+     ! We need to determine how many smoothing iterations to do by
+     ! interpolating the volumeSmoothing Schedule
+     frac = (marchIter-one)/(N-1)
+     
+     ! Just do a linear search for the bin:
+     do i=1,size(volSmoothSchedule, 1)-1
+        if (frac >= volSmoothSchedule(i, 1) .and. frac < volSmoothSchedule(i+1, 1)) then 
+           low = volSmoothSchedule(i, 2)
+           high = volSmoothSchedule(i+1, 2)
+           nIter = int(low + frac*(high-low))
+        end if
+     end do
+  else
+     nIter = volSmoothIter
+  end if
 
+  ! Do a Jacobi volume smooth
   call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
@@ -265,7 +280,7 @@ subroutine volumeSmooth
 
   call VecGetArrayF90(VolumeLocal, Vptr, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  do iter=1,volSmoothIter
+  do iter=1, nIter
 
      ! Copy vptr to vtmp
      do i=1, isize
