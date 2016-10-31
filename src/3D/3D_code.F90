@@ -261,7 +261,7 @@ subroutine volumeSmooth
      
      ! Just do a linear search for the bin:
      do i=1,size(volSmoothSchedule, 1)-1
-        if (frac >= volSmoothSchedule(i, 1) .and. frac < volSmoothSchedule(i+1, 1)) then 
+        if (frac >= volSmoothSchedule(i, 1) .and. frac <= volSmoothSchedule(i+1, 1)) then 
            low = volSmoothSchedule(i, 2)
            high = volSmoothSchedule(i+1, 2)
            nIter = int(low + frac*(high-low))
@@ -270,7 +270,6 @@ subroutine volumeSmooth
   else
      nIter = volSmoothIter
   end if
-
   ! Do a Jacobi volume smooth
   call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
   call EChk(ierr, __FILE__, __LINE__)
