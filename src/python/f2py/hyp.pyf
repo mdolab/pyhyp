@@ -59,7 +59,8 @@ python module hyp ! in
             integer(kind=inttype) :: outerfacetype
             integer(kind=inttype), parameter:: outerfacefarfield = 1
             integer(kind=inttype), parameter:: outerfaceoverset = 2
-            integer(kind=intType), dimension(:, :), allocatable :: bcs
+            integer(kind=inttype), dimension(:, :), allocatable :: bcs
+            real(kind=realtype), dimension(:, :), allocatable :: volsmoothschedule
         end module hypinput
 
         module hypdata

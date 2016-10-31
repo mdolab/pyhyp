@@ -17,6 +17,7 @@ module hypInput
   integer(kind=intType) :: N, nConstantStart, nConstantEnd
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
   integer(kind=intType) :: coarsen
+  real(kind=realType), dimension(:, :), allocatable :: volSmoothSchedule
 
   logical ::  nonLinear, writeMetrics, unattachedEdgesAreSymmetry
   logical :: noPointReduce

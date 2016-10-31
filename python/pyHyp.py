@@ -515,6 +515,10 @@ class pyHyp(object):
             # smoothing iterations
             'volSmoothIter': 100,
 
+            # volSmoothSchedule: If given, use a user-supplied volume
+            # smoothing schedule. 
+            'volSmoothSchedule':None,
+
             # -------------------------------
             #   Solution Parameters (Common)
             # -------------------------------
@@ -811,6 +815,15 @@ class pyHyp(object):
         self.hyp.hypinput.sourcestrengthfile[:] = ''
         f = self._go('sourceStrengthFile')
         self.hyp.hypinput.sourcestrengthfile[0:len(f)] = f
+
+        sch = self._go('volSmoothSchedule')
+        if sch is not None:
+            sch = numpy.array(sch, 'd')
+            # Make sure its normalized
+            low = sch[0, 0]
+            high = sch[-1, 0]
+            sch[:, 0] = (sch[:, 0]-low)/(high-low)
+            self.hyp.hypinput.volsmoothschedule = sch
 
     def _checkOptions(self, options, defaultOptions):
         """
