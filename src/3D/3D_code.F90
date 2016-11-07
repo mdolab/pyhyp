@@ -1211,7 +1211,7 @@ subroutine create3DPetscVars
 
 
      ! Create the KSP object
-     call KSPCreate(petsc_comm_world, hypKSP, ierr)
+     call KSPCreate(hyp_comm_world, hypKSP, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
      call KSPSetFromOptions(hypKSP, ierr)
