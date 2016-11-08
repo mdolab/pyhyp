@@ -8,6 +8,7 @@ options= {
     #        Input Parameters
     # ---------------------------
     'inputFile':fileName,
+    'fileType':'Plot3D',
     'unattachedEdgesAreSymmetry':True,
     'outerFaceBC':'farField',
     'autoConnect':True,
