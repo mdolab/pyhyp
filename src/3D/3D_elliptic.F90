@@ -494,7 +494,7 @@ subroutine generateSolution
   call EChk(ierr, __FILE__, __LINE__)
   deallocate(onProc, offProc)
 
-  call KSPCreate(warp_comm_world, ellipKSP, ierr)
+  call KSPCreate(hyp_comm_world, ellipKSP, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   call KSPSetFromOptions(ellipKSP, ierr)

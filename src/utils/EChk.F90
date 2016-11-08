@@ -3,6 +3,7 @@ subroutine EChk(ierr, file, line)
   ! Check if ierr that resulted from a petsc or MPI call is in fact an
   ! error. 
   use precision
+  use communication
 
   implicit none
 
@@ -16,17 +17,17 @@ subroutine EChk(ierr, file, line)
   integer(kind=intType),intent(in) :: ierr
   character*(*),intent(in) :: file
   integer(kind=intType),intent(in) :: line
-  integer(kind=intType) :: myid
+
   if (ierr == 0) then
      return ! No error, return immediately
   else
-     call MPI_Comm_rank(warp_comm_world, myid, ierr)
+     call MPI_Comm_rank(hyp_comm_world, myid, ierr)
      print *,'================================================================='
      write(*,900) "PETSc or MPI Error. Error Code ",ierr,". Detected on Proc ",myid
      write(*,901) "Error at line: ",line," in file: ",file
      print *,'================================================================='
 
-     call MPI_Abort(warp_comm_world,ierr)
+     call MPI_Abort(hyp_comm_world,ierr)
      stop ! Just in case
   end if
 
