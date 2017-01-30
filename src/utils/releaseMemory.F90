@@ -10,7 +10,7 @@ subroutine releaseMemory
 
   if (allocated(patches)) then
      do iPatch=1, nPatch
-        deallocate(patches(iPatch)%l_index) 
+        deallocate(patches(iPatch)%l_index)
         deallocate(patches(iPatch)%X)
         deallocate(patches(iPatch)%weights)
      end do

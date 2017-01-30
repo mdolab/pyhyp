@@ -14,14 +14,14 @@ options= {
     'outerFaceBC':'overset',
     'autoConnect':True,
     'BC':{1:{'jLow':'XYConst',
-             'iLow':'XConst', 
+             'iLow':'XConst',
              'iHigh':'XConst'}},
     'families':'wall',
 
     # ---------------------------
     #        Grid Parameters
     # ---------------------------
-    'N': 65, 
+    'N': 65,
     's0': 1e-6,
     'marchDist':2.5,
     'splay':0.5,

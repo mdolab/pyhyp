@@ -516,7 +516,7 @@ class pyHyp(object):
             'volSmoothIter': 100,
 
             # volSmoothSchedule: If given, use a user-supplied volume
-            # smoothing schedule. 
+            # smoothing schedule.
             'volSmoothSchedule':None,
 
             # -------------------------------
