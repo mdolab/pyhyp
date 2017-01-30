@@ -45,7 +45,7 @@ subroutine setup(fileName, fileType)
   logical :: found
   character(5) :: faceStr
   integer(kind=intType), dimension(:), pointer :: lPtr1, lPtr2
-  real(kind=realType), dimension(:, :), pointer :: xPtr
+  real(kind=realType), dimension(:, :), pointer :: xPtr, xPtrRowInward
   real(kind=realType) :: xSum(3), vals(2, 3)
   integer(kind=intType) :: mask(2, 3), nn(2), mm(2), f(3), iFace, jp2
 
@@ -506,10 +506,44 @@ subroutine setup(fileName, fileType)
                     xSum(1) = sum(abs(xptr(1, :)))
                     xSum(2) = sum(abs(xptr(2, :)))
                     xSum(3) = sum(abs(xptr(3, :)))
-                    
+
                     ! take dimension with lowest val
                     i = minloc(xSum, 1)
 
+                    ! However, if there are two dimensions with both xSum components
+                    ! being 0, we have the fringe case where an edge is directly
+                    ! on top of the coordinate axis.
+                    ! We need to look at the normals to find out which direction
+                    ! has the actual symmetry plane.
+                    if (((xSum(mod(i+1, 3)) - xSum(i)) < 1.e-10) .or. &
+                        ((xSum(mod(i+2, 3)) - xSum(i)) < 1.e-10)) then
+
+                      ! Get the row of coordinates one inboard from the edge of the patch.
+                      select case(iEdge)
+                      case (iLow)
+                         xPtrRowInward => patches(ii)%x(:, 2, jl:1:-1)
+                      case (iHigh)
+                         xPtrRowInward => patches(ii)%x(:, il-1, :)
+                      case (jLow)
+                         xPtrRowInward => patches(ii)%x(:, :, 2)
+                      case (jHigh)
+                         xPtrRowInward => patches(ii)%x(:, il:1:-1, jl-1)
+                      end select
+
+                      ! Sum the absolute values of the vectors going from the
+                      ! edge to the first inboard coordinates.
+                      xSum(1) = sum(abs(xPtrRowInward(1, :) - xptr(1, :)))
+                      xSum(2) = sum(abs(xPtrRowInward(2, :) - xptr(2, :)))
+                      xSum(3) = sum(abs(xPtrRowInward(3, :) - xptr(3, :)))
+
+                      ! Locate the max index for this sum of vectors.
+                      ! This is normal to the symmetry plane.
+                      i = maxloc(xSum, 1)
+
+                    end if
+
+                    ! Set the symmetry plane BCs according to which coordinate
+                    ! index corresponded to the edge coordinates being 0.
                     if (i== 1) then
                        BCs(iEdge, ii) = BCXsymm
                     else if(i==2) then
@@ -607,7 +641,7 @@ subroutine setup(fileName, fileType)
                           call addMissing(nodeConn(1:3, iNode), fullnPtr(4, iNode), fullNPtr(3, iNode), &
                                fullNPtr(2, iNode))
                        end if
-                       if (BCs(iEdge, ii) > fullBCType(1, iNode)) then 
+                       if (BCs(iEdge, ii) > fullBCType(1, iNode)) then
                           fullBCType(1, iNode) = BCs(iEdge, ii)
 
                           ! Set the possible boundary condition value
@@ -815,7 +849,7 @@ subroutine setup(fileName, fileType)
            fullcPtr(3, i) = f(2)
            fullcPtr(4, i) = f(3)
 
-           ! We need to set the BC Data here too. 
+           ! We need to set the BC Data here too.
            fullBCType(1, i) = fullBCType(1, fullnPtr(2, i))
            fullBCVal(1, :, i) = fullBCVal(1, :, fullnPtr(2, i))
 
