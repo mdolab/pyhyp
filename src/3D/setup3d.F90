@@ -1066,7 +1066,7 @@ subroutine setup(fileName, fileType)
       integer(kind=intType) :: mgLevel
       mgLevel = 1
 
-      do while (mod(mgLevel-1, 2**(mgLevel-1)) == 0)
+      do while (mod(il-1, 2**(mgLevel-1)) == 0)
          mgLevel = mgLevel + 1
       end do
     end function mgLevel
