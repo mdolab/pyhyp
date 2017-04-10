@@ -1275,7 +1275,7 @@ subroutine setupPETScKSP
   call EChk(ierr, __FILE__, __LINE__)
   
   ! Setup the matrix ordering for the subpc object:
-  call PCFactorSetMatOrderingtype(subpc, "rcm", ierr)
+  call PCFactorSetMatOrderingtype(subpc, "nd", ierr)
   call EChk(ierr, __FILE__, __LINE__)
   
   ! Set the ILU parameters

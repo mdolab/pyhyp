@@ -27,13 +27,13 @@ default: all
 all:
 
 # Generate Python inlude directory
-	 $(eval PYTHON_INCLUDES = $(shell python-config --includes))
+	 $(eval PYTHON_INCLUDES = $(shell $(PYTHON-CONFIG) --includes))
 	 @echo "#------------------------------------------------------#"
 	 @echo Python Include Flags $(PYTHON_INCLUDES)
 	 @echo "#------------------------------------------------------#"
 
 # Generate Numpy inlude directory
-	$(eval NUMPY_INCLUDES = $(shell python -c 'import numpy; print numpy.get_include()'))
+	$(eval NUMPY_INCLUDES = $(shell $(PYTHON) -c 'from __future__ import print_function; import numpy; print(numpy.get_include())'))
 	 @echo "#------------------------------------------------------#"
 	 @echo Numpy Include Directory: $(NUMPY_INCLUDES)
 	 @echo "#------------------------------------------------------#"
