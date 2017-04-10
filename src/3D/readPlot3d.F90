@@ -29,7 +29,7 @@ subroutine readPlot3d(fileName)
         stop
      end if
   end do
-
+  print *,'patchSizes:', patchSizes
   ! Now allocate and read all the blocks from the plot3d file
   do  ii=1, nPatch
      patchIO(ii)%il = patchSizes(1, ii)
@@ -39,8 +39,11 @@ subroutine readPlot3d(fileName)
      allocate(patchIO(ii)%X(3, patchIO(ii)%il, patchIO(ii)%jl))
 
      read(7, *) (( patchIO(ii)%X(1, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
+     print *,'one'
      read(7, *) (( patchIO(ii)%X(2, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
+     print *,'two'
      read(7, *) (( patchIO(ii)%X(3, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
+     print *,'htree'
   enddo
   deallocate(patchSizes)
 
