@@ -38,14 +38,14 @@ all:
 	 @echo Numpy Include Directory: $(NUMPY_INCLUDES)
 	 @echo "#------------------------------------------------------#"
 # Generate f2py root directory
-	$(eval F2PY_ROOT = $(shell python get_f2py.py))
+	$(eval F2PY_ROOT = $(shell $(PYTHON) get_f2py.py))
 	 @echo "#------------------------------------------------------#"
 	 @echo f2py root directory: $(F2PY_ROOT)
 	 @echo "#------------------------------------------------------#"
 
 #       need to have f2py_f2cmap in this folder....
 	cp f2py_f2cmap.ref .f2py_f2cmap
-	f2py hyp.pyf
+	$(F2PY) hyp.pyf
 	@echo " "
 	$(CC) $(CC_ALL_FLAGS) $(PYTHON_INCLUDES) -I$(NUMPY_INCLUDES) \
 	-I$(F2PY_ROOT)/src -c hypmodule.c
@@ -57,7 +57,7 @@ all:
 
 	$(FF90) $(FF90_ALL_FLAGS) -I$(HYP_MODDIR) -c hyp-f2pywrappers2.f90
 	$(FF90) -shared $(PYTHON_OBJECTS) $(LINKER_ALL_FLAGS) -o hyp.so
-	python importTest.py
+	$(PYTHON) importTest.py
 
 	mv hyp.so ../../../python
 # Clean up temporary files
