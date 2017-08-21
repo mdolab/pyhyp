@@ -764,7 +764,7 @@ subroutine calcResidual
            averageNode = .True. 
            !print *,xx0
         end if
-           
+
         ! Metric correction
 
         ! Compute adjusted derivatives (Eq. 7.2)

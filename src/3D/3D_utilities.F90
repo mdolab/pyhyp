@@ -975,7 +975,7 @@ subroutine computeCornerAngle(normal1,normal2,edgeVector,angle)
   real(kind=realType), intent(out) :: angle
 
   ! Working variables
-  real(kind=realType) :: orthog(3), proj, n1norm(3), n2norm(3)
+  real(kind=realType) :: orthog(3), proj, n1norm(3), n2norm(3), acosArg
 
   ! EXECUTION
 
@@ -984,7 +984,9 @@ subroutine computeCornerAngle(normal1,normal2,edgeVector,angle)
   n2norm = normal2/norm2(normal2)
 
   ! Compute the angle between normals
-  angle = acos(dot_product(n1norm,n2norm))
+  acosArg = dot_product(n1norm,n2norm)
+  acosArg = min(1.0, max(-1.0, acosArg)) ! This is here to make sure argument is between -1,1
+  angle = acos(acosArg)
 
   ! Find vector orthogonal to normals, from face 1 to face 2
   call cross_prod(n1norm, n2norm, orthog)
