@@ -6,7 +6,7 @@ subroutine writeCGNS(fileName)
   !     Abstract: writeCGNS write the current grid to a 3D CGNS
   !               file. It does not make any attempt to do grid
   !               connectivities or boundary conditions. Use
-  !               cgns_utils from cgnsUtilities for that. 
+  !               cgns_utils from cgnsUtilities for that.
   !
   !     Parameters
   !     ----------
@@ -14,12 +14,12 @@ subroutine writeCGNS(fileName)
   !         The name of the cgns file
 
   use communication
-  use hypInput 
+  use hypInput
   use hypData, only : X, metrics, rootScatter, xLocal, metricsAllocated, iVHist
   use hypData, only : nPatch, patches, xx, metrics, ix_ksi, ix_eta, ix_zeta, iX_eta_eta, iX_ksi_ksi, iX_diss
-
+  use cgnsGrid
   implicit none
-  include "cgnslib_f.h"
+
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
@@ -36,8 +36,9 @@ subroutine writeCGNS(fileName)
   integer(kind=intType) :: cg, ierr, iEdge, il, jl
   integer(kind=intType) :: cellDim, physDim, base, coordID, gridShp(3)
   character*256 :: zoneName, bcName
-  integer(kind=intType) :: sizes(9), zone, ii, i, j, k, cgtransform(3)
-  integer(kind=intType) :: ptRange(3,2), fullRange(3,2), iBoco
+  integer(kind=intType) :: zone, ii, i, j, k, cgtransform(3)
+  integer(cgsize_t) :: sizes(9), ptRange(3,2)
+  integer(kind=intType) ::  fullRange(3,2), iBoco
   integer(kind=intType) :: s, f
   real(kind=realType), dimension(:,:,:), allocatable :: coordArray, solArray
   character*12, dimension(3) :: coorNames, r_ksi, r_eta, r_zeta
@@ -77,13 +78,13 @@ subroutine writeCGNS(fileName)
         ! Write the single zone
 999     FORMAT('domain.',I5.5)
         write(zonename,999) iPatch ! Domains are typically ordered form 1
-        sizes(:) = 0_intType
+        sizes(:) = 0
         sizes(1) = il
         sizes(2) = jl
         sizes(3) = N
         sizes(4) = sizes(1) - 1
         sizes(5) = sizes(2) - 1
-        sizes(6) = sizes(3) - 1 
+        sizes(6) = sizes(3) - 1
         call cg_zone_write_f(cg, base, zonename, sizes, Structured, &
              zone, ierr)
         if (ierr .eq. CG_ERROR) call cg_error_exit_f
@@ -151,7 +152,7 @@ subroutine writeCGNS(fileName)
            call VecRestoreArrayF90(metrics(k, iVHist), xxtmp, ierr)
            call EChk(ierr, __FILE__, __LINE__)
         end do
-        if (myid == 0) then 
+        if (myid == 0) then
            call cg_field_write_f(cg, base, zone, s, RealDouble, &
                 'volume', solArray, F, ierr)
            if (ierr .eq. CG_ERROR) call cg_error_exit_f
@@ -170,9 +171,9 @@ subroutine writeCGNS(fileName)
 
      ! ------- Write the BC for K=N plane -------------
      ptRange(3, :) = N
-     if (outerfacetype == outerFaceFarfield) then 
+     if (outerfacetype == outerFaceFarfield) then
         call writeBC(bcFarField, ptRange, "Far")
-     else if(outerFaceType == outerFaceOverset) then 
+     else if(outerFaceType == outerFaceOverset) then
         call writeBC(CG_UserDefined, ptRange, "Overset")
      end if
 
@@ -180,11 +181,11 @@ subroutine writeCGNS(fileName)
      do iEdge = 1,4
         ptRange = fullRange
         select case(iEdge)
-        case (iLow) 
+        case (iLow)
            ptRange(1, :) = 1
         case (iHigh)
            ptRange(1, :) = il
-        case (jLow) 
+        case (jLow)
            ptRange(2, :) = 1
         case (jHigh)
            ptRange(2, :) = jl
@@ -193,11 +194,11 @@ subroutine writeCGNS(fileName)
         if (BCs(iEdge, iPatch) == BCSplay .or. &
            BCs(iEdge, iPatch) == BCXConst .or. &
            BCs(iEdge, iPatch) == BCYConst .or. &
-           BCs(iEdge, iPatch) == BCZConst) then 
+           BCs(iEdge, iPatch) == BCZConst) then
            call writeBC(CG_UserDefined, ptRange, "Overset")
         else if (BCs(iEdge, iPatch) == BCXSymm .or. &
              BCs(iEdge, iPatch) == BCYSymm .or. &
-             BCs(iEdge, iPatch) == BCZSymm) then 
+             BCs(iEdge, iPatch) == BCZSymm) then
            call writeBC(BCSymmetryPlane, ptRange, "Sym")
         end if
      end do
@@ -249,26 +250,27 @@ contains
     ! Helper routine for writing a boundary condition
     use hypInput
     implicit none
-    integer(kind=intType) :: bcType, ptRange(3, 2), BCOut
+    integer(kind=intType) :: bcType, BCOut
+    integer(kind=cgsize_t) :: ptRange(3,2)
     character*(*) :: famName
-    if (myid == 0) then 
+    if (myid == 0) then
 998    FORMAT('boco.',I5.5)
        iBoco = iBoco + 1
        write (bcName, 998), iBoco
-       
+
        call cg_boco_write_f(cg, base, iPatch, trim(bcName), &
-            BCType, PointRange, 2, ptRange, BCout, ierr) 
+            BCType, PointRange, 2_cgsize_t, ptRange, BCout, ierr)
        if (ierr == CG_ERROR) call cg_error_exit_f
-       
+
        call cg_goto_f(cg, base, ierr, 'Zone_t', iPatch, "ZoneBC_t", 1, &
             "BC_t", BCOut, "end")
        if (ierr .eq. CG_ERROR) call cg_error_exit_f
-       
+
        call cg_famname_write_f(trim(famName), ierr)
        if (ierr .eq. CG_ERROR) call cg_error_exit_f
-       
+
        !Add an user-defined data node for the overset BC case
-       if (bcType == CG_UserDefined) then 
+       if (bcType == CG_UserDefined) then
           call cg_user_data_write_f('BCOverset', ierr)
           if (ierr .eq. CG_ERROR) call cg_error_exit_f
        end if

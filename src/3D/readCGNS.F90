@@ -2,8 +2,8 @@ subroutine readCGNS(cgnsFile)
 
   use hypData
   use communication
+  use cgnsGrid
   implicit none
-  include 'cgnslib_f.h'
 
   ! Input Arguments
   character*(*),intent(in) :: cgnsFile
@@ -17,7 +17,7 @@ subroutine readCGNS(cgnsFile)
   integer(kind=intType) :: ptset_type, npnts, pnts(2,2), normalList
   integer(kind=intType) :: zoneType, idataset
   integer(kind=intType) :: dummybocoType, DirichletFlag, NeumannFlag
-  integer(kind=intType) :: dims(6)
+  integer(kind=cgsize_t) :: dims(6)
   real(kind=realType), dimension(:, :), allocatable :: coor
   character*32 :: baseName, zoneName, bocoName, DatasetName
 
@@ -127,8 +127,8 @@ subroutine readFamily(cgnsFile, iBlock, family, foundFam)
 
   use hypData
   use communication
+  use cgnsGrid
   implicit none
-  include 'cgnslib_f.h'
 
   ! Input/Output Arguments
   character*(*),intent(in) :: cgnsFile
@@ -140,8 +140,9 @@ subroutine readFamily(cgnsFile, iBlock, family, foundFam)
   integer(kind=intType) :: cg, ierr, i
   integer(kind=intType) :: base, nBoco
   integer(kind=intType) :: nbocos, iBC, bocoType, bocoIndex
-  integer(kind=intType) :: NormalIndex(3), NormalListSize, NormalDataType, ndataset
-  integer(kind=intType) :: ptset_type, npnts, pts(2,2), normalList
+  integer(kind=intType) :: NormalIndex(3), NormalDataType, ndataset
+  integer(kind=intType) :: ptset_type,  normalList
+  integer(cgsize_t) :: pts(2,2), npnts, NormalListSize
   character*32 :: zoneName, bocoName
 
   family = ""

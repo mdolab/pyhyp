@@ -4,14 +4,14 @@ subroutine readPlot3d(fileName)
 
   use hypData
   implicit none
-  include 'cgnslib_f.h'
 
   ! Input Arguments
   character*(*),intent(in) :: fileName
 
   ! Working
   integer(kind=intType), dimension(:, :), allocatable :: patchSizes
-  integer(kind=intType) :: ii, i, j
+  real(kind=realType), dimension(:), allocatable :: buffer
+  integer(kind=intType) :: ii, i, j, jj, nTot, iDim
 
   ! Open file and read number of patches
   open(unit=7, form='formatted', file=fileName)
@@ -29,7 +29,7 @@ subroutine readPlot3d(fileName)
         stop
      end if
   end do
-  print *,'patchSizes:', patchSizes
+
   ! Now allocate and read all the blocks from the plot3d file
   do  ii=1, nPatch
      patchIO(ii)%il = patchSizes(1, ii)
@@ -38,12 +38,20 @@ subroutine readPlot3d(fileName)
      ! Allocate space for the grid coordinates on the patch and read
      allocate(patchIO(ii)%X(3, patchIO(ii)%il, patchIO(ii)%jl))
 
-     read(7, *) (( patchIO(ii)%X(1, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
-     print *,'one'
-     read(7, *) (( patchIO(ii)%X(2, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
-     print *,'two'
-     read(7, *) (( patchIO(ii)%X(3, i, j), i=1,patchIO(ii)%il), j=1,patchIO(ii)%jl)
-     print *,'htree'
+     nTot = 3*patchIO(ii)%il*patchIO(ii)%jl
+     allocate(buffer(nTot))
+     read(7, *) (buffer(i), i=1,nTot)
+
+     jj = 0
+     do idim=1, 3
+        do j=1,patchIO(ii)%jl
+           do i=1,patchIO(ii)%il
+              jj = jj + 1
+              patchIO(ii)%X(iDim, i, j) = buffer(jj)
+           end do
+        end do
+     end do
+     deallocate(buffer)
   enddo
   deallocate(patchSizes)
 

@@ -812,9 +812,8 @@ class pyHyp(object):
         ffType = {'farfield':self.hyp.hypinput.outerfacefarfield,
                   'overset':self.hyp.hypinput.outerfaceoverset}
         self.hyp.hypinput.outerfacetype = ffType[self._go('outerFaceBC').lower()]
-        self.hyp.hypinput.sourcestrengthfile[:] = ''
-        f = self._go('sourceStrengthFile')
-        self.hyp.hypinput.sourcestrengthfile[0:len(f)] = f
+        self.hyp.hypinput.sourcestrengthfile = (
+            self._expandString(self._go('sourceStrengthFile')))
 
         sch = self._go('volSmoothSchedule')
         if sch is not None:
@@ -839,6 +838,11 @@ class pyHyp(object):
         for key in defaultOptions:
             if not key.lower() in optionKeys:
                 self.setOption(key, defaultOptions[key])
+
+    def _expandString(self, s):
+        """Expand a supplied string 's' to be of the constants.maxstring
+        length so we can set them in fortran"""
+        return s + ' '*(512-len(s))
 
     def __del__(self):
         """
