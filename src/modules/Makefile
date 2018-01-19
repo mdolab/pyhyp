@@ -22,6 +22,7 @@ FF90_OBJECTS_2 =	communication.o\
 			panel.o\
 			kd_tree.o\
 			bspline.o\
+			cgnsGrid.o\
 
 default: all
 
@@ -33,5 +34,5 @@ clean:
 	@echo "        Making clean in modules... "
 	rm -f $(MAKE_CLEAN_ARGUMENTS)
 
-src_1:	$(FF90_OBJECTS_1) 
-src_2:	$(FF90_OBJECTS_2) 
+src_1:	$(FF90_OBJECTS_1)
+src_2:	$(FF90_OBJECTS_2)
