@@ -23,7 +23,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
   call setStrengths(stateVec)
 
   ! Now we can pull out a local vector for resVec since we will only
-  ! be setting local variables. 
+  ! be setting local variables.
   call VecGetArrayF90(resVec, xx, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
@@ -44,19 +44,19 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
 end subroutine FormFunction_mf
 
 subroutine runElliptic
-  ! run3DElliptic is the main python interface for generatnig 3D elliptic meshes. 
+  ! run3DElliptic is the main python interface for generatnig 3D elliptic meshes.
   !
   !
   ! Notes
   ! -----
   ! The init3d routine must have already been called with the
-  ! addtional setup information. 
+  ! addtional setup information.
   use communication
   use hypData
   use hypInput
   use panel
   implicit none
-#include "cgnslib_f.h"
+
   ! Working parameters
   integer(kind=intType) :: i, j, ierr
   real(kind=realType), dimension(100) :: targets
@@ -81,9 +81,9 @@ subroutine runElliptic
         print *,'Solution time:', times(2)-times(1)
      end if
   end if
-  
+
   !  if (.not. myid ==0) then
-  !    return 
+  !    return
   ! end if
   ! call cg_open_f("L1_with_potential.cgns", CG_MODE_MODIFY, cg, ierr)
   ! if (ierr .eq. CG_ERROR) call cg_error_exit_f
@@ -114,11 +114,11 @@ subroutine runElliptic
   !    call cg_coord_read_f(cg, base, zone, 'CoordinateY', RealDouble, (/1,1,1/), &
   !         zonesize, coorY, ierr)
   !    if (ierr .eq. CG_ERROR) call cg_error_exit_f
-     
+
   !    call cg_coord_read_f(cg, base, zone, 'CoordinateZ', RealDouble, (/1,1,1/), &
   !         zonesize, coorZ, ierr)
   !    if (ierr .eq. CG_ERROR) call cg_error_exit_f
-     
+
   !    do k=1,zonesize(3)!-1
   !       do j=1,zonesize(2)!-1
   !          do i=1,zonesize(1)!-1
@@ -273,7 +273,7 @@ subroutine runElliptic
 
   call VecDuplicate(ellipDelta, ellipNorm, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   call VecDuplicate(ellipDelta, ellipLayer, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
@@ -297,9 +297,9 @@ subroutine runElliptic
      if (myid == 0) then
         print *,'Percent:',dble(j-1)/N*100
      end if
-     
+
      ! Generate the panel centers of the j-1 layer and store into
-     ! ellipLayer. 
+     ! ellipLayer.
      call generateEllipLayer(X(j-1), ellipLayer)
 
      ! Distributed loop over the owned panels
@@ -311,7 +311,7 @@ subroutine runElliptic
         inds = (/3*(i-1), 3*(i-1)+1, 3*(i-1)+2/)
         call VecGetValues(ellipLayer, 3, inds, startPt, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
+
         ! Actual call to advance one point to the target
         call marchPt(startPt, targets(j), endPt, V, neval)
 
@@ -330,7 +330,7 @@ subroutine runElliptic
      ! off-processor values)
      call VecAssemblyBegin(ellipDelta, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     
+
      call VecAssemblyBegin(ellipNorm, ierr)
      call EChk(ierr, __FILE__, __LINE__)
 
@@ -370,7 +370,7 @@ subroutine runElliptic
 
      ! Call the reconstruct algorithm to get the nodes from the
      ! centers/normals
-     ! if (j == 2) then 
+     ! if (j == 2) then
      !    call reconstruct(X(j), X(j-1), ellipLayerLocal, ellipDeltaLocal, ellipNormLocal)
      ! else
      !    call reconstruct2(X(j), X(j-1), ellipLayerLocal, ellipDeltaLocal, ellipNormLocal)
@@ -383,13 +383,13 @@ subroutine runElliptic
   ! Destroy all the temporary PETSc variables
   call VecDestroy(ellipDelta, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   call VecDestroy(ellipNorm, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   call VecDestroy(ellipDeltaLocal, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   call VecDestroy(ellipNormLocal, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
@@ -485,7 +485,7 @@ subroutine generateSolution
 
   ! We arbitrarily add an extra 10 rows in case PETSc wants to be
   ! dumb. Also we make sure that the number of non-zeros isn't more
-  ! than the number of columns. 
+  ! than the number of columns.
   onProc = min(onProc + 10, nplocal)
   offProc = min(offProc + 10, npglobal-nplocal)
 
@@ -556,21 +556,21 @@ subroutine generateSolution
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Apparently LEFT preconditioning doesn't work AT ALL for this
-  ! problem. So hard-code Right preconditioning. 
+  ! problem. So hard-code Right preconditioning.
   call KSPGetPC(ellipKSP, pc, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   call KSPsetPCSide(ellipksp, PC_RIGHT, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  ! Solve and use the scatter context to give the solution to everyone. 
+  ! Solve and use the scatter context to give the solution to everyone.
   call KSPSolve(ellipKSP, ellipRHS, ellipSol, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   ! Set the solution
   call setStrengths(ellipSol)
 
-  ! Save the solution 
+  ! Save the solution
   call saveSolution(ellipSol)
 
   if (.not. assembleMat) then
@@ -613,12 +613,12 @@ end subroutine generateSolution
 subroutine setStrengths(sigma)
 
   ! setStrengths takes the gloabl PETSc vector and updates the source
-  ! strengths in the multi-grid structure. 
-  !  
+  ! strengths in the multi-grid structure.
+  !
   ! Parameters
   ! ----------
   ! sigma : PETSc Vec (parallel)
-  !    The distributed source strengths. 
+  !    The distributed source strengths.
 
   use precision
   use hypData, only : ellipScatter, localSol, xx
@@ -640,7 +640,7 @@ subroutine setStrengths(sigma)
 
   ! First we have to take the states and scatter them to everyone and
   ! set them. This communication is the only communication for the
-  ! entire matrix vector product. 
+  ! entire matrix vector product.
 
   call VecScatterBegin(ellipScatter, sigma, localSol, &
        INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -665,17 +665,17 @@ end subroutine setStrengths
 
 subroutine saveSolution(sigma)
   ! setStrengths takes the gloabl PETSc vector and updates the source
-  ! strengths in the multi-grid structure. 
-  !  
+  ! strengths in the multi-grid structure.
+  !
   ! Parameters
   ! ----------
   ! sigma : PETSc Vec (parallel)
-  !    The distributed source strengths. 
+  !    The distributed source strengths.
 
 
   ! First we have to take the states and scatter them to everyone and
   ! set them. This communication is the only communication for the
-  ! entire matrix vector product. 
+  ! entire matrix vector product.
 
   use precision
   use hypData, only : ellipScatter, localSol, xx, npGlobal
@@ -712,7 +712,7 @@ subroutine saveSolution(sigma)
 
      open(unit=9,file=trim(sourceStrengthFile), status='replace')
      ! Format is pretty simple: A single interger with the number of
-     ! panels, followed by that number of floats. 
+     ! panels, followed by that number of floats.
 5    format (I8)
 6    format (g22.14)
 
@@ -730,12 +730,12 @@ end subroutine saveSolution
 subroutine loadSolution(successful)
 
   ! loadSolution tries to load in an existing solution file. It then
-  ! checks that the file *is* actually a solution. 
-  !  
+  ! checks that the file *is* actually a solution.
+  !
   ! Returns
   ! -------
   ! succesful : bool
-  !    Flag signifiying if the load was successful or not. 
+  !    Flag signifiying if the load was successful or not.
 
   use hypInput
   use hypData
@@ -751,11 +751,11 @@ subroutine loadSolution(successful)
   logical :: failed, file_exists
   real(kind=realType) :: tempStrength(nPGlobal)
   real(kind=realType) :: V(3), phi, err, errLocal
-  successful = .False. 
+  successful = .False.
 
   ! Check 1: Does the file exists?
   if (myid == 0) then
-     INQUIRE(FILE=trim(sourceStrengthFile), EXIST=file_exists) 
+     INQUIRE(FILE=trim(sourceStrengthFile), EXIST=file_exists)
   end if
 
   call MPI_bcast(file_exists, 1, MPI_LOGICAL, 0, hyp_comm_world, ierr)
@@ -817,7 +817,7 @@ subroutine loadSolution(successful)
   err = sqrt(err)
 
   if (err < 10*kspRelTol) then
-     successful = .True. 
+     successful = .True.
   else
      if (myid == 0) then
         print *, '-> sourceStrengthFile has incorrect values.'
@@ -829,7 +829,7 @@ end subroutine loadSolution
 subroutine marchPt(startPt, phiTarget, endPt, V, neval)
 
   ! marchPt evaluates the tracjectory of a point
-  !  
+  !
   ! Parameters
   ! ----------
   ! pt : real, dimension(3)
@@ -846,7 +846,7 @@ subroutine marchPt(startPt, phiTarget, endPt, V, neval)
   ! Input Parameters
   real(kind=realType), intent(in), dimension(3) :: startPt
   real(kind=realType), intent(in) :: phiTarget
-  
+
   ! Output Parameters
   real(kind=realType), intent(out), dimension(3) :: endPt, V
   integer(kind=intTYpe) :: neval
@@ -857,7 +857,7 @@ subroutine marchPt(startPt, phiTarget, endPt, V, neval)
   real(kind=realType) :: yfinal(3), Vfinal(3), vtmp(3), dyfinal(3), dy(3), dt, fa, fb, ff
   real(kind=realType) :: dy_prime(3), dt0
   logical cont
-  integer(kind=intTYpe):: i,j,k, kk 
+  integer(kind=intTYpe):: i,j,k, kk
 
   y = startPt
   tol = 1e-7
@@ -872,7 +872,7 @@ subroutine marchPt(startPt, phiTarget, endPt, V, neval)
 
   ! Integrate until we hit phi
   cont = .True.
-  k = 0 
+  k = 0
   do while(cont)
      k = k + 1
 
@@ -904,7 +904,7 @@ subroutine marchPt(startPt, phiTarget, endPt, V, neval)
         yfinal = yprime
         Vfinal = V_prime
         cont = .False.
-        exit 
+        exit
      else if (phi_prime < phiTarget) then
         !print *,'start bisection'
         ! Now just do a bisection search
@@ -965,12 +965,12 @@ end subroutine marchPt
 subroutine evalAtPoint(pt, phi, V)
   ! evalAtPoint is the main routine for determining the potential and
   ! velocity at a given pt. It uses one of three methods depending on
-  ! the value in "evalMode" (in hypInput): 
+  ! the value in "evalMode" (in hypInput):
   !
   ! 1. Exact Evaluation: The routine modifies the farfield tolerance
   ! to ensure that only the exact evaluations are used. (Slow N^2
   ! algorithm)
-  !  
+  !
   ! 2. Slow Evaluation: Uses farfield approximations, but doesn't
   ! group panels (faster N^2 algorithm)
   !
@@ -1008,7 +1008,7 @@ subroutine evalAtPoint(pt, phi, V)
   phi = zero
 
   if (evalMode == EVAL_FAST) then
-     call evalAtLevel(levelMax, pt, coarseIndices, nCoarse, phi, V)     
+     call evalAtLevel(levelMax, pt, coarseIndices, nCoarse, phi, V)
 
   else if (evalMode == EVAL_SLOW) then
      do i=1, nPGlobal
@@ -1038,15 +1038,15 @@ subroutine setupPanels
   !     Abstract: setupPanels generates all the required data
   !     structures for doing the fast multipole method. This
   !     subroutine should only need to be called once from python.
-  !  
+  !
 
   use communication
   use hypInput
   use hypData
   use panel
   implicit none
-  
-  ! Working 
+
+  ! Working
   integer(kind=intType) :: iPatch, sizes(2), i, j, ii, jj, iPanel, nn
   integer(kind=intType) :: iLevel, ierr, iNode
   real(kind=realType), dimension(3) :: xCen, r , v1, v2, v3
@@ -1057,14 +1057,14 @@ subroutine setupPanels
   ! the MGP with the correct number of levels.
 
   if (myid == 0) then
-     levelMax = 1000 ! Arbitrary large number 
+     levelMax = 1000 ! Arbitrary large number
      do iPatch=1, nPatch
         sizes(1) = patches(iPatch)%il
         sizes(2) = patches(iPatch)%jl
-        
+
         levelLoop: do j=1,levelMax
            if (.not. mod(sizes(1)-1, 2) == 0) then
-              levelMax = j 
+              levelMax = j
               exit levelLoop
            end if
            if (.not. mod(sizes(2)-1, 2) == 0) then
@@ -1075,14 +1075,14 @@ subroutine setupPanels
            sizes(2) = (sizes(2)-1)/2 + 1
         end do levelLoop
      end do
-     
+
      write(*,"(a)", advance="no") '#--------------------#'
-     print "(1x)"  
+     print "(1x)"
      write(*,"(a)", advance="no") " Multigrid levels:"
      write(*,"(I2,1x)",advance="no") levelMax
-     print "(1x)" 
+     print "(1x)"
      write(*,"(a)", advance="no") '#--------------------#'
-     print "(1x)"   
+     print "(1x)"
      npGlobal = faceTotal
   end if
 
@@ -1101,7 +1101,7 @@ subroutine setupPanels
   call VecScatterEnd(allScatter, X(1), allGlobalNodes, INSERT_VALUES, &
        SCATTER_FORWARD, ierr)
   call EChk(ierr,__FILE__,__LINE__)
-  
+
   call VecScatterDestroy(allScatter, ierr)
   call EChk(ierr,__FILE__,__LINE__)
 
@@ -1126,7 +1126,7 @@ subroutine setupPanels
         iNode = fullConn(j, i)
         pp%X(:, j) = xx(3*iNode-2:3*iNode)
      end do
-     
+
      ! Compute panel center
      do j=1, pp%N
         pp%center = pp%center + pp%X(:, j) / pp%N
@@ -1139,20 +1139,20 @@ subroutine setupPanels
            pp%length = max(pp%length, dist(pp%X(:, j), pp%X(:, jj)))
         end do
      end do
- 
+
      ! Now compute the normal and area
      v1 = pp%X(:, 3) - pp%X(:, 1)
      v2 = pp%X(:, 4) - pp%X(:, 2)
-        
+
      ! v3 = v1 x v2
      v3(1) = v1(2) * v2(3) - v1(3) * v2(2)
      v3(2) = v1(3) * v2(1) - v1(1) * v2(3)
      v3(3) = v1(1) * v2(2) - v1(2) * v2(1)
-        
+
      ! Sum this much of the area
      lenv3 = sqrt(v3(1)**2 + v3(2)**2 + v3(3)**2)
      v3 = v3 / lenv3
-     pp%area = half*lenV3 
+     pp%area = half*lenV3
      pp%normal = v3
 
      ! Compute the transformation matrics
@@ -1161,7 +1161,7 @@ subroutine setupPanels
 
      ! Normalize the first direction
      v1 = v1 / sqrt(v1(1)**2 + v1(2)**2 + v1(3)**2)
- 
+
      ! Panel normal
      v3 = pp%normal
 
@@ -1179,7 +1179,7 @@ subroutine setupPanels
 
      ! We don't actually need the physical coordinates for the panel,
      ! but the coordinates in the local frame, pts. So compute them
-     ! here once. 
+     ! here once.
      pp%X(:, pp%N+1) = pp%X(:,pp%N)
      do j=1, pp%N
         pp%pts(:, j) = matmul(pp%C, pp%X(:, pp%N+1-j) - pp%center)
@@ -1215,7 +1215,7 @@ subroutine setupPanels
 
         ! And divide by the the level:
         sizes = sizes / 2**(iLevel - 1)
-        
+
         ! And sum:
         ii = ii + sizes(1)*sizes(2)
      end do
@@ -1242,7 +1242,7 @@ subroutine setupPanels
 
         do j=1,sizes(2)
            do i=1,sizes(1)
-              
+
               iPanel = iPanel + 1
               pp => MGP(iLevel)%panels(iPanel)
               pp%nChildren = 0
@@ -1269,7 +1269,7 @@ subroutine setupPanels
 5    format (a)
 6    format (g20.15, g20.15, g20.15)
      write(9, 5) "variables= x y z"
-     
+
      do i=1,nPglobal
         pp => MGP(1)%panels(i)
         if (pp%N == 4) then
@@ -1282,7 +1282,7 @@ subroutine setupPanels
            write(9, 5) "1 2 3 4"
         end if
      end do
-     close(9) 
+     close(9)
   end if
 end subroutine setupPanels
 
@@ -1293,7 +1293,7 @@ subroutine setMGData(strengths)
   !
   !     Abstract: Given a (global) set of strengths, update the
   !     information in each of the MG levels
-  !    
+  !
   !     Parameters
   !     ----------
   !     strengths : real array size nPGlobal
@@ -1334,7 +1334,7 @@ subroutine setMGData(strengths)
            pp%center = pp%center + childArea*childCenter
            pp%strength = pp%strength + childArea*childStrength
         end do
-        
+
         ! Set the "length" of the grouped panel to be twice the length
         ! of the child
         pp%length = lMax * two
@@ -1357,19 +1357,19 @@ recursive subroutine evalAtLevel(level, pt, indices, nIndices, phi, V)
   !     N-panels. This routine will normally be called with the
   !     largest multigrid level. Then the routine will (recursively)
   !     call itself to evalaute any lower levels (all the way down to
-  !     level 1) if necessary. 
-  !    
+  !     level 1) if necessary.
+  !
   !     Parameters
   !     ----------
-  !     level : integer  
-  !         The multigrid level to evaluate on 
+  !     level : integer
+  !         The multigrid level to evaluate on
   !     pt : real size (3)
   !         The spatial coordinate of the point of iterest
   !     indices : integer array size (nIndices)
   !         The list of indices to evaluate on the given level
   !     nIndices : integer
   !         The size of the above array
-  !     
+  !
   !     Returns
   !     -------
   !     phi : real
@@ -1395,7 +1395,7 @@ recursive subroutine evalAtLevel(level, pt, indices, nIndices, phi, V)
   integer(kind=intType) :: i, iPanel
   real(kind=realType), dimension(3) :: r, Vtmp, center
   real(kind=realType) :: d2, d, phiTmp, d32, area, strength, length
-  
+
   do i=1,nIndices
      iPanel = indices(i)
      center = MGP(level)%panels(iPanel)%center
@@ -1408,7 +1408,7 @@ recursive subroutine evalAtLevel(level, pt, indices, nIndices, phi, V)
      d2 = r(1)**2 + r(2)**2 + r(3)**2
      d = sqrt(d2)
 
-     if (d > farFieldTol * length) then 
+     if (d > farFieldTol * length) then
         phi = phi + strength*area / d
         nFar = nFar + 1
         d32 = d2**(three/two)
@@ -1433,11 +1433,11 @@ end subroutine evalAtLevel
 
 !   ! panelInfluence generates the influence of panel 'i' on point
 !   !  'pt'.
-!   !  
+!   !
 !   ! Parameters
 !   ! ----------
 !   ! i : int
-!   !   The index of the panel to use. 
+!   !   The index of the panel to use.
 !   ! pt : real size (3)
 !   !   Three dimensional point to get the influence at
 !   !
@@ -1473,16 +1473,16 @@ end subroutine evalAtLevel
 !   real(kind=realType) :: r1, r2, s12_2, R12, Q12, J12
 !   real(kind=realType) ::  tmp
 !   integer(kind=intType) :: iNode, ii
-  
+
 !   V(:) = zero
 !   phi = zero
-  
+
 !   ! Poiner to panel to make code easier to read
 !   pp => MGP(1)%panels(i)
 
 !   ! vector from the panel center to the point of interest:
 !   rr = pt - pp%center
- 
+
 !   ! Cartiesian distance
 !   d2 = rr(1)**2 + rr(2)**2 + rr(3)**2
 !   d = sqrt(d2)
@@ -1499,7 +1499,7 @@ end subroutine evalAtLevel
 !   ! Transform the vector of point into the local frame as well as the
 !   ! 4 corner points
 !   rr = matmul(pp%C, rr)
- 
+
 !   do ii=1,pp%N
 !      pts(:, ii) = matmul(pp%C, pp%x(:, pp%N+1-ii) - pp%center)
 !      r(ii) = sqrt((rr(1) - pts(1, ii))**2 + (rr(2) - pts(2, ii))**2 + rr(3)**2)
@@ -1507,7 +1507,7 @@ end subroutine evalAtLevel
 !   pts(:, pp%N+1) = pts(:, 1)
 !   r(pp%N+1) = r(1)
 !   dTheta = 2*pi
- 
+
 !   ! Loop over each of the 'N' edges
 !   do iNode=1, pp%N
 !      edge = pts(:, iNode + 1) - pts(:, iNode)
@@ -1523,7 +1523,7 @@ end subroutine evalAtLevel
 
 !      ! Hess equation 4.4.13
 !      R12 = (rr(1) - pts(1, iNode))*S12 - (rr(2) - pts(2, iNode))*C12
-  
+
 !      if (R12 < zero) then
 !         dTheta = zero
 !      end if
@@ -1564,11 +1564,11 @@ subroutine panelInfluence2(i, pt, phi, V)
 
   ! panelInfluence generates the influence of panel 'i' on point
   !  'pt'.
-  !  
+  !
   ! Parameters
   ! ----------
   ! i : int
-  !   The index of the panel to use. 
+  !   The index of the panel to use.
   ! pt : real size (3)
   !   Three dimensional point to get the influence at
   !
@@ -1604,7 +1604,7 @@ subroutine panelInfluence2(i, pt, phi, V)
   real(kind=realType) :: r1, r2, s12_2, R12, Q12, J12
   real(kind=realType) ::  center(3), area, length, C(3,3)
   integer(kind=intType) :: iNode, ii, nn
-  
+
   ! Extract the values we need (first only for the farfield calc)
   center = MGP(1)%panels(i)%center
   area = MGP(1)%panels(i)%area
@@ -1612,7 +1612,7 @@ subroutine panelInfluence2(i, pt, phi, V)
 
   ! vector from the panel center to the point of interest:
   rrg = pt - center
- 
+
   ! Cartiesian distance
   d2 = rrg(1)**2 + rrg(2)**2 + rrg(3)**2
   d = sqrt(d2)
@@ -1639,16 +1639,16 @@ subroutine panelInfluence2(i, pt, phi, V)
   rr(1) = C(1,1)*rrg(1) + C(1,2)*rrg(2) + C(1,3)*rrg(3)
   rr(2) = C(2,1)*rrg(1) + C(2,2)*rrg(2) + C(2,3)*rrg(3)
   rr(3) = C(3,1)*rrg(1) + C(3,2)*rrg(2) + C(3,3)*rrg(3)
-  
+
   vv = zero
   phi = zero
-  
+
   do ii=1, nn
      r(ii) = sqrt((rr(1) - pts(1, ii))**2 + (rr(2) - pts(2, ii))**2 + rr(3)**2)
   end do
   r(nn+1) = r(1)
   dTheta = 2*pi
- 
+
   ! Loop over each of the 'N' edges
   do iNode=1, nn
      edge = pts(:, iNode + 1) - pts(:, iNode)
@@ -1664,7 +1664,7 @@ subroutine panelInfluence2(i, pt, phi, V)
 
      ! Hess equation 4.4.13
      R12 = (rr(1) - pts(1, iNode))*S12 - (rr(2) - pts(2, iNode))*C12
-  
+
      if (R12 < zero) then
         dTheta = zero
      end if
@@ -1725,7 +1725,7 @@ subroutine generateEllipLayer(X, layer)
   ! Working
   integer(kind=intType) :: i, j, iNode, ierr, isize
   real(kind=realType), dimension(3) :: xCen
-  
+
   ! Essentially we are just computing the average pt in each panel
   ! defined in fullConn and dumping them back into layer. For
   ! simplicity just do this on root proc for now:
@@ -1738,7 +1738,7 @@ subroutine generateEllipLayer(X, layer)
   if (myid == 0) then
      call VecGetArrayF90(XLocal, xx, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     
+
      do i=1, npGlobal
         xCen = zero
         do j=1,4
@@ -1746,7 +1746,7 @@ subroutine generateEllipLayer(X, layer)
            xCen = xCen + xx(3*iNode-2:3*iNode)
         end do
         xCen = fourth*xCen
-        
+
         call VecSetValuesBlocked(layer, 1, (/i-1/), xCen, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
      end do
@@ -1790,7 +1790,7 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
   real(kind=realType) :: work(1000)
   integer(kind=intType) :: lwork, iwork(100), info
   ! Again, for simplicity we will just do this on the root proc for
-  ! now. Notet that delta and norm are already full vectors. 
+  ! now. Notet that delta and norm are already full vectors.
 
   call VecScatterBegin(rootScatter, Xm1, XLocal, INSERT_VALUES, &
        SCATTER_FORWARD, ierr)
@@ -1815,7 +1815,7 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
      print *,'about to do reconstruct'
 
      do i=1,nXGlobal
-        
+
         ! For now, just average the (cell) delta around each node
         nn = fullcPtr(1, i)
         ovrNeighbour = one/nn
@@ -1841,7 +1841,7 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
            ! Need to normalize the normal
            normal = normal / sqrt(normal(1)**2 + normal(2)**2 + normal(3)**2)
            A(j, :) = normal
-           
+
            newFacePt = yy(3*iCell-2:3*iCell) + deltaPtr(3*iCell-2:3*iCell)
            B(j) = dot_product(normal, newFacePt - X0)
         end do
@@ -1861,7 +1861,7 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
         !       print *, B(j)
         !    END do
         ! end if
-        
+
         ! Now solve the least squares problem
         lwork = 1000
         call dgelsd(nn+3, 3, 1, A, nn+3, B, nn+3, S, -one, rank, work, lwork, iwork, info)
@@ -1933,7 +1933,7 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
   real(kind=realType) :: work(1000)
   integer(kind=intType) :: lwork, iwork(100), info
   ! Again, for simplicity we will just do this on the root proc for
-  ! now. Notet that delta and norm are already full vectors. 
+  ! now. Notet that delta and norm are already full vectors.
 
   call VecScatterBegin(rootScatter, Xm1, XLocal, INSERT_VALUES, &
        SCATTER_FORWARD, ierr)
@@ -1958,7 +1958,7 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
      print *,'about to do reconstruct'
 
      do i=1,nXGlobal
-        
+
         ! For now, just average the (cell) delta around each node
         nn = fullcPtr(1, i)
         ovrNeighbour = one/nn
@@ -1973,7 +1973,7 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
 
         ! The (temporary) new node location:
         x0 = xxm1(3*i-2:3*i) + dx
-      
+
         ! Finally set actual value
         call VecSetValuesBlocked(X, 1, (/i-1/), X0, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)

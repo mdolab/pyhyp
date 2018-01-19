@@ -1125,9 +1125,9 @@ subroutine getNBlocks(fileName, fileType, nBlocks)
   use communication
   use hypData
   use hypInput
-
+  use cgnsGrid
   implicit none
-  include 'cgnslib_f.h'
+
 
   ! Input/Output Arguments
   character*(*), intent(in) :: fileName
