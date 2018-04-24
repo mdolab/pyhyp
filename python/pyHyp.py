@@ -149,7 +149,7 @@ class pyHypMulti(object):
         self.numGrids = len(optionsDict)
 
         # Initialize dictionary with results
-        self.results = {'name':optionsDict.keys(),
+        self.results = {'name':list(optionsDict.keys()),
                         'outputFile':[0]*self.numGrids,
                         'gridRatio':[0]*self.numGrids,
                         'minQualityOverall':[0]*self.numGrids,
