@@ -297,10 +297,11 @@ class pyHypMulti(object):
             print('')
             print('')
 
-    def combineCGNS(self,combinedFile='combined.cgns',additionalGrids=[''],skipList=[]):
+    def combineCGNS(self,combinedFile='combined.cgns',additionalGrids=[''],skipList=[],eraseFiles=True):
         """
         This will gather all newly generated grids and combine them in
-        a single cgns file. This only works for CGNS files
+        a single cgns file. This only works for CGNS output files.
+        If eraseFiles=True, we erase the individual files that are combined.
         """
 
         # Start cgns_utils command line
@@ -329,6 +330,16 @@ class pyHypMulti(object):
 
             # Print log
             print('Combined CGNS files into: %s'%combinedFile)
+
+        # Erase input files
+        if eraseFiles and (myid == 0):
+
+            selectedGrids = [self.results['outputFile'][ii] for ii in range(self.numGrids) \
+                             if self.results['name'][ii] not in skipList]
+
+            for filename in selectedGrids:
+
+                os.remove(filename)
 
 # =============================================================================
 # pyHyp class
