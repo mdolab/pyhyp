@@ -509,14 +509,15 @@ subroutine setup(fileName, fileType)
 
                     ! take dimension with lowest val
                     i = minloc(xSum, 1)
-
+                    
                     ! However, if there are two dimensions with both xSum components
                     ! being 0, we have the fringe case where an edge is directly
                     ! on top of the coordinate axis.
                     ! We need to look at the normals to find out which direction
                     ! has the actual symmetry plane.
-                    if (((xSum(mod(i+1, 3)) - xSum(i)) < 1.e-10) .or. &
-                        ((xSum(mod(i+2, 3)) - xSum(i)) < 1.e-10)) then
+                    ! Note the mod indexing only works in a zero base.
+                    if (((xSum(mod(i, 3)+1) - xSum(i)) < 1.e-10) .or. &
+                        ((xSum(mod(i+1, 3)+1) - xSum(i)) < 1.e-10)) then
 
                       ! Get the row of coordinates one inboard from the edge of the patch.
                       select case(iEdge)
@@ -535,11 +536,11 @@ subroutine setup(fileName, fileType)
                       xSum(1) = sum(abs(xPtrRowInward(1, :) - xptr(1, :)))
                       xSum(2) = sum(abs(xPtrRowInward(2, :) - xptr(2, :)))
                       xSum(3) = sum(abs(xPtrRowInward(3, :) - xptr(3, :)))
-
+                      
                       ! Locate the max index for this sum of vectors.
                       ! This is normal to the symmetry plane.
+                      
                       i = maxloc(xSum, 1)
-
                     end if
 
                     ! Set the symmetry plane BCs according to which coordinate
