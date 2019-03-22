@@ -29,7 +29,7 @@ Generally, the surface meshes come from ICEM.
 The pyHyp-generated volume meshes are then used in [ADflow](https://github.com/mdolab/adflow) to perform CFD.
 An example [XDSM](https://github.com/mdolab/pyXDSM) for an optimization setup that uses pyHyp is shown below.
 
-![pySurf XDSM diagram](doc/pysurf_xdsm.png)
+![pySurf XDSM diagram](doc/images/pysurf_xdsm.png)
 
 License
 -------
