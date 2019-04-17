@@ -741,7 +741,10 @@ class pyHyp(object):
 
         # Possibly perform autoconnect using cgns_utils
         if self.comm.rank == 0 and self._go('autoConnect'):
-            os.system('cgns_utils connect %s'%fileName)
+            error = os.system('cgns_utils connect %s' % fileName)
+            if error:
+                raise Error("system command 'cgns_utils connect' failed, \
+                            autoconnect was NOT performed")
         self.comm.barrier()
 
     def writeOutput(self, fileName=None, fileType=None):
