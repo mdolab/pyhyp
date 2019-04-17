@@ -33,6 +33,5 @@ An example [XDSM](https://github.com/mdolab/pyXDSM) for an optimization setup th
 
 License
 -------
-Copyright 2019 MDO Lab
 
-Distributed using the Apache 2.0 license; see the LICENSE file for details.
+Copyright 2019 MDO Lab. See the LICENSE file for details.
