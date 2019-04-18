@@ -7,7 +7,7 @@ pyHyp is used as a preprocessing step in the geometry and mesh-creation process 
 Documentation
 -------------
 
-Please see the [documentation](http://mdolab.engin.umich.edu/docs/packages/idwarp/doc/index.html) for installation details and API documentation.
+Please see the [documentation](http://mdolab.engin.umich.edu/docs/packages/pyhyp/doc/index.html) for installation details and API documentation.
 This link requires credentials currently only available to MDO Lab members.
 
 To locally build the documentation, enter the `doc` folder and enter `make html` in terminal.
