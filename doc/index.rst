@@ -123,41 +123,28 @@ information.
 Compilation 
 ------------ 
 
-`pyHyp` is built using a standard `make` utility on unix-like
-systems. To begin compilation, type `make`::
+`pyHyp` follows the standard MDO Lab build procedure.
+To start, find a configuration file close to your current setup in::
+
+    $ config/defaults
+
+and copy it to ''config/config.mk''. For example::
+
+    $ cp config/defaults/config.LINUX_GFORTRAN.mk config/config.mk
+
+If you are a beginner user installing the packages on a linux desktop, 
+you should use the ``config.LINUX_GFORTRAN.mk`` versions of the configuration 
+files. The ``config.LINUX_INTEL.mk`` versions are usually used on clusters.
+
+Once you have copied the config file, compile :ref:`pyHyp` by running::
 
     $ make
 
-A list of previously tested architectures should show::
+If everything was successful, the following lines will be printed to
+the screen (near the end)::
 
-    LINUX_GFORTRAN_OPENMPI
-    LINUX_INTEL_OPENMPI
-
-Before starting compilation, copy a default configuration file from
-the `config/defaults` directory into `config`. From the root `pyHyp`
-directory run (or example)::
-
-  $ cp config/defaults/config.LINUX_INTEL_OPENMPI config/
-
-Next, edit the configuration file. This will allow you to set which
- compiler to use the compilation flags as well as the location for
- the CGNS include files and library. 
-
-Other platforms/compiler combination are most likely possible but have
- not been tested. On a new platform, simply modify one of the existing
- configuration files to suit your needs. 
-
-After the configuration file has been modified, compilation can be
-started with (for example)::
-
-    $ make LINUX_GFORTRAN_OPENMPI
-
-Compilation is successful when the following two lines are displayed
-at the end of the compilation::
-
-    Testing if module hyp can be imported...
-    Module hyp was successfully imported.
-
+   Testing if module hyp can be imported...
+   Module hyp was successfully imported.
 Finally, add the directory containing the pyhyp folder to the
 $PYTHONPATH variable in your bashrc file::
 
