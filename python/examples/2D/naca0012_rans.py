@@ -9,7 +9,7 @@ alpha = numpy.linspace(0, 2*numpy.pi, 273)
 x = numpy.cos(alpha)*0.5 + 0.5
 y = numpy.zeros_like(x)
 
-for i in xrange(len(x)):
+for i in range(len(x)):
     if i < len(x)/2:
         y[i] = 0.6*(0.2969*numpy.sqrt(x[i]) - 0.1260*x[i] - 0.3516*x[i]**2 + 0.2843*x[i]**3 - 0.1015*x[i]**4)
     else:
