@@ -54,9 +54,8 @@ options = [options1,
            options2,
            options3]
 
-# set skip list
-skipList = [1]
+# set skip list, if any
+skipList = []
 
 hyp = pyHypMulti(options=options,commonOptions=commonOptions,skipList=skipList)
 hyp.combineCGNS(combinedFile='combined.cgns')
-

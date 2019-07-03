@@ -76,7 +76,7 @@ if USE_WINGLET:
     nSpan = coef.shape[2]
     ref = numpy.zeros((nSpan,3))
 
-    for k in xrange(nSpan):
+    for k in range(nSpan):
         max_x = numpy.max(coef[:,:,k,0])
         min_x = numpy.min(coef[:,:,k,0])
 
