@@ -117,8 +117,7 @@ See the documentation of each of these packages for further
 information. 
 
 .. NOTE:: A working MPI is not strictly required. However, in most
-   cases PETSc should be configured with MPI. `pyHyp` itself, however,
-   does not currently run in parallel.
+   cases PETSc should be configured with MPI.
 
 Compilation 
 ------------ 
@@ -152,9 +151,25 @@ $PYTHONPATH variable in your bashrc file::
 
 .. _pyhyp_theory:
 
+Testing Your Installation
+-------------------------
+
+To test your installation, you can run some of the scripts in the `python/examples` folder.
+Some of these require you to have `cgnsUtilities <https://github.com/mdolab/cgnsutilities>`_ installed.
+
+After you run some of the files, you will get a message like this::
+
+  *** The MPI_Attr_get() function was called after MPI_FINALIZE was invoked.
+  *** This is disallowed by the MPI standard.
+  *** Your MPI job will now abort.
+  [MDO-John:7977] Local abort after MPI_FINALIZE completed successfully; not able to aggregate error messages, and not able to guarantee that all other processes were killed!
+  
+Despite its scary look, this is a non-issue and means that the script successfully finished.
+
+
 Theory
 ======
-Most the theory for `pyHyp` was taken from Chan and Steger. Check the references folder
+Most the theory for `pyHyp` was taken from `Chan and Steger <https://www.sciencedirect.com/science/article/pii/009630039290073A>`_.
 
 .. _pyhyp_usage:
 
@@ -258,7 +273,7 @@ Parameter              Type      Description
 `nonLinear`          `float`   Use the nonlinear formulation. This is experimental and not 
                                currently recommended and may not work at all.
 
-`slExp`              `float`   Exponent for the :math:`S_l` compuitation.
+`slExp`              `float`   Exponent for the :math:`S_l` computation.
                                The :math:`S_l` value serves the same purpose as found in Chan et al. 
 			       but the computation is different. The :math:`S_l` computation in Chan is 
 			       given as :math:`\sqrt{\frac{N-1}{l-1}}` for :math:`l > 2`. 
@@ -267,20 +282,20 @@ Parameter              Type      Description
                                is actual spacing the hyperbolic scheme uses. The solver may take many pseudo steps
 			       before the first real grid level at `s0`. 
 
-`pGridRatio`         `float`   The ratio between sucessive levels in the pseudo grid. This will be typically somewhere
+`pGridRatio`         `float`   The ratio between successive levels in the pseudo grid. This will be typically somewhere
                                between ~1.05 for large grids to 1.2 for small grids. This number is *not* the actual grid
 			       spacing of the final grid; that spacing ratio is computed and displayed at the beginning
 			       of a calculation. The pGridRatio *must* be smaller than that number. 
 
 `epsE`                `float`  The explict smoothing parameter. See the :ref:`Theory<pyhyp_theory>` section for more information.
-                               Typical values are approximately 1.0. Increasing the explict smoothing may result in  a
+                               Typical values are approximately 1.0. Increasing the explicit smoothing may result in  a
 			       smoother grid, at the expense of orhtogonality. If the geometry is very sharp corners,
-                               too much explict smoothing will cause the solver to rapidly "soften" the corner and the 
+                               too much explicit smoothing will cause the solver to rapidly "soften" the corner and the 
 			       grid will fold back on itself. In concave corners, additional smoothing will prevent lines
-			       from crossing (avooiding negative cells).
+			       from crossing (avoiding negative cells).
 
-`epsI`                `float`  Implict smoothing parameter. See the :ref:`Theory<pyhyp_theory>` section for more information.
-                               Typical values are from 2.0 to 6.0. Generally increasing the implict coefficient results
+`epsI`                `float`  Implicit smoothing parameter. See the :ref:`Theory<pyhyp_theory>` section for more information.
+                               Typical values are from 2.0 to 6.0. Generally increasing the implicit coefficient results
 			       in a more stable solution procedure. Usually this value should be twice the explicit smoothing parameter.
 
 `theta`               `float`  Kinsley-Barth coefficient See the :ref:`Theory<pyhyp_theory>` section for more information.
@@ -289,15 +304,15 @@ Parameter              Type      Description
 `volCoef`             `float`  Coefficient used in point-Jacobi local volume smoothing algorithm. Typically this
                                value is 0.16 and need not be modified. Use more `volSmoothIter` for stronger local smoothing.
 			    
-`volBlend`            `float`  The gloabl volume blending coefficinet. See the :ref:`Theory<pyhyp_theory>` section for more information.
-                               This value will typically be very small, especially if you widely varrying cell sizes. 
+`volBlend`            `float`  The global volume blending coefficient. See the :ref:`Theory<pyhyp_theory>` section for more information.
+                               This value will typically be very small, especially if you widely varying cell sizes. 
 			       Typically values are from ~0 to 0.001. Default is 0.0001
 
 `volSmoothIter`       `int`    The number of point-Jacobi local volume smoothing iterations to perform. Typical values
                                are ~5 to ~25. Default is 10.
 
 `kspRelTol`           `float`  Tolerance for the solution of the linear system at each iteration. Typically :math:`1\times 10^{-8}` 
-                               is sufficient. Ver dificult cases may benefit from a tigher convergence tolerance.
+                               is sufficient. Very difficult cases may benefit from a tighter convergence tolerance.
 
 `kspMaxIts`           `int`    Maximum number of iterations to perform for each step. Default is 500 which should be sufficient
                                for most cases. 
@@ -377,8 +392,8 @@ the most recently computed layer of cells. For a valid mesh, these
 must be all greater than zero.
 
 .. pyHyp boundary conditions example.
-   Written by: Ney Seco (February 2016)
-   Editted by: 
+   Written by: Ney Secco (February 2016)
+   Edited by: 
 
 .. _pyhyp_cgns:
 
@@ -424,7 +439,7 @@ is the one used as an example of boundary conditions setup.
 
       .. image:: images/Figure_CreateSurface.png
 
-   A new menu will show up on the lower-left corner of the screen. Select *Standart Shapes*, then
+   A new menu will show up on the lower-left corner of the screen. Select *Standard Shapes*, then
    *Box*.
    
    Finally, type '1 1 0' in the *X Y Z size* field and click on 'Apply', just as shown below:
@@ -439,7 +454,7 @@ is the one used as an example of boundary conditions setup.
    ICEM groups geometry components into *Parts*. We need to create Parts for the edges so that we can
    easily set up the boundary conditions later on.
    Look at the model tree on the left side of the screen and click with the right-mouse-button on the *Parts*
-   brach. Select the *Create Parts* option. Also make sure that the *Surfaces* box in the *Geometry* brach in unchecked
+   branch. Select the *Create Parts* option. Also make sure that the *Surfaces* box in the *Geometry* branch in unchecked
    (otherwise it will be hard to select just the edges):
 
       .. image:: images/Figure_CreatePart.png
@@ -655,7 +670,7 @@ can open the *cgnsview* GUI with the following command::
 
      $ cgnsview
 
-Open the newly generated CGNS file and expand its tree. For the flat square case, we have the follwing structure:
+Open the newly generated CGNS file and expand its tree. For the flat square case, we have the following structure:
 
       .. image:: images/Figure_CGNSView.png
 
@@ -757,7 +772,7 @@ Visualizing the mesh in TecPlot 360
 -------------------------------------
 
 If you have TecPlot 360 installed in your computer you can visualize the volume mesh. Open a terminal and navigate to the folder
-than constains the newly generated CGNS file with the volume mesh. Then type the following command::
+than contains the newly generated CGNS file with the volume mesh. Then type the following command::
 
   $ tec360
 
