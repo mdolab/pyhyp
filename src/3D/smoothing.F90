@@ -3,14 +3,15 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
   use hypInput, only : nodeTol
   use kd_tree
   use communication
+#include <petscversion.h>
+#if PETSC_VERSION_GE(3,8,0)
+#include <petsc/finclude/petsc.h>
+  use petsc
   implicit none
-#include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
+#else
+  implicit none
 #include "petsc/finclude/petsc.h"
 #include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
 #endif
 
   ! Input Parameters
@@ -33,10 +34,10 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
   integer(kind=intType), target :: indexes(1)
 
   type(tree_master_record), pointer :: mytree
- 
+
   ! First we have compute the distance factor. We need to get a local
   ! copy of all the nodes onto every proc so that everyone can create
-  ! a KDTree with all the nodes 
+  ! a KDTree with all the nodes
 
 
      ! First determine the number of frozen nodes we have...only on the root proc:
@@ -51,7 +52,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
               end do
            end do
         end do
-        
+
         ! Allocate space and loop back over to fill up
         allocate(allNodes(3, nFrozen), weights(nFrozen), tmpNodes(3, nFrozen), &
              link(nFrozen))
@@ -88,32 +89,32 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
         else
            nUnique = 0
         end if
-        deallocate(link, allNodes, tmpNodes) 
+        deallocate(link, allNodes, tmpNodes)
      end if
 
      ! Get the unique size on all procs.
      call MPI_Bcast(nUnique, 1, MPI_INTEGER, 0, hyp_comm_world, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
-     if (nUnique > 0) then 
+     if (nUnique > 0) then
         ! Note that uniqueNodes is length nFrozen on the root proc by
         ! nUnique on all the other procs.  There is no need to redo stuff
-        ! on the root proc.      
+        ! on the root proc.
         if (myid /= 0) then
            allocate(uniqueNodes(3, nUnique), weights(nUnique))
         end if
-        
+
         call MPI_Bcast(uniqueNodes, 3*nUnique, MPI_DOUBLE, 0, hyp_comm_world, ierr)
         call EChk(ierr,__FILE__,__LINE__)
-        
+
         call MPI_Bcast(weights, nUnique, MPI_DOUBLE, 0, hyp_comm_world, ierr)
         call EChk(ierr,__FILE__,__LINE__)
-        
+
         ! Now create the global kdTree which will be the same on all procs
         mytree => create_tree(uniqueNodes)
-        
+
         ! Now we can just search our own locally owned nodes and compute
-        ! the required factor. 
+        ! the required factor.
         call VecGetArrayF90(XVec, xx, ierr)
         call EChk(ierr,__FILE__,__LINE__)
         do i=1, nx
@@ -121,10 +122,10 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
            dstar = weights(indexes(1))
            distFact(i) = min((sqrt(distances(1))/dstar)**1.5, one)
         end do
-        
+
         call VecRestoreArrayF90(XVec, xx, ierr)
         call EChk(ierr,__FILE__,__LINE__)
-        
+
         call destroy_tree(mytree)
         deallocate(uniqueNodes, weights)
      else
@@ -136,14 +137,14 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
      ! Update the ghost entries before we start
      call VecGhostUpdateBegin(Xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
      call VecGhostUpdateEnd(XVec, INSERT_VALUES,SCATTER_FORWARD, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
      ! Get local form for doing stuff
      call VecGhostGetLocalForm(XVec, XL_local, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
      call VecGetArrayF90(XL_local, xx, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
@@ -160,21 +161,21 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
         ! Compute the normal of this face
         v1 = xx(3*conn(3, i)-2:3*conn(3, i)) - xx(3*conn(1, i)-2:3*conn(1, i))
         v2 = xx(3*conn(4, i)-2:3*conn(4, i)) - xx(3*conn(2, i)-2:3*conn(2, i))
-        
-        ! Cross product 
+
+        ! Cross product
         s(1) = (v1(2)*v2(3) - v1(3)*v2(2))
         s(2) = (v1(3)*v2(1) - v1(1)*v2(3))
         s(3) = (v1(1)*v2(2) - v1(2)*v2(1))
 
         ! Compute the area
         snorm = sqrt(s(1)**2 + s(2)**2 + s(3)**2)
-        
+
         ! Area:
         areas(i) = half * snorm
-        
+
         ! Now normalize:
         s = s / snorm
-     
+
         ! Scatter to each node
         do ii=1,4
            normals(:, conn(ii, i)) = normals(:, conn(ii, i)) + s
@@ -186,11 +187,11 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
      do i=1, nx
         s = normals(:, i)
         normals(:, i) = s / sqrt(s(1)**2 + s(2)**2 + s(3)**2)
-     
+
         aTot = zero
         ! Loop over each cell around the node
         do ii=1, cPtr(1, i)
-           iCell = cPtr(ii+1, i) 
+           iCell = cPtr(ii+1, i)
            massCen(:, i) = massCen(:, i) + cellCen(:, iCell)*areas(iCell)
            aTot = aTot + areas(iCell)
         end do
@@ -207,10 +208,10 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
      ! Restore everything to prepare for the next iteration
      call VecRestoreArrayF90(XL_local, xx, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
      call VecGhostRestoreLocalForm(XVec, XL_local, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
   end do masterIteration
 end subroutine surfaceSmooth
 
@@ -224,7 +225,7 @@ subroutine freezeEdge(blockID, edge, dstar)
   integer (kind=intType), intent(in) :: blockID
   character*(*) :: edge
   real(kind=realType), intent(in) :: dstar
-  
+
   ! Working
   integer(kind=intType) :: il, jl, offset
 
@@ -242,7 +243,7 @@ subroutine freezeEdge(blockID, edge, dstar)
      else if (trim(edge) == 'jhigh') then
         patches(blockID)%weights(:, jl) = dstar
      end if
-     
+
      ! if (mirrorType /= noMirror) then
      !    offset = nPatch/2
      !    if (trim(edge) == 'ilow') then
@@ -271,7 +272,7 @@ subroutine freezeFaces(blockIDs, nBlockIDs, dstar)
   integer (kind=intType), intent(in), dimension(nBlockIDs) :: blockIDs
   integer(kind=intType), intent(in) :: nBLockIDs
   real(kind=realType), intent(in) :: dstar
-  
+
   ! Working
   integer(kind=intType) :: i
 
@@ -298,7 +299,7 @@ subroutine smoothWrap(nSteps, stepSize)
   ! Input Parameters
   integer (kind=intType), intent(in) :: nSteps
   real(kind=realType), intent(in) :: stepSize
- 
+
   call surfaceSmooth(X(1), nSteps, stepSize)
 
 end subroutine smoothWrap
@@ -308,14 +309,15 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
   use hypInput, only : nodeTol
   use kd_tree
   use communication
+#include <petscversion.h>
+#if PETSC_VERSION_GE(3,8,0)
+#include <petsc/finclude/petsc.h>
+  use petsc
   implicit none
-#include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
+#else
+  implicit none
 #include "petsc/finclude/petsc.h"
 #include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
 #endif
 
   ! Input Parameters
@@ -338,7 +340,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
   integer(kind=intType), target :: indexes(1)
 
   type(tree_master_record), pointer :: mytree
-  interface 
+  interface
      subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
        use precision
        implicit none
@@ -353,7 +355,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
 
   ! First we have compute the distance factor. We need to get a local
   ! copy of all the nodes onto every proc so that everyone can create
-  ! a KDTree with all the nodes 
+  ! a KDTree with all the nodes
 
 
      ! First determine the number of frozen nodes we have...only on the root proc:
@@ -368,7 +370,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
               end do
            end do
         end do
-        
+
         ! Allocate space and loop back over to fill up
         allocate(allNodes(3, nFrozen), weights(nFrozen), tmpNodes(3, nFrozen), &
              link(nFrozen))
@@ -405,32 +407,32 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
         else
            nUnique = 0
         end if
-        deallocate(link, allNodes, tmpNodes) 
+        deallocate(link, allNodes, tmpNodes)
      end if
 
      ! Get the unique size on all procs.
      call MPI_Bcast(nUnique, 1, MPI_INTEGER, 0, hyp_comm_world, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
-     if (nUnique > 0) then 
+     if (nUnique > 0) then
         ! Note that uniqueNodes is length nFrozen on the root proc by
         ! nUnique on all the other procs.  There is no need to redo stuff
-        ! on the root proc.      
+        ! on the root proc.
         if (myid /= 0) then
            allocate(uniqueNodes(3, nUnique), weights(nUnique))
         end if
-        
+
         call MPI_Bcast(uniqueNodes, 3*nUnique, MPI_DOUBLE, 0, hyp_comm_world, ierr)
         call EChk(ierr,__FILE__,__LINE__)
-        
+
         call MPI_Bcast(weights, nUnique, MPI_DOUBLE, 0, hyp_comm_world, ierr)
         call EChk(ierr,__FILE__,__LINE__)
-        
+
         ! Now create the global kdTree which will be the same on all procs
         mytree => create_tree(uniqueNodes)
-        
+
         ! Now we can just search our own locally owned nodes and compute
-        ! the required factor. 
+        ! the required factor.
         call VecGetArrayF90(XVec, xx, ierr)
         call EChk(ierr,__FILE__,__LINE__)
         do i=1, nx
@@ -438,10 +440,10 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
            dstar = weights(indexes(1))
            distFact(i) = min((sqrt(distances(1))/dstar)**1.5, one)
         end do
-        
+
         call VecRestoreArrayF90(XVec, xx, ierr)
         call EChk(ierr,__FILE__,__LINE__)
-        
+
         call destroy_tree(mytree)
         deallocate(uniqueNodes, weights)
      else
@@ -453,14 +455,14 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
      ! Update the ghost entries before we start
      call VecGhostUpdateBegin(Xvec, INSERT_VALUES, SCATTER_FORWARD, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
      call VecGhostUpdateEnd(XVec, INSERT_VALUES,SCATTER_FORWARD, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
      ! Get local form for doing stuff
      call VecGhostGetLocalForm(XVec, XL_local, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
      call VecGetArrayF90(XL_local, xx, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
@@ -477,21 +479,21 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
         ! Compute the normal of this face
         v1 = xx(3*conn(3, i)-2:3*conn(3, i)) - xx(3*conn(1, i)-2:3*conn(1, i))
         v2 = xx(3*conn(4, i)-2:3*conn(4, i)) - xx(3*conn(2, i)-2:3*conn(2, i))
-        
-        ! Cross product 
+
+        ! Cross product
         s(1) = (v1(2)*v2(3) - v1(3)*v2(2))
         s(2) = (v1(3)*v2(1) - v1(1)*v2(3))
         s(3) = (v1(1)*v2(2) - v1(2)*v2(1))
 
         ! Compute the area
         snorm = sqrt(s(1)**2 + s(2)**2 + s(3)**2)
-        
+
         ! Area:
         areas(i) = half * snorm
-        
+
         ! Now normalize:
         s = s / snorm
-     
+
         ! Scatter to each node
         do ii=1,4
            normals(:, conn(ii, i)) = normals(:, conn(ii, i)) + s
@@ -503,11 +505,11 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
      do i=1, nx
         s = normals(:, i)
         normals(:, i) = s / sqrt(s(1)**2 + s(2)**2 + s(3)**2)
-     
+
         aTot = zero
         ! Loop over each cell around the node
         do ii=1, cPtr(1, i)
-           iCell = cPtr(ii+1, i) 
+           iCell = cPtr(ii+1, i)
            massCen(:, i) = massCen(:, i) + cellCen(:, iCell)*areas(iCell)
            aTot = aTot + areas(iCell)
         end do
@@ -524,9 +526,9 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
      ! Restore everything to prepare for the next iteration
      call VecRestoreArrayF90(XL_local, xx, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
      call VecGhostRestoreLocalForm(XVec, XL_local, ierr)
      call EChk(ierr,__FILE__,__LINE__)
-     
+
   end do masterIteration
 end subroutine surfaceSmooth2

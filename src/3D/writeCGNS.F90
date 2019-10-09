@@ -18,15 +18,16 @@ subroutine writeCGNS(fileName)
   use hypData, only : X, metrics, rootScatter, xLocal, metricsAllocated, iVHist
   use hypData, only : nPatch, patches, xx, metrics, ix_ksi, ix_eta, ix_zeta, iX_eta_eta, iX_ksi_ksi, iX_diss
   use cgnsGrid
-  implicit none
 
-#include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
+#include <petscversion.h>
+#if PETSC_VERSION_GE(3,8,0)
+#include <petsc/finclude/petsc.h>
+  use petsc
+  implicit none
+#else
+  implicit none
 #include "petsc/finclude/petsc.h"
 #include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
 #endif
 
   ! Input Arguments
