@@ -24,8 +24,8 @@ CGNS_LINKER_FLAGS=-L$(CGNS_HOME)/lib -lcgns
 
 # # ----------- CGNS 3.3.x ------------------
 # CGNS_VERSION_FLAG=-DUSECGNSMODULE
-# CGNS_INCLUDE_FLAGS=-I$(HOME)/packages/CGNS/src
-# CGNS_LINKER_FLAGS=-L$(HOME)/packages/CGNS/src/lib -lcgns
+# CGNS_INCLUDE_FLAGS=-I$(CGNS_HOME)/include
+# CGNS_LINKER_FLAGS=-L$(CGNS_HOME)/lib -lcgns
 
 # ------- Define Compiler Flags ----------------------------------------
 FF90_GEN_FLAGS = -fPIC
