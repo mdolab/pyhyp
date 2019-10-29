@@ -11,7 +11,7 @@ subroutine EChk(ierr, file, line)
 #include "petsc/finclude/petsc.h"
 
 
-  integer(kind=intType),intent(in) :: ierr
+  integer(kind=intType) :: ierr
   character*(*),intent(in) :: file
   integer(kind=intType),intent(in) :: line
 
