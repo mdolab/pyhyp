@@ -12,6 +12,7 @@ subroutine EChk(ierr, file, line)
 
 
   integer(kind=intType) :: ierr
+  integer(kind=intType) :: errorcode
   character*(*),intent(in) :: file
   integer(kind=intType),intent(in) :: line
 
@@ -24,7 +25,7 @@ subroutine EChk(ierr, file, line)
      write(*,901) "Error at line: ",line," in file: ",file
      print *,'================================================================='
 
-     call MPI_Abort(hyp_comm_world, NULL, ierr)
+     call MPI_Abort(hyp_comm_world, errorcode, ierr)
      stop ! Just in case
   end if
 
