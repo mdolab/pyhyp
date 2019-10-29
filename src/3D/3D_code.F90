@@ -356,16 +356,11 @@ subroutine initialGuess(Xnew)
   use hypData, only : kspIts, nsubiter, nsubiterprev, gridRatio, desiredS
   use hypData, only : desiredDeltaS
   use hypInput
+  use petsc
   implicit none
   real(kind=realType) :: sl
 #include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscksp.h"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscksp.h"
-#endif
 
   ! Output Parameters
   Vec :: Xnew

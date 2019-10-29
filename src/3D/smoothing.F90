@@ -3,15 +3,10 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
   use hypInput, only : nodeTol
   use kd_tree
   use communication
+  use petsc
   implicit none
 #include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscksp.h"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscksp.h"
-#endif
 
   ! Input Parameters
   integer (kind=intType), intent(in) :: nSteps
@@ -308,15 +303,10 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
   use hypInput, only : nodeTol
   use kd_tree
   use communication
+  use petsc
   implicit none
 #include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscksp.h"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscksp.h"
-#endif
 
   ! Input Parameters
   integer (kind=intType), intent(in) :: nSteps
