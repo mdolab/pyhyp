@@ -23,7 +23,7 @@ subroutine writeCGNS(fileName)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"

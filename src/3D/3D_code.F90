@@ -5,7 +5,7 @@ subroutine runHyperbolic
   !
   !     Abstract: run3D is the main python interface to generate the
   !     3D hyperbolic mesh.
-  !    
+  !
   use communication
   use hypData
   use hypInput
@@ -18,12 +18,12 @@ subroutine runHyperbolic
   call calcGridRatio(N, nConstantStart, nConstantEnd, s0, marchDist, gridRatio)
 
   ! Defaults/Error checking
-  if (pGridRatio <=0) then 
+  if (pGridRatio <=0) then
      pGridRatio = gridRatio
   end if
-  
-  if (pGridRatio > gridRatio) then 
-     if (myid == 0) then 
+
+  if (pGridRatio > gridRatio) then
+     if (myid == 0) then
         print *,'Erorr: The supplied pseudo grid ratio is too large. It must be less than', gridRatio
      end if
      call mpi_barrier(hyp_comm_world, ierr)
@@ -31,14 +31,14 @@ subroutine runHyperbolic
   end if
 
   ! Set initial pseudo and real spacings
-  if (ps0 <= zero) then 
+  if (ps0 <= zero) then
      deltaS = s0/two
   else
      deltaS = ps0
   end if
 
   if (deltaS > s0) then
-     if (myid == 0) then 
+     if (myid == 0) then
         print *,'Erorr: The supplied pseudo grid s0 is too large. It must be less than', s0
      end if
      call mpi_barrier(hyp_comm_world, ierr)
@@ -48,13 +48,13 @@ subroutine runHyperbolic
   ! Write header (defined in 3D_utilities.f90)
   if (myid == 0) then
      write(*,"(a)", advance="no") '#--------------------#'
-     print "(1x)"  
+     print "(1x)"
      write(*,"(a)", advance="no") "Grid Ratio:"
      write(*,"(f8.4,1x)",advance="no") gridRatio
-     print "(1x)" 
+     print "(1x)"
      write(*,"(a)", advance="no") '#--------------------#'
      print "(1x)"
-     
+
      call writeHeader
   end if
 
@@ -77,9 +77,9 @@ subroutine runHyperbolic
      ! Run the "initial guess" function. If the user is running in
      ! 'linear' mode this is all that is done. This function computes
      ! the next step, X(L). It may take multiple sub-steps to get there
-     ! which is fine. 
+     ! which is fine.
      call initialGuess(X(L))
-     
+
      ! Check the quality of this layer
      call computeQualityLayer
 
@@ -128,13 +128,13 @@ subroutine computeVolumes
   implicit none
 
   ! Working Variables
-  integer(kind=intType) :: i, j, ipatch, ierr, n1, n2, n3, n4 
+  integer(kind=intType) :: i, j, ipatch, ierr, n1, n2, n3, n4
   real(kind=realType) :: ll(3), ul(3), lr(3), ur(3)
   real(kind=realType) :: v1(3), v2(3), s(3), areadS
   real(kind=realType) :: c1,c2,c3,c4, dist
   real(kind=realType) :: Vbar_local, cratio_local
   integer(kind=intType), dimension(:), allocatable :: nodeCount
-  
+
   allocate(nodeCount(nx+nGhost))
   nodeCount = 0
 
@@ -151,20 +151,20 @@ subroutine computeVolumes
 
   ! Loop over the owned faces:
   do i=1, nLocalFace
-  
+
      ! Extract the coordinates of the 4 corners
      n1 = conn(1, i)
      ll = xx(3*n1-2:3*n1) ! lower-left
-              
+
      n2 = conn(4, i)
      ul = xx(3*n2-2:3*n2) ! upper-left
-     
+
      n3 = conn(2, i)
      lr = xx(3*n3-2:3*n3) ! lower-right
-              
+
      n4 = conn(3, i)
      ur = xx(3*n4-2:3*n4) ! upper-right
-              
+
      ! Compute the area
      v1(:) = ur - ll
      v2(:) = ul - lr
@@ -173,10 +173,10 @@ subroutine computeVolumes
      s(1) = (v1(2)*v2(3) - v1(3)*v2(2))
      s(2) = (v1(3)*v2(1) - v1(1)*v2(3))
      s(3) = (v1(1)*v2(2) - v1(2)*v2(1))
-     
+
      areadS = deltaS*half*sqrt(s(1)*s(1) + s(2)*s(2) + s(3)*s(3))
 
-     ! Scatter full area back to the nodes. 
+     ! Scatter full area back to the nodes.
      vPtr(n1) = vPtr(n1) + areadS
      vPtr(n2) = vPtr(n2) + areadS
      vPtr(n3) = vPtr(n3) + areadS
@@ -196,7 +196,7 @@ subroutine computeVolumes
 
      cRatio_local = max(cRatio_local, c1, c2, c2, c4)
   end do
-  
+
   ! Finally we have to divide by the count
   do i=1, nx
      Vptr(i) = VPtr(i) / nodeCount(i)
@@ -241,7 +241,7 @@ subroutine volumeSmooth
   !     vBar (in hypData) : Average nodal volume
   !
   !     Ouput:
-  !     volume - See above. 
+  !     volume - See above.
 
   use communication
   use hypInput
@@ -254,14 +254,14 @@ subroutine volumeSmooth
   real(kind=realType), allocatable, dimension(:) :: Vtmp
   logical :: search
 
-  if (allocated(volSmoothSchedule)) then 
+  if (allocated(volSmoothSchedule)) then
      ! We need to determine how many smoothing iterations to do by
      ! interpolating the volumeSmoothing Schedule
      frac = (marchIter-one)/(N-1)
-     
+
      ! Just do a linear search for the bin:
      do i=1,size(volSmoothSchedule, 1)-1
-        if (frac >= volSmoothSchedule(i, 1) .and. frac <= volSmoothSchedule(i+1, 1)) then 
+        if (frac >= volSmoothSchedule(i, 1) .and. frac <= volSmoothSchedule(i+1, 1)) then
            frac2 = (frac - volSmoothSchedule(i, 1))/ &
                 (volSmoothSchedule(i+1, 1) - volSmoothSchedule(i, 1))
            low = volSmoothSchedule(i, 2)
@@ -272,7 +272,7 @@ subroutine volumeSmooth
   else
      nIter = volSmoothIter
   end if
-  
+
   ! Do a Jacobi volume smooth
   call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
   call EChk(ierr, __FILE__, __LINE__)
@@ -340,7 +340,7 @@ subroutine initialGuess(Xnew)
   !     nonLinear option is False, only this routine is called. Note
   !     that sensitivty information cannot be performed with the
   !     linear method because the intermediate grid levels are not
-  !     stored. 
+  !     stored.
   !
   !     Ney Secco (2015-2016): Added boundary conditions
   !
@@ -361,10 +361,10 @@ subroutine initialGuess(Xnew)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Output Parameters
@@ -380,7 +380,7 @@ subroutine initialGuess(Xnew)
 
   ! Get values for the very first step; otherwise we will always have
   ! old values
-  if (marchIter == 2) then 
+  if (marchIter == 2) then
      call VecCopy(X(1), XL, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
@@ -395,13 +395,13 @@ subroutine initialGuess(Xnew)
 
   keepGoing = .True.
   nsubIter = 0
-  do while (keepGoing) 
+  do while (keepGoing)
      nSubIter = nSubIter + 1
 
      ! Compute volumes based on deltaS
      call computeVolumes
      ! Adjust deltaS if necessary
-     if (cratio > cmax) then 
+     if (cratio > cmax) then
         deltaS = deltaS*(cmax/cratio)
         call computeVolumes
      end if
@@ -412,11 +412,11 @@ subroutine initialGuess(Xnew)
      ! Increment our running counter on the acutal approx distance
      ! from wall
      scaleDist = scaleDist + deltaS
-     
+
      ! Assemble the Jacobaian, second order is true, and also gets the RHS
      call calcResidual()
      call setupPETScKsp()
-     
+
      ! Now solve the system
      timeA = mpi_wtime()
 
@@ -426,25 +426,25 @@ subroutine initialGuess(Xnew)
 
      call KSPGetIterationNumber(hypKsp, kspIts, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-  
+
      ! Copy to old value
      call VecCopy(XL, XLm1, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     
+
      ! Get new XX level
      call VecAXPY(XL, one, hypDelta, ierr)
      call EChk(ierr,__FILE__,__LINE__)
 
-     ! Update BCs for this this mesh if necessary. 
+     ! Update BCs for this this mesh if necessary.
      call updateBCs
 
      ! Now we need to check if we have gone far enough for the next
      ! desired grid level. If so, we compute the factor between xxm1
      ! and xx and set. We make a linear interpolation between pseudo-layers
      ! to find the actual layer that we want.
-  
+
      if (scaleDist >= desiredS) then
-     
+
         fact = (desiredS - (scaleDist - deltaS))/(deltaS)
         onemfact = one-fact
 
@@ -458,7 +458,7 @@ subroutine initialGuess(Xnew)
         keepGoing = .False.
      end if
 
-     ! Update the ghost values 
+     ! Update the ghost values
      call VecGhostUpdateBegin(XL, INSERT_VALUES, SCATTER_FORWARD, ierr)
      call VecGhostUpdateEnd(XL, INSERT_VALUES,SCATTER_FORWARD, ierr)
      call VecGhostUpdateBegin(XLm1, INSERT_VALUES, SCATTER_FORWARD, ierr)
@@ -508,7 +508,7 @@ subroutine calcResidual
   sl = (scaleDist/(marchDist))**slExp
 
   ! Record the maximum and minimum grid sensors
-  gridSensorMax = zero 
+  gridSensorMax = zero
   gridSensorMin = huge(gridSensorMin)
   nAverage = 0
 
@@ -540,17 +540,17 @@ subroutine calcResidual
      ! Identify index of the current node on the global block matrix
      ii = i + iStart/3
 
-     extraOrdinary: if (topoType(i) == topoInternal .and. lnptr(1, i) /= 4) then 
+     extraOrdinary: if (topoType(i) == topoInternal .and. lnptr(1, i) /= 4) then
         ! This is an internal, extraonrdinary node. We do not have to
         ! worry about BCs for thsi one, so use the circular code
         r_ksi = zero
         r_eta = zero
         r_ksi_ksi = zero
         r_eta_eta = zero
-        
+
         r0 = xx(3*i-2:3*i)
-        MM = lnPtr(1, i) 
-        
+        MM = lnPtr(1, i)
+
         tmp1 = zero
         tmp2 = zero
         ovrSum1 = zero
@@ -558,21 +558,21 @@ subroutine calcResidual
         do m = 0, MM - 1
            thetam = 2*pi*m/MM
            jj = lnptr(2 + m, i)
-           
+
            rmmr0 = xx(3*jj-2:3*jj)- r0
            r_ksi = r_ksi + (two/MM) * (rmmr0) * cos(thetam)
            r_eta = r_eta + (two/MM) * (rmmr0) * sin(thetam)
            r_ksi_ksi = r_ksi_ksi + (two/MM)*(rmmr0)*(four*cos(thetam)**2 - one)
            r_eta_eta = r_eta_eta + (two/MM)*(rmmr0)*(four*sin(thetam)**2 - one)
-           
+
            tmp1 = tmp1 + &
                 dist(xxm1(3*jj-2:3*jj), xxm1(3*i-2:3*i)) / &
                 dist(  xx(3*jj-2:3*jj),   xx(3*i-2:3*i))*abs(cos(thetam))
-           
+
            tmp2 = tmp2 + &
                 dist(xxm1(3*jj-2:3*jj), xxm1(3*i-2:3*i)) / &
                 dist(  xx(3*jj-2:3*jj),   xx(3*i-2:3*i))*abs(sin(thetam))
-           
+
            ovrSum1 = ovrSum1 + abs(cos(thetam))
            ovrSum2 = ovrSum2 + abs(sin(thetam))
         end do
@@ -580,10 +580,10 @@ subroutine calcResidual
         d_eta = max((tmp2/ovrSum2)**(two/sl), 0.1)
      else
         ! These nodes have 4 "logical" neighbours, even if some of
-        ! them are actually computed halos. 
+        ! them are actually computed halos.
 
         ! Extract pointers for each of our neighbours. Some of these
-        ! may not be meaningful. 
+        ! may not be meaningful.
         jp1 = lnPtr(2, i)
         kp1 = lnPtr(3, i)
         jm1 = lnPtr(4, i)
@@ -600,11 +600,11 @@ subroutine calcResidual
         xkp1    =   xx(3*kp1-2:3*kp1)
         xkp1_m1 = xxm1(3*kp1-2:3*kp1)
 
-        if (topoType(i) == topoInternal .or. topoType(i) == topoLCorner) then 
+        if (topoType(i) == topoInternal .or. topoType(i) == topoLCorner) then
            ! Since the extra case was done above, this must be a
-           ! regular 4-neighbour node. 
+           ! regular 4-neighbour node.
 
-           ! Two more neighbours are significant. 
+           ! Two more neighbours are significant.
            xjm1    = xx(3*jm1-2:3*jm1)
            xjm1_m1 = xxm1(3*jm1-2:3*jm1)
 
@@ -613,7 +613,7 @@ subroutine calcResidual
 
         else if (topoType(i) == topoEdge) then
 
-           ! Third neighbours are significant. 
+           ! Third neighbours are significant.
            xjm1 = xx(3*jm1-2:3*jm1)
            xjm1_m1 = xxm1(3*jm1-2:3*jm1)
 
@@ -625,7 +625,7 @@ subroutine calcResidual
 
         else if (topoType(i) == topoCorner) then
 
-           ! Get the 3rd and 4th points based on the BCTypes. 
+           ! Get the 3rd and 4th points based on the BCTypes.
 
            call getBC(BCType(1, i), bcVal(1, :, i), .False., &
                 splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
@@ -639,14 +639,14 @@ subroutine calcResidual
            call getBC(BCType(2, i), bcVal(2, :, i), .False., &
                 splayCornerOrthogonality, xx0_m1, xjp1_m1, xkp1_m1, xjm1_m1, xkm1_m1)
         end if
-        
+
         ! Compute centered difference with respect to ksi and eta. This is the
         ! nominal calculation that we will use in the interior of the domain
         r_ksi = half*(xjp1 - xjm1)
         r_eta = half*(xkp1 - xkm1)
         r_ksi_ksi = half*(xjp1 - two*xx0 + xjm1)
         r_eta_eta = half*(xkp1 - two*xx0 + xkm1)
-        
+
         ! Compute the grid distribution sensor (eq 6.7 Chen and Steger)
         tmp = (dist(xjp1_m1, xx0_m1) + dist(xjm1_m1, xx0_m1)) /&
              (dist(xjp1, xx0) + dist(xjm1, xx0))
@@ -657,7 +657,7 @@ subroutine calcResidual
         d_eta = max(tmp**(two/sl), 0.1)
 
      end if extraOrdinary
-     
+
      gridSensorMax = max(gridSensorMax, d_ksi, d_eta)
      gridSensorMin = min(gridSensorMin, d_ksi, d_eta)
 
@@ -672,16 +672,16 @@ subroutine calcResidual
              (r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3))**2 + &
              (r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3))**2 + &
              (r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2))**2
-        
+
         deltaVovrDetC = vPtr(i)/detC
-        
+
         r_zeta(1) = deltaVovrDetC*(r_ksi(2)*r_eta(3) - r_eta(2)*r_ksi(3))
         r_zeta(2) = deltaVovrDetC*(r_eta(1)*r_ksi(3) - r_ksi(1)*r_eta(3))
         r_zeta(3) = deltaVovrDetC*(r_ksi(1)*r_eta(2) - r_eta(1)*r_ksi(2))
      end if
 
 
-     if (topoType(i) == topoInternal .and. lnptr(1, i) /= 4) then 
+     if (topoType(i) == topoInternal .and. lnptr(1, i) /= 4) then
         a_ksi = one
         a_eta = one
      else
@@ -690,7 +690,7 @@ subroutine calcResidual
         rMinusj = xjm1 - xx0
         rPlusjHat = rPlusj/norm2(rPlusj)
         rMinusjHat = rMinusj/norm2(rMinusj)
-        
+
         rPlusk = xkp1 - xx0
         rMinusk = xkm1 - xx0
         rPluskHat = rPlusk/norm2(rPlusk)
@@ -699,7 +699,7 @@ subroutine calcResidual
         ! Equation 6.10 (cross_prod defined in 3D_utilities.F90)
         call cross_prod(rPlusjHat-rMinusjHat, rPluskHat-rMinuskHat, nhat)
         nhat = nhat/norm2(nhat)
-        
+
         ! Equation 6.11
         alpha = acos(dot_product(nhat, rPlusjHat))
         beta = acos(dot_product(nhat, rPluskHat))
@@ -710,7 +710,7 @@ subroutine calcResidual
         else
            a_ksi = one
         end if
-        
+
         if (beta < pi/two) then
            a_eta = one/(one - cos(beta)**2)
         else
@@ -718,7 +718,7 @@ subroutine calcResidual
         end if
 
         ! Here we detect if we have a *very* sharp corner and modify
-        ! what we do at this point. 
+        ! what we do at this point.
 
         ! Each node has four neighbors, As shown below:
         !
@@ -759,9 +759,9 @@ subroutine calcResidual
         maxAlpha = max(maxAlpha, alpha)
 
         ! Check maximum corner angle
-        if (maxAlpha > pi - cornerAngle) then 
+        if (maxAlpha > pi - cornerAngle) then
            ! Flag this node as having to be averaged:
-           averageNode = .True. 
+           averageNode = .True.
            !print *,xx0
         end if
 
@@ -770,10 +770,10 @@ subroutine calcResidual
         ! Compute adjusted derivatives (Eq. 7.2)
         r_ksi_p = fourth*(norm2(rPlusj) + norm2(rMinusj))*(rPlusjHat - rMinusjHat)
         r_eta_p = fourth*(norm2(rPlusk) + norm2(rMinusk))*(rPluskHat - rMinuskHat)
-           
+
         ! Compute the vector shown in RHS of Eq. 7.1
         call cross_prod(r_ksi_p, r_eta_p, r_cross)
-        
+
         ! Now use Eq. 7.1
         r_zeta_p = vPtr(i)*r_cross/(r_cross(1)**2 + r_cross(2)**2 + r_cross(3)**2)
 
@@ -783,7 +783,7 @@ subroutine calcResidual
         ! Now smooth the ksi derivative
         r_zeta = (1-nu_mc)*r_zeta + nu_mc*r_zeta_p
      end if
-     
+
      t(1) = r_eta(2)*r_zeta(3) - r_zeta(2)*r_eta(3)
      t(2) = r_zeta(1)*r_eta(3) - r_eta(1)*r_zeta(3)
      t(3) = r_eta(1)*r_zeta(2) - r_zeta(1)*r_eta(2)
@@ -799,11 +799,11 @@ subroutine calcResidual
      Q2(1, :) = zero
      Q2(2, :) = r_zeta
      Q2(3, :) = tau
-     
+
      P(1, :) = r_ksi
      P(2, :) = r_eta
      P(3, :) = sigma
-     
+
      ! Compute the inverse of P and its multiplcation with Q1 and Q2
      call three_by_three_inverse(P, Pinv)
      PinvQ1 = matmul(Pinv, Q1)
@@ -819,7 +819,7 @@ subroutine calcResidual
      Pinvg = matmul(Pinv, g)
 
      ! ============================================
-     !             Explicit Smoothing 
+     !             Explicit Smoothing
      ! ============================================
 
      ! ------------------------------------
@@ -836,7 +836,7 @@ subroutine calcResidual
           (r_ksi(1)**2 + r_ksi(2)**2 + r_ksi(3)**2))
      N_eta = sqrt((r_zeta(1)**2 + r_zeta(2)**2 + r_zeta(3)**2)/ &
           (r_eta(1)**2 + r_eta(2)**2 + r_eta(3)**2))
-     
+
      ! ------------------------------------
      ! Final explict dissipation (Equation 6.1 and 6.2)
      ! ------------------------------------
@@ -849,8 +849,8 @@ subroutine calcResidual
      ! Row index is ii
      ii = i + iStart/3
 
-     extraOrdinary2: if (topoType(i) == topoInternal .and. gnptr(1, i) /= 4) then 
-        MM = gnPtr(1, i) 
+     extraOrdinary2: if (topoType(i) == topoInternal .and. gnptr(1, i) /= 4) then
+        MM = gnPtr(1, i)
         do m = 0, MM - 1
            thetam = 2*pi*m/MM
            ! For the 'fm' point in ksi
@@ -861,37 +861,37 @@ subroutine calcResidual
 
            ! For the 'fm' point in eta
            call addBlock(ii, gnPtr(2+m, i), (one + theta)*PinvQ2*(two/MM)*sin(thetam))
-           
+
            ! For the 'f0' point in ksi
            call addBlock(ii, ii, -(one + theta)*PInvQ2*(two/MM)*sin(thetam))
 
            ! Now we have the second derivative values to do in ksi-ksi
-           
-           ! For the 'fm' point in ksi-ksi 
+
+           ! For the 'fm' point in ksi-ksi
            coef = (two/MM)*(four*cos(thetam)**2 - one)
            call addBlock(ii, gnPtr(2+m, i), -eye*epsI*coef)
-           
+
            ! For the 'f0' point in ksi-ksi
            call addBlock(ii, ii, eye*epsI*coef)
-           
+
            ! For the 'fm' point in eta-eta
            coef = (two/MM)*(four*sin(thetam)**2 - one)
            call addBlock(ii, gnPtr(2+m, i), -eye*epsI*coef)
-           
+
            ! For the 'f0' point in eta-eta
            call addBlock(ii, ii, eye*epsI*coef)
         end do
-        
+
         ! Finally we need an eye on the diagonal
         call addBlock(ii, ii, eye)
 
      else ! Nominally 'regular' nodes
 
-        if (bcType(1, i) == BCAverage) then 
-           averageNode = .True. 
+        if (bcType(1, i) == BCAverage) then
+           averageNode = .True.
         end if
-        
-        if (.not. averageNode) then 
+
+        if (.not. averageNode) then
            ! First generate the 5 blocks that we will eventually have to set:
            blk0 = (eye + four*epsI*eye) ! Center
            blk1 = ((one+theta)*half*PinvQ1 - epsI*eye)  ! Right (jp1)
@@ -906,14 +906,14 @@ subroutine calcResidual
            blk4 = -fourth*eye
            nAverage = nAverage + 1
         end if
-           
+
         ! Extract indices. Not all may be significant.
         jp1 = gnPtr(2, i)
         kp1 = gnPtr(3, i)
         jm1 = gnPtr(4, i)
         km1 = gnPtr(5, i)
 
-        if (topoType(i) == topoInternal .or. topoType(i) == topoLCorner) then 
+        if (topoType(i) == topoInternal .or. topoType(i) == topoLCorner) then
            ! This must be an internal 4 neighbour node since the
            ! extraordinary nodes with bcInternal are already taken
            ! care of
@@ -928,7 +928,7 @@ subroutine calcResidual
 
            ! Accumulate blk4 into blk0 and blk2
            call getBCBlocks(BCType(1, i), blk4, blk0, blk2)
-           
+
            ! Center and first THREE blocks are real nodes
            call addBlock(ii, ii, blk0)
            call addBlock(ii, jp1, blk1)
@@ -936,7 +936,7 @@ subroutine calcResidual
            call addBlock(ii, jm1, blk3)
 
         else if (topoType(i) == topoCorner) then
-           
+
            ! Accumulate blk3 into blk0 and blk1
            call getBCBlocks(BCType(1, i), blk3, blk0, blk1)
 
@@ -951,31 +951,31 @@ subroutine calcResidual
      end if extraOrdinary2
 
      ! The RHS must tbe set independent of the type of node
-     if (.not. averageNode) then 
+     if (.not. averageNode) then
         call VecSetValuesBlocked(hypRHS, 1, (/ii-1/), &
              matmul(Pinv,(/zero, zero, vPtr(i)/)) + De, INSERT_VALUES, ierr)
      end if
      call EChk(ierr, __FILE__, __LINE__)
-     
+
      if (writeMetrics .and. metricsAllocated) then
         call VecSetValuesBlocked(metrics(marchIter-1, iX_ksi), 1, (/ii-1/), r_ksi, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
+
         call VecSetValuesBlocked(metrics(marchIter-1, iX_eta), 1, (/ii-1/), r_eta, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
+
         call VecSetValuesBlocked(metrics(marchIter-1, iX_zeta), 1, (/ii-1/), r_zeta, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
+
         call VecSetValuesBlocked(metrics(marchIter-1, iX_ksi_ksi), 1, (/ii-1/), r_ksi_ksi, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
+
         call VecSetValuesBlocked(metrics(marchIter-1, iX_eta_eta), 1, (/ii-1/), r_eta_eta, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
+
         call VecSetValuesBlocked(metrics(marchIter-1, iX_diss), 1, (/ii-1/), De, INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-        
+
         call VecSetValuesBlocked(metrics(marchIter-1, iVHist), 1, (/ii-1/), (/zero,zero, vPtr(i)/), INSERT_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
      end if
@@ -1035,7 +1035,7 @@ subroutine updateBCs
   integer(kind=intType) :: i, idim, j, jp1, jp2, jm1, kp1, km1, ierr
   integer(kind=intType) :: iStart, iEnd
   real(kind=realType), dimension(3) :: xx0, xjp1, xjm1, xkp1, xkm1
-  
+
   call VecGetOwnershipRange(XL, iStart, iEnd, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
@@ -1051,38 +1051,38 @@ subroutine updateBCs
      kp1 = lnPtr(3, i)
      jm1 = lnPtr(4, i)
      km1 = lnPtr(5, i)
-     
-     if (topoType(i) == topoEdge) then 
+
+     if (topoType(i) == topoEdge) then
 
         ! Extract our own node
         xx0 = xx(3*i-2:3*i)
-        
-        ! First THREE neighbours are significant. 
+
+        ! First THREE neighbours are significant.
         xjp1 = xx(3*jp1-2:3*jp1)
         xkp1 = xx(3*kp1-2:3*kp1)
         xjm1 = xx(3*jm1-2:3*jm1)
-        
+
         ! Get the 4th point based on the BC Type:
         call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality,&
              xx0   , xjp1   , xkp1   , xjm1   , xkm1  )
         xx(3*i-2:3*i) = xx0
-        
+
      else if (topoType(i) == topoCorner) then
 
         ! Extract our own node
         xx0 = xx(3*i-2:3*i)
 
-        ! First TWO neighbours are significant. 
+        ! First TWO neighbours are significant.
         xjp1 = xx(3*jp1-2:3*jp1)
         xkp1 = xx(3*kp1-2:3*kp1)
-        
+
         ! Get the 3rd and 4th points based on the BCTypes
         call getBC(BCType(1, i), bcVal(1, :, i), .False., &
              splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
-        
+
         call getBC(BCType(2, i), bcVal(2, :, i), .False., &
              splayCornerOrthogonality, xx0, xjp1, xkp1, xjm1, xkm1)
-        
+
         ! BC may update our node
         xx(3*i-2:3*i) = xx0
 
@@ -1091,10 +1091,10 @@ subroutine updateBCs
         ! Extract our own node
         xx0 = xx(3*i-2:3*i)
 
-        ! Other nodes are not significant. 
+        ! Other nodes are not significant.
         call getBC(BCType(1, i), bcVal(1, :, i), .False., &
              splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
-        
+
         ! BC may update our node
         xx(3*i-2:3*i) = xx0
 
@@ -1112,7 +1112,7 @@ subroutine create3DPetscVars
   use hypData
 
   implicit none
-#include "include/petscversion.h"  
+#include "include/petscversion.h"
   ! Working Variables
   integer(kind=intType) :: ierr, i, j, idim, bs, dummy(1)
   integer(kind=intType), dimension(:), allocatable :: onProc, offProc
@@ -1121,7 +1121,7 @@ subroutine create3DPetscVars
   !          Linearized Hyperbolic System Variables
   ! ----------------------------------------------------------
   if (.not. varsAllocated) then
-     
+
      ! Lets to things in the proper way, create the Mat first
      allocate(onProc(nx), offProc(nx), stat=ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -1156,7 +1156,7 @@ subroutine create3DPetscVars
      ! Create the extra state-sized vectors
      call VecDuplicate(hypDelta, hypRes, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-  
+
      ! Create the full list of grid vectors:
      allocate(X(N), stat=ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -1178,7 +1178,7 @@ subroutine create3DPetscVars
      call EChk(ierr, __FILE__, __LINE__)
      call VecDuplicate(XL, XLm1, ierr)
      call EChk(ierr, __FILE__, __LINE__)
-     
+
      ! The volume array also needs to be ghosted.
      if (nGhost == 0) then
         call VecCreateGhost(hyp_comm_world, nx, PETSC_DETERMINE, &
@@ -1188,7 +1188,7 @@ subroutine create3DPetscVars
              nGhost, ghost, Volume, ierr)
      end if
      call EChk(ierr, __FILE__, __LINE__)
-   
+
      ! Loop over each "vec" in the X/metric arrays:
      do i=1, N
         call VecDuplicate(XL, X(i), ierr)
@@ -1201,7 +1201,7 @@ subroutine create3DPetscVars
            metricsAllocated = .True.
         end if
      end do
-     
+
      ! Create a scatter context to root:
      call VecScatterCreateToZero(X(1), rootScatter, XLocal, ierr)
      call EChk(ierr, __FILE__, __LINE__)
@@ -1230,7 +1230,7 @@ subroutine create3DPetscVars
      call EChk(ierr, __FILE__, __LINE__)
 
 
-     
+
      varsAllocated = .True.
      !call MatSetOption(hypMat, MAT_NEW_NONZERO_ALLOCATION_ERR, PETSC_FALSE, ierr)
   end if
@@ -1249,37 +1249,37 @@ subroutine setupPETScKSP
   integer(kind=intType) :: nlocal, first, ierr
 
 
-  ! Setup the KSP object. 
+  ! Setup the KSP object.
   call KSPGetPC(hypKSP, globalPC, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
   call PCSetType(globalPC, "asm", ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   call KSPSetup(hypKSP, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   ! Extract the ksp objects for each subdomain
   call PCASMGetSubKSP(globalPC, nlocal, first, subksp, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   call KSPSetType(subksp, 'preonly', ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   ! Extract the preconditioner for subksp object.
   call KSPGetPC(subksp, subpc, ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   ! The subpc type will almost always be ILU
   call PCSetType(subpc, "ilu", ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   ! Setup the matrix ordering for the subpc object:
   call PCFactorSetMatOrderingtype(subpc, "nd", ierr)
   call EChk(ierr, __FILE__, __LINE__)
-  
+
   ! Set the ILU parameters
   call PCFactorSetLevels(subpc, 1, ierr)
-  call EChk(ierr, __FILE__, __LINE__) 
+  call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine setupPETScKSP

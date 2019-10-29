@@ -8,7 +8,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
@@ -626,7 +626,7 @@ subroutine setStrengths(sigma)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
@@ -685,7 +685,7 @@ subroutine saveSolution(sigma)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
@@ -1713,7 +1713,7 @@ subroutine generateEllipLayer(X, layer)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
@@ -1771,7 +1771,7 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
@@ -1914,7 +1914,7 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
 #include "include/petscversion.h"
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
+#include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
 #include "include/finclude/petscvec.h90"
