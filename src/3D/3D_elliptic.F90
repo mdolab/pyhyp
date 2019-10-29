@@ -6,8 +6,8 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
   use panel
   use petsc
   implicit none
-   #include "include/petscversion.h"
-   #include "petsc/finclude/petsc.h"
+#include "include/petscversion.h"
+#include "petsc/finclude/petsc.h"
 
 
   ! PETSc Variables
@@ -620,8 +620,8 @@ subroutine setStrengths(sigma)
   use hypData, only : ellipScatter, localSol, xx
   use petsc
   implicit none
-   #include "include/petscversion.h"
-   #include "petsc/finclude/petsc.h"
+#include "include/petscversion.h"
+#include "petsc/finclude/petsc.h"
 
 
   ! Input Parameters
