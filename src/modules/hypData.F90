@@ -3,6 +3,7 @@ module hypData
   implicit None
 #include "include/petscversion.h"
 #include "petsc/finclude/petsc.h"
+  use petsc
 
   ! This module contains the data and data structures required for
   ! running the hyperbolic grid generator
