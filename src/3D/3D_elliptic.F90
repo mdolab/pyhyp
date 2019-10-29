@@ -11,7 +11,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! PETSc Variables
@@ -629,7 +629,7 @@ subroutine setStrengths(sigma)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Input Parameters
@@ -688,7 +688,7 @@ subroutine saveSolution(sigma)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
   ! Input Parameters
   Vec :: sigma
@@ -1716,7 +1716,7 @@ subroutine generateEllipLayer(X, layer)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Input/Output
@@ -1774,7 +1774,7 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Input/Output
@@ -1917,7 +1917,7 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Input/Output

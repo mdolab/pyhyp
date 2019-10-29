@@ -10,7 +10,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Input Parameters
@@ -315,7 +315,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Input Parameters

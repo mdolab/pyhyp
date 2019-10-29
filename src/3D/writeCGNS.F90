@@ -26,7 +26,7 @@ subroutine writeCGNS(fileName)
 #include "petsc/finclude/petscksp.h"
 #else
 #include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
+#include "include/finclude/petscksp.h"
 #endif
 
   ! Input Arguments
