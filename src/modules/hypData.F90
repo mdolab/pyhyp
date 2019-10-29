@@ -5,9 +5,11 @@ module hypData
 #if PETSC_VERSION_MINOR > 5
 #include "petsc/finclude/petsc.h"
 #include "petsc/finclude/petscksp.h"
+#include "petsc/finclude/petscvec.h"
 #else
 #include "include/finclude/petsc.h"
 #include "petsc/finclude/petscksp.h"
+#include "petsc/finclude/petscvec.h"
 #endif
   ! This module contains the data and data structures required for
   ! running the hyperbolic grid generator
