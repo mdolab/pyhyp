@@ -444,7 +444,7 @@ subroutine generateSolution
 #endif
      call EChk(ierr, __FILE__, __LINE__)
 
-     call MatMFFDSetBase(ellipMat, ellipSol, PETSC_NULL_OBJECT, ierr)
+     call MatMFFDSetBase(ellipMat, ellipSol, PETSC_NULL_VEC, ierr)
      call EChk(ierr,__FILE__,__LINE__)
      assembleMat = .False.
   end if
@@ -504,7 +504,7 @@ subroutine generateSolution
   call KSPSetTolerances(ellipKSP, kspRelTol, 1e-16, 1e20, kspMaxIts, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPMonitorSet(ellipKSP, kspmonitordefault, PETSC_NULL_OBJECT, &
+  call KSPMonitorSet(ellipKSP, kspmonitordefault, PETSC_NULL_SCALAR, &
        PETSC_NULL_FUNCTION, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
@@ -570,7 +570,7 @@ subroutine generateSolution
   call saveSolution(ellipSol)
 
   if (.not. assembleMat) then
-     call MatMFFDSetBase(ellipMat, ellipSol, PETSC_NULL_OBJECT, ierr)
+     call MatMFFDSetBase(ellipMat, ellipSol, PETSC_NULL_VEC, ierr)
      call EChk(ierr,__FILE__,__LINE__)
   end if
 
