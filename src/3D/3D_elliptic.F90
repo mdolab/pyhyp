@@ -407,7 +407,6 @@ subroutine generateSolution
   use hypInput
   use panel
   implicit none
-#include <petscversion.h>
   ! Working parameters
   integer(kind=intType) :: i, j, k, info, ierr, iStart, iEnd, nPLocal
   integer(kind=intType), dimension(:), allocatable :: onProc, offProc
