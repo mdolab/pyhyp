@@ -4,16 +4,10 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
   use communication
   use hypData, only : ellipScatter, localSol, xx
   use panel
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
+
 
   ! PETSc Variables
   PetscFortranAddr ctx(*)
@@ -509,7 +503,7 @@ subroutine generateSolution
   call KSPSetTolerances(ellipKSP, kspRelTol, 1e-16, 1e20, kspMaxIts, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-  call KSPMonitorSet(ellipKSP, kspmonitordefault, PETSC_NULL_FUNCTION, &
+  call KSPMonitorSet(ellipKSP, kspmonitordefault, PETSC_NULL_SCALAR, &
        PETSC_NULL_FUNCTION, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
@@ -623,16 +617,10 @@ subroutine setStrengths(sigma)
 
   use precision
   use hypData, only : ellipScatter, localSol, xx
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
+
 
   ! Input Parameters
   Vec :: sigma
@@ -683,16 +671,9 @@ subroutine saveSolution(sigma)
   use hypData, only : ellipScatter, localSol, xx, npGlobal
   use hypInput
   use communication
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
   ! Input Parameters
   Vec :: sigma
 
@@ -1712,16 +1693,10 @@ subroutine generateEllipLayer(X, layer)
   use communication
   use panel
   use hypData, only : fullConn, rootScatter, xLocal, xx, npGlobal
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
+
 
   ! Input/Output
   Vec X, layer
@@ -1771,16 +1746,10 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
   use communication
   use panel
   use hypData, only : fullcPtr, rootScatter, xLocal, xxm1, npGlobal,nxGlobal
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
+
 
   ! Input/Output
   Vec X, Xm1, layer, delta, norm
@@ -1915,16 +1884,10 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
   use communication
   use panel
   use hypData, only : fullcPtr, rootScatter, xLocal, xxm1, npGlobal,nxGlobal
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
+
 
   ! Input/Output
   Vec X, Xm1, layer, delta, norm

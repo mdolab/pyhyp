@@ -356,16 +356,9 @@ subroutine initialGuess(Xnew)
   use hypData, only : kspIts, nsubiter, nsubiterprev, gridRatio, desiredS
   use hypData, only : desiredDeltaS
   use hypInput
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
   real(kind=realType) :: sl
 
   ! Output Parameters
@@ -1112,8 +1105,9 @@ subroutine create3DPetscVars
   use hypInput
   use hypData
 
+#include "petsc/finclude/petsc.h"
+  use petsc
   implicit none
-#include "petscversion.h"
   ! Working Variables
   integer(kind=intType) :: ierr, i, j, idim, bs, dummy(1)
   integer(kind=intType), dimension(:), allocatable :: onProc, offProc

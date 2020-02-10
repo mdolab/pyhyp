@@ -4,18 +4,12 @@ subroutine EChk(ierr, file, line)
   ! error.
   use precision
   use communication, only : hyp_comm_world, myid
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
 
-  integer(kind=intType),intent(in) :: ierr
+
+  integer(kind=intType) :: ierr
   character*(*),intent(in) :: file
   integer(kind=intType),intent(in) :: line
   integer(kind=intType) :: jerr

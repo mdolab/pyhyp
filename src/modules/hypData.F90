@@ -1,15 +1,9 @@
 module hypData
   use precision
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
+
   ! This module contains the data and data structures required for
   ! running the hyperbolic grid generator
 

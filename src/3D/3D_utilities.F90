@@ -860,16 +860,10 @@ subroutine findKStretch(XL, XLm1, XLm2)
   use precision
   use hypInput
   use hypData, only : maxKStretch, nx
-#include <petscversion.h>
-#if PETSC_VERSION_GE(3,8,0)
-#include <petsc/finclude/petsc.h>
+#include "petsc/finclude/petsc.h"
   use petsc
   implicit none
-#else
-  implicit none
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#endif
+
 
   ! Input parameters
   Vec, intent(in) :: XL, XLm1, XLm2
