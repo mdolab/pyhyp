@@ -9,7 +9,7 @@ subroutine EChk(ierr, file, line)
   implicit none
 
 
-  integer(kind=intType) :: ierr
+  integer(kind=intType),intent(in) :: ierr
   character*(*),intent(in) :: file
   integer(kind=intType),intent(in) :: line
   integer(kind=intType) :: jerr
