@@ -6,7 +6,7 @@ subroutine computeStretch(L)
   !     Abstract: computeStretch determines the global stretch value,
   !     deltaS, depending on the grid level L. In the future
   !     this function may be more complex or call a user-supplied function.
-  !    
+  !
   !     Parameters
   !     ----------
   !     L : integer
@@ -44,20 +44,20 @@ subroutine calcGridRatio (N, nStart, nEnd, s0, S, ratio)
   !     N : integer
   !         The number of nodes in sequence
   !     nStart : integer
-  !         The number of intervals with constant spacing 
+  !         The number of intervals with constant spacing
   !         's0' at the beginning
-  !     nEnd : integer 
-  !         The number of constant sized intervals at the end. 
-  !         The actual spacing will be determined. 
+  !     nEnd : integer
+  !         The number of constant sized intervals at the end.
+  !         The actual spacing will be determined.
   !     s0 : real
   !         The initial grid spacing
   !     S : real
   !         The total integrated length
-  !     
+  !
   !     Returns
   !     -------
   !     ratio : real
-  !         The computed grid ratio that satifies all the inputs. 
+  !         The computed grid ratio that satifies all the inputs.
   use hypInput, only : fullDeltas
   use precision
 
@@ -75,7 +75,7 @@ subroutine calcGridRatio (N, nStart, nEnd, s0, S, ratio)
   real(kind=realType) ::  r, a,b, c, f, fa, fb, curSize
 
   ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
-  ! initial ratio and r is the grid ratio. 
+  ! initial ratio and r is the grid ratio.
 
   ! Do a bisection search
   ! Max and min bounds...root must be in here...
@@ -91,7 +91,7 @@ subroutine calcGridRatio (N, nStart, nEnd, s0, S, ratio)
         exit
      end if
 
-     if (f * fa > 0) then 
+     if (f * fa > 0) then
         a = c
      else
         b = c
@@ -103,11 +103,11 @@ subroutine calcGridRatio (N, nStart, nEnd, s0, S, ratio)
 
 
   ! And we precompute all stretches:
-  if (.not. allocated(fullDeltaS)) then 
+  if (.not. allocated(fullDeltaS)) then
      allocate(fullDeltaS(2:N))
   end if
 
-  
+
   curSize = s0
   do j=1, nStart
      fullDeltaS(j+1) = curSize
@@ -125,14 +125,14 @@ subroutine calcGridRatio (N, nStart, nEnd, s0, S, ratio)
      fullDeltaS(N - nEnd  + j) = curSize
   end do
 
-  contains 
+  contains
     function func(r)
 
       ! Evaluate the function we want to solve for:
       real(kind=realType) :: r, func, curSize
       integer(kind=intType) :: j
 
-      ! We will have nStart layers at the beginning. 
+      ! We will have nStart layers at the beginning.
       func = nStart * s0
       curSize = s0
 
@@ -148,7 +148,7 @@ subroutine calcGridRatio (N, nStart, nEnd, s0, S, ratio)
 
       ! Now add the last nEnd layers of constant size
       func = func + nEnd * curSize
-      
+
       ! Finally the actual functio is S - func
       func = S - func
 
@@ -162,7 +162,7 @@ subroutine three_by_three_inverse(Jac, Jinv)
   !     Written by Gaetan Kenway
   !
   !     Abstract: return the inverse of the 3x3 matrix Jac in Jinv
-  !    
+  !
   !     Parameters
   !     ----------
   !     Jac : array size (3,3)
@@ -180,7 +180,7 @@ subroutine three_by_three_inverse(Jac, Jinv)
   real(kind=realType), intent(out) :: Jinv(3, 3)
   real(kind=realType) :: invdet, det
 
-  ! Express the inverse of the jacobian explicitly 
+  ! Express the inverse of the jacobian explicitly
   det = Jac(1, 1)*Jac(2, 2)*Jac(3, 3)  &
        +   Jac(1, 2)*Jac(2, 3)*Jac(3, 1)&
        +   Jac(1, 3)*Jac(2, 1)*Jac(3, 2)&
@@ -329,10 +329,10 @@ subroutine writeIteration
 
      ! March Distance
      write(*,"(e10.3,1x)",advance="no") scaleDist
-     
+
      ! marching step size for this iteration
      write(*,"(f7.4,1x)",advance="no") cRatio
-     
+
      ! maximum stretch ratio in K-direction
      write(*,"(f7.4,1x)",advance="no") maxKStretchRed
 
@@ -431,15 +431,15 @@ subroutine volume_hexa(points, V)
   !
   !     Abstract: volume_hexa determines the volume for a hexa defined
   !     by 8 nodes.
-  !    
+  !
   !     Parameters
   !     ----------
   !     points : real array size(3, 8)
-  !         Nodes defining the hexa in coordinate ordering. 
+  !         Nodes defining the hexa in coordinate ordering.
   !
   !     Returns
   !     -------
-  !     Volume : real 
+  !     Volume : real
   !         The computed cell volume
   use precision
   implicit none
@@ -448,11 +448,11 @@ subroutine volume_hexa(points, V)
   real(kind=realType), intent(in) :: points(3, 8)
   real(kind=realType), intent(out) :: V
 
-  ! Working                                                                                  
+  ! Working
   real(kind=realType) :: center(3), volpymrid, v1, v2, v3, v4, v5, v6
   integer(kind=intType) ::  i, idim
 
-  ! Compute the center of the points                                                         
+  ! Compute the center of the points
   center = zero
   do i=1, 8
      do idim=1, 3
@@ -461,9 +461,9 @@ subroutine volume_hexa(points, V)
   end do
   center = center / eight
 
-  ! Compute the volumes of the 6 sub pyramids. The                                           
-  ! arguments of volpym must be such that for a (regular)                                    
-  ! right handed hexahedron all volumes are positive.                                        
+  ! Compute the volumes of the 6 sub pyramids. The
+  ! arguments of volpym must be such that for a (regular)
+  ! right handed hexahedron all volumes are positive.
 
   v1 = volpymrid(center, points(:, 1), points(:, 2), points(:, 4), points(:, 3))
   v2 = volpymrid(center, points(:, 7), points(:, 8), points(:, 6), points(:, 5))
@@ -480,7 +480,7 @@ function volpymrid(p, a, b, c, d)
   implicit none
   real(kind=realType) :: p(3), a(3), b(3), c(3), d(3), volpymrid
 
-  ! 6*Volume of a pyrimid -> Counter clockwise ordering                                      
+  ! 6*Volume of a pyrimid -> Counter clockwise ordering
   volpymrid = (p(1) - fourth*(a(1) + b(1)  + c(1) + d(1))) *&
        ((a(2) - c(2))*(b(3) - d(3)) - (a(3) - c(3))*(b(2) - d(2)))   + &
        (p(2) - fourth*(a(2) + b(2)  + c(2) + d(2)))*&
@@ -496,16 +496,16 @@ subroutine quality_hexa(points, quality)
   !     Written by Gaetan Kenway
   !
   !     Abstract: quality_hexa determine the 2x2x2 quality measure for
-  !     a hexa defined by 8 nodes. 
-  !    
+  !     a hexa defined by 8 nodes.
+  !
   !     Parameters
   !     ----------
   !     points : real array size(3, 8)
-  !         Nodes defining the hexa in coordinate ording. 
+  !         Nodes defining the hexa in coordinate ording.
   !
   !     Returns
   !     -------
-  !     Quality : real 
+  !     Quality : real
   !         The computed quality measure
   use precision
   implicit none
@@ -599,7 +599,7 @@ subroutine lagrangeSF( sf, dsf, a, order)
   do i=0, order-1
      ki = -one + two*i/(order - one)
 
-     ! Loop over each point again, except for the current control point, 
+     ! Loop over each point again, except for the current control point,
      ! adding the contribution to the shape function
 
      do j=0, order-1
@@ -679,24 +679,24 @@ subroutine pointReduce(pts, N, tol, uniquePts, link, nUnique)
 
   ! Loop over all nodes
   do i=1, N
-     if (link(i) == 0) then 
+     if (link(i) == 0) then
         call kdtree2_r_nearest(mytree, pts(:, i), tol2, nFound, nAlloc, results)
 
         ! Expand if necesary and re-run
-        if (nfound > nalloc) then 
+        if (nfound > nalloc) then
            deallocate(results)
            nalloc = nfound
            allocate(results(nalloc))
            call kdtree2_r_nearest(mytree, pts(:, i), tol2, nFound, nAlloc, results)
         end if
 
-        if (nFound == 1) then 
+        if (nFound == 1) then
            ! This one is easy, it is already a unique node
            nUnique = nUnique + 1
            link(i) = nUnique
            uniquePts(:, nUnique) = pts(:, i)
         else
-           if (link(i) == 0) then 
+           if (link(i) == 0) then
               ! This node hasn't been assigned yet:
               nUnique = nUnique + 1
               uniquePts(:, nUnique) = pts(:, i)
@@ -780,11 +780,11 @@ subroutine assignN2NDirected(nodeConn, nEdge, n1, n2, size1, size2)
 
   foundNode = .False.
   do i=1, nEdge(n1)
-     if (nodeConn(i, n1) == n2) then 
-        foundNode = .True. 
+     if (nodeConn(i, n1) == n2) then
+        foundNode = .True.
      end if
   end do
-  if (foundNode) then 
+  if (foundNode) then
      nodeConn(:, n1) = -1
   else
      nEdge(n1) = nEdge(n1) + 1
@@ -815,12 +815,12 @@ subroutine assignN2N(nodeConn, nEdge, n1, n2, size1, size2)
 
   foundNode = .False.
   do i=1, nEdge(n1)
-     if (nodeConn(i, n1) == n2) then 
-        foundNode = .True. 
+     if (nodeConn(i, n1) == n2) then
+        foundNode = .True.
      end if
   end do
 
-  if (.not. foundNode) then 
+  if (.not. foundNode) then
      nEdge(n1) = nEdge(n1) + 1
      nodeConn(nEdge(n1), n1) = n2
   end if
@@ -841,7 +841,7 @@ subroutine findKStretch(XL, XLm1, XLm2)
   !                distance between X(zeta, eta, L-1) and X(zeta, eta, L-2)
   !     This can be used as an indication of how much the grid is stretching in the
   !     marching direction.
-  !    
+  !
   !     Parameters
   !     ----------
   !     L : integer
@@ -860,16 +860,10 @@ subroutine findKStretch(XL, XLm1, XLm2)
   use precision
   use hypInput
   use hypData, only : maxKStretch, nx
+#include "petsc/finclude/petsc.h"
+  use petsc
   implicit none
 
-#include "include/petscversion.h"
-#if PETSC_VERSION_MINOR > 5
-#include "petsc/finclude/petsc.h"
-#include "petsc/finclude/petscvec.h90"
-#else
-#include "include/finclude/petsc.h"
-#include "include/finclude/petscvec.h90"
-#endif
 
   ! Input parameters
   Vec, intent(in) :: XL, XLm1, XLm2
@@ -925,7 +919,7 @@ end subroutine findKStretch
 
 subroutine addMissing(nList, n1, n2, n3)
 
-  use precision 
+  use precision
   implicit none
 
   integer(kind=intType), intent(in) :: nList(3), n1, n2
@@ -935,7 +929,7 @@ subroutine addMissing(nList, n1, n2, n3)
   ! are also in the list, return the other one in the list
 
   do i=1,3
-     if (.not. (nList(i) == n1 .or. nList(i) == n2)) then 
+     if (.not. (nList(i) == n1 .or. nList(i) == n2)) then
         n3 = nList(i)
      end if
   end do
@@ -1012,13 +1006,13 @@ end subroutine computeCornerAngle
 !   !               |           |
 !   !               |           |
 !   !     p3--------p0----------p1
-!   !               |            
-!   !               |            
-!   !               |            
+!   !               |
+!   !               |
+!   !               |
 !   !               p4
 !   !
 !   ! For this case TWO BCTypes must be given. The first BC determines
-!   ! p3 while the second BC determines p4. 
+!   ! p3 while the second BC determines p4.
 
 !   use hypInput
 !   use hypData, only : marchIter
@@ -1070,20 +1064,20 @@ end subroutine computeCornerAngle
 !      p3 = (/-p1(1), p1(2), p1(3)/)
 !      p0_new(1) = zero
 
-!   case (BCYSymm) 
+!   case (BCYSymm)
 !      p3 = (/p1(1), -p1(2), p1(3)/)
 !      p0_new(2) = zero
 
 !   case (BCZSymm)
 !      p3 = (/p1(1), p1(2), -p1(3)/)
 !      p0_new(3) = zero
-     
+
 !   case (BCXConst, BCYConst, BCZConst)
 !      p3 = 2*p0 - p1
 
 !      p0_new(2) = zero
 
-!   case (BCAverage) 
+!   case (BCAverage)
 !      p0_new(2) = zero
 
 !   case default
@@ -1116,7 +1110,7 @@ end subroutine computeCornerAngle
 !      p4_splay = p0 + edgeNormal*(1+splay)*dist
 
 !      p4 = (one-blend)*p4_extrap + blend*p4_splay
-     
+
 !   case(BCXSymm)
 !      p4 = (/-p2(1), p2(2), p2(3)/)
 !      p0_new(1) = zero
@@ -1134,7 +1128,7 @@ end subroutine computeCornerAngle
 !      p4 = 2*p0 - p2
 !      p0_new(2) = zero
 
-!   case (BCAverage) 
+!   case (BCAverage)
 !      p0_new(2) = zero
 
 !   case default
@@ -1142,7 +1136,7 @@ end subroutine computeCornerAngle
 !      stop
 !  end select
 
-!  ! Set the updated center coordinate. 
+!  ! Set the updated center coordinate.
 !  p0 = p0_new
 ! end subroutine getBCCorner
 
@@ -1158,12 +1152,12 @@ end subroutine computeCornerAngle
 !   !     |         |           |
 !   !     |         |           |
 !   !     p3--------p0----------p1
-!   !               |            
-!   !               |            
-!   !               |            
+!   !               |
+!   !               |
+!   !               |
 !   !               p4
 !   !
-!   use hypInput 
+!   use hypInput
 !   use hypData, only :marchIter
 !   implicit none
 
@@ -1181,7 +1175,7 @@ end subroutine computeCornerAngle
 
 !   blend = splayEdgeOrthogonality
 
-!   select case(bcType) 
+!   select case(bcType)
 !   case (BCSplay)
 
 !      ! Regular extrapolation without orthogonality
@@ -1218,10 +1212,10 @@ end subroutine computeCornerAngle
 !   case (BCZSymm)
 !      !p4 = (/p2(1), p2(2), two*BCVal(1)-p2(3)/)
 !      p0(3) = zero
-!   case (BCXConst) 
+!   case (BCXConst)
 !      p4 = two*p0 - p2
 !      !p0(1) = BCVal(1)
-!   case(BCYConst) 
+!   case(BCYConst)
 !      p4 = two*p0 - p2
 !      !p0(2) = BCVal(1)
 !   case(BCZConst)
@@ -1257,7 +1251,7 @@ end subroutine computeCornerAngle
 !      blk2 = blk4
 !      blk2(:, 1) = -blk2(:, 1)
 
-!   case (BCYSymm) 
+!   case (BCYSymm)
 !      blk0 = zero
 !      blk2 = blk4
 !      blk2(:, 2) = -blk2(:, 2)
@@ -1295,18 +1289,18 @@ end subroutine computeCornerAngle
 !      blk0 = blk0 + (one + splay)*blk3
 !      blk1 = -splay*blk3
 
-!   case (BCXSymm) 
+!   case (BCXSymm)
 !      blk1 = blk3
 !      blk1(:, 1) = -blk1(:, 1)
 
-!   case (BCYSymm) 
+!   case (BCYSymm)
 !      blk1 = blk3
 !      blk1(:, 2) = -blk1(:, 2)
 
-!   case (BCZSymm) 
+!   case (BCZSymm)
 !      blk1 = blk3
 !      blk1(:, 3) = -blk1(:, 3)
-!   case (BCXConst, BCYConst, BCZConst) 
+!   case (BCXConst, BCYConst, BCZConst)
 !      blk1 = blk3
 !   case (BCAverage)
 !      blk1 = blk3
@@ -1317,16 +1311,16 @@ end subroutine computeCornerAngle
 !   case (BCSplay)
 !      blk0 = blk0 + (one + splay)*blk4
 !      blk2 = -splay*blk4
-!   case (BCXSymm) 
+!   case (BCXSymm)
 !      blk2 = blk4
 !      blk2(:, 1) = -blk2(:, 1)
-!   case (BCYSymm) 
+!   case (BCYSymm)
 !      blk2 = blk4
 !      blk2(:, 2) = -blk2(:, 2)
-!   case (BCZSymm) 
+!   case (BCZSymm)
 !      blk2 = blk4
 !      blk2(:, 3) = -blk2(:, 3)
-!   case (BCXConst, BCYConst, BCZConst) 
+!   case (BCXConst, BCYConst, BCZConst)
 !      blk2 = blk4
 !   case (BCAverage)
 !      blk2 = blk4
