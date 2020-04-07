@@ -41,5 +41,5 @@ PETSC_LINKER_FLAGS=${PETSC_LIB}
 
 # Define potentially different python, python-config and f2py executables:
 PYTHON = python
-PYTHON-CONFIG = python-config
+PYTHON-CONFIG = python3-config # use python-config for python 2
 F2PY = f2py
