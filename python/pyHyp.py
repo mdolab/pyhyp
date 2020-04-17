@@ -22,7 +22,7 @@ History
 import os
 import numpy
 from mpi4py import MPI
-from . import hyp, MExt
+from . import MExt
 from collections import OrderedDict
 from copy import deepcopy
 
