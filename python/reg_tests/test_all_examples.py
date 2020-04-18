@@ -9,7 +9,7 @@ class TestExamples(unittest.TestCase):
     def common_test(self, test_dir, run_file, cgns_file, blocksizes_ref, info_ref):
         self.test_dir = os.path.join(os.path.abspath('.'),'../examples',test_dir)
         os.chdir(self.test_dir)
-        subprocess.check_call(['python',run_file])
+        subprocess.check_output(['python',run_file])
         self.check_cgns_utils('blockSizes', cgns_file, blocksizes_ref)
         self.check_cgns_utils('info', cgns_file, info_ref)
 
