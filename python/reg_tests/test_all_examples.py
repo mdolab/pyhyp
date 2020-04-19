@@ -5,14 +5,15 @@ import re
 import numpy as np
 from numpy.testing import assert_array_equal
 
+baseDir = os.path.dirname(os.path.abspath(__file__))
 class TestExamples(unittest.TestCase):
     def common_test(self, test_dir, run_file, cgns_file, blocksizes_ref, info_ref):
-        curDir = os.path.dirname(os.path.abspath(__file__))
-        self.test_dir = os.path.join(curDir, '../examples', test_dir)
-        os.chdir(self.test_dir)
+        full_test_dir = os.path.abspath(os.path.join(baseDir, '../examples', test_dir))
+        os.chdir(full_test_dir)
         subprocess.check_output(['python',run_file])
         self.check_cgns_utils('blockSizes', cgns_file, blocksizes_ref)
         self.check_cgns_utils('info', cgns_file, info_ref)
+        os.chdir(baseDir)
 
     def check_cgns_utils(self, cmd, cgns_file, ref):
         output = subprocess.check_output(['cgns_utils', cmd, cgns_file])
