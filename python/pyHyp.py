@@ -22,7 +22,7 @@ History
 import os
 import numpy
 from mpi4py import MPI
-from . import hyp, MExt
+from . import MExt
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -361,7 +361,7 @@ class pyHyp(object):
         debug : bool
             Flag used to specify if debugging. This only needs to be
             set to true when using a symbolic debugger.
-            """
+        """
 
         # Set the possible MPI Intracomm
         if comm is None:
@@ -772,21 +772,27 @@ class pyHyp(object):
         if outputType == 'cgns':
             self.writeCGNS(fileName)
         elif outputType == 'plot3d':
-            self.writePlot3d(fileName)
+            self.writePlot3D(fileName)
 
     def getSurfaceCoordinates(self):
-        """Return the surface coordinates on this processor"""
+        """
+        Return the surface coordinates on this processor
+        """
         coords = numpy.zeros((self.hyp.hypdata.nx, 3))
         self.hyp.getsurfacecoordinates(numpy.ravel(coords))
 
         return coords
 
     def setSurfaceCoordinates(self, coords):
-        """Set the surface coordinates on this processor"""
+        """
+        Set the surface coordinates on this processor
+        """
         self.hyp.setsurfacecoordinates(numpy.ravel(coords))
 
     def _setOptions(self):
-        """Internal function to set the options in pyHyp"""
+        """
+        Internal function to set the options in pyHyp
+        """
         self.hyp.hypinput.n = self._go('N')
         self.hyp.hypinput.nconstantstart = self._go('nConstantStart')
         self.hyp.hypinput.nconstantend = self._go('nConstantEnd')
