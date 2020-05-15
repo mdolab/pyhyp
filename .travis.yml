@@ -11,9 +11,11 @@ env:
     - DOCKER_WORKING_DIR=/home/mdolabuser/repos/$REPO_NAME
     - DOCKER_MOUNT_DIR=/home/mdolabuser/travis/$REPO_NAME
   jobs:
-    - DOCKER_TAG=py2-stable
     - DOCKER_TAG=py2-latest
-    - DOCKER_TAG=py2-impi
+    - DOCKER_TAG=py3-stable
+    - DOCKER_TAG=py3-latest
+    - DOCKER_TAG=py3-impi
+    - DOCKER_TAG=py3-centos7-impi
 
 before_install:
   - docker pull mdolab/public:$DOCKER_TAG
@@ -27,7 +29,17 @@ before_install:
 install:
   # We thrown away the existing repo in Docker, and copy the new one in-place
   - docker exec -it app /bin/bash -c "rm -rf $DOCKER_WORKING_DIR && cp -r $DOCKER_MOUNT_DIR $DOCKER_WORKING_DIR"
-  - docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && cp config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk config/config.mk && sed -i 's/python3-config/python-config/g' config/config.mk && make"
+  # Copy over the correct config file and modify as needed
+  - if [[ "$DOCKER_TAG" == "py3-centos7-impi" ]]; then
+      docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && cp config/defaults/config.LINUX_INTEL_OPENMPI.mk config/config.mk";
+    else
+      docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && cp config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk config/config.mk";
+      if [[ "$DOCKER_TAG" == "py2"* ]]; then
+        docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && sed -i 's/python3-config/python-config/g' config/config.mk";
+      fi
+    fi
+  # Compile
+  - docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && make"
   # the version of testflo is too new, we downgrade to the last version that supports py2
   - docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && pip install testflo==1.3.5 "
 
