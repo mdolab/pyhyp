@@ -59,7 +59,7 @@ all:
 	$(FF90) -shared $(PYTHON_OBJECTS) $(LINKER_ALL_FLAGS) -o hyp.so
 	$(PYTHON) importTest.py
 
-	mv hyp.so ../../../python
+	mv hyp.so ../../../pyhyp
 # Clean up temporary files
 	-rm *.o
 	-rm *.f90 *.c
