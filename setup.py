@@ -40,6 +40,7 @@ setup(name='pyhyp',
       },
       install_requires=[
             'numpy>=1.16.4',
+            'mpi4py>=3.0.2',
       ],
       classifiers=[
         "Operating System :: Linux",
