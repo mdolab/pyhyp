@@ -2,10 +2,10 @@
 
 pyHyp API
 ---------
-.. currentmodule:: python.pyHyp
+.. currentmodule:: pyhyp.pyHyp
 
-.. autoclass:: python.pyHyp.pyHyp
+.. autoclass:: pyhyp.pyHyp.pyHyp
    :members:
 
-.. autoclass:: python.pyHyp.pyHypMulti
+.. autoclass:: pyhyp.pyHyp.pyHypMulti
    :members:
