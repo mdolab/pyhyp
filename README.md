@@ -1,12 +1,13 @@
 # pyHyp
 [![Build Status](https://travis-ci.com/mdolab/pyhyp.svg?branch=master)](https://travis-ci.com/mdolab/pyhyp)
+[![Documentation Status](https://readthedocs.com/projects/mdolab-pyhyp/badge/?version=latest)](https://mdolab-pyhyp.readthedocs-hosted.com/en/latest)
 
 pyHyp uses hyperbolic volume mesh marching schemes to extrude structured surface meshes into volume meshes.
 pyHyp is used as a preprocessing step in the geometry and mesh-creation process prior to an optimization.
 
 ## Documentation
 
-Please see the [documentation](http://mdolab.engin.umich.edu/docs/packages/pyhyp/doc/index.html) for installation details and API documentation.
+Please see the [documentation](https://mdolab-pyhyp.readthedocs-hosted.com/en/latest) for installation details and API documentation.
 
 To locally build the documentation, enter the `doc` folder and enter `make html` in terminal.
 You can then view the built documentation in the `_build` folder.
