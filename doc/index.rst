@@ -31,4 +31,5 @@ Contents:
 
    install
    usage
+   options
    API
