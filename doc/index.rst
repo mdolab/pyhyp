@@ -30,6 +30,7 @@ Contents:
    :maxdepth: 2
 
    install
-   usage
+   plot3d
+   cgns
    options
    API
