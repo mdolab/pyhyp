@@ -8,11 +8,10 @@ Here are the options currently available in pyHyp.
 ===================  ========  =======================================================================================
 Parameter              Type      Description
 ===================  ========  =======================================================================================
-`inputFile`           `char`   Name of the file that contains the surface mesh. Here we have a 3D problem and we are
-                               using the surface mesh `uneven_sphere.fmt`. This is a plot3d file which has
+`inputFile`           `char`   Name of the file that contains the surface mesh. This is a file that has
                                been generated in an external meshing program, typically ICEMCFD.
 
-`fileType`            `char`   Type of the input file. Use either 'Plot3d' or 'CGNS'.
+`fileType`            `char`   Type of the input file. Use either `Plot3d` or `CGNS`.
 
 `N`                   `int`    Number of grid levels to march. This determines the grid dimension 
                                in the off-wall direction. Typically this should be a "multi-grid" friendly number.
@@ -26,7 +25,7 @@ Parameter              Type      Description
 			       enclosing the initial surface geometry. If symmetry is specified, 
 			       the full mirrored geometry is used to compute the sphere's radius. 
 			       Most wing geometries will have `rMin` between 10 and 20, that is the 
-			       farfield boundary is 20 spans away from the geometry. 
+			       farfield boundary is 20 spans away from the geometry.
 
 `cMax`               `float`   The maximum permissible ratio of marching direction length to 
                                the any other in-plane edge.  This parameter effectively operates 
@@ -41,16 +40,16 @@ Parameter              Type      Description
 `slExp`              `float`   Exponent for the :math:`S_l` computation.
                                The :math:`S_l` value serves the same purpose as found in Chan et al. 
 			       but the computation is different. The :math:`S_l` computation in Chan is 
-			       given as :math:`\sqrt{\frac{N-1}{l-1}}` for :math:`l > 2`. 
+			       given as :math:`\sqrt{\frac{N-1}{l-1}}` for :math:`l > 2`.
 			       
-`ps0`                `float`   Initial pseudo offwall spacing. This spacing *must* be less than or equal to `s0`. This
+`ps0`                `float`   Initial pseudo offwall spacing. This spacing **must** be less than or equal to `s0`. This
                                is actual spacing the hyperbolic scheme uses. The solver may take many pseudo steps
-			       before the first real grid level at `s0`. 
+			       before the first real grid level at `s0`.
 
 `pGridRatio`         `float`   The ratio between successive levels in the pseudo grid. This will be typically somewhere
-                               between ~1.05 for large grids to 1.2 for small grids. This number is *not* the actual grid
+                               between ~1.05 for large grids to 1.2 for small grids. This number is **not** the actual grid
 			       spacing of the final grid; that spacing ratio is computed and displayed at the beginning
-			       of a calculation. The pGridRatio *must* be smaller than that number. 
+			       of a calculation. The `pGridRatio` **must** be smaller than that number.
 
 `epsE`                `float`  The explict smoothing parameter. See the :ref:`Theory<pyhyp_theory>` section for more information.
                                Typical values are approximately 1.0. Increasing the explicit smoothing may result in  a
@@ -71,7 +70,7 @@ Parameter              Type      Description
 			    
 `volBlend`            `float`  The global volume blending coefficient. See the :ref:`Theory<pyhyp_theory>` section for more information.
                                This value will typically be very small, especially if you widely varying cell sizes. 
-			       Typically values are from ~0 to 0.001. Default is 0.0001
+			       Typically values are from ~0 to 0.001. Default is 0.0001.
 
 `volSmoothIter`       `int`    The number of point-Jacobi local volume smoothing iterations to perform. Typical values
                                are ~5 to ~25. Default is 10.
@@ -80,14 +79,14 @@ Parameter              Type      Description
                                is sufficient. Very difficult cases may benefit from a tighter convergence tolerance.
 
 `kspMaxIts`           `int`    Maximum number of iterations to perform for each step. Default is 500 which should be sufficient
-                               for most cases. 
+                               for most cases.
 
 `preConLag`           `int`    Lag the update of the preconditioner by this number of iterations. The default value of 10 
-                               will typically not need to be changed. 
+                               will typically not need to be changed.
 
 `kspSubspaceSize`     `int`    Size of the ksp subspace. Default is 50. Very large and difficult problems may befefit
-                               from a larger subspace size. 
+                               from a larger subspace size.
 
 `writeMetrics`       `bool`    Flag to write the mesh gradients to the solution file. This option should only be used
-                               for debugging purposes. 
+                               for debugging purposes.
 ===================  ========  =======================================================================================
