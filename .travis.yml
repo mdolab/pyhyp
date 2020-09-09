@@ -36,11 +36,11 @@ install:
   # We thrown away the existing repo in Docker, and copy the new one in-place
   - docker exec -it app /bin/bash -c "rm -rf $DOCKER_WORKING_DIR && cp -r $DOCKER_MOUNT_DIR $DOCKER_WORKING_DIR"
   # Copy over the correct config file and modify as needed
-  - if [[ "$DOCKER_TAG" == "py3-centos7-impi" ]]; then
+  - if [[ "$DOCKER_TAG" == *"intel"* ]]; then
       docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && cp config/defaults/config.LINUX_INTEL_OPENMPI.mk config/config.mk";
     else
       docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && cp config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk config/config.mk";
-      if [[ "$DOCKER_TAG" == "py2"* ]]; then
+      if [[ "$DOCKER_TAG" == *"py2"* ]]; then
         docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && sed -i 's/python3-config/python-config/g' config/config.mk";
       fi
     fi
