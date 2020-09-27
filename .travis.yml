@@ -1,24 +1,14 @@
-os: linux
-language: generic
-
-branches:
-  only:
-  - master
-
-services:
-  - docker
+import:
+  - mdolab/.github:travis-env.yml
+  - mdolab/.github:travis-before-install.yml
+  - mdolab/.github:travis-install-config.yml
+  - mdolab/.github:travis-install-make.yml
 
 env:
   global:
     - DOCKER_REPO=public
     - GCC_CONFIG=config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk
     - INTEL_CONFIG=config/defaults/config.LINUX_INTEL_OPENMPI.mk
-
-import:
-  - mdolab/.github:travis-env.yml
-  - mdolab/.github:travis-before-install.yml
-  - mdolab/.github:travis-install-config.yml
-  - mdolab/.github:travis-install-make.yml
 
 script:
   # We need to source the mdolab bashrc before running anything
