@@ -12,9 +12,9 @@ env:
 
 script:
   # We need to source the mdolab bashrc before running anything
-  - docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR && testflo . -v -n 1"
+  - docker exec -it app /bin/bash -c ". $BASHRC && cd $DOCKER_WORKING_DIR && testflo . -v -n 1"
   # check that new CGNS files have been generated
-  - docker exec -it app /bin/bash -c ". \$HOME/.bashrc_mdolab && cd $DOCKER_WORKING_DIR/examples && ls -l */*.cgns"
+  - docker exec -it app /bin/bash -c ". $BASHRC && cd $DOCKER_WORKING_DIR/examples && ls -l */*.cgns"
 
 after_script:
   - docker rm -f app
