@@ -11,9 +11,9 @@ env:
     - INTEL_CONFIG=config/defaults/config.LINUX_INTEL_OPENMPI.mk
 
 script:
+  # check that new CGNS files have been generated
   - if [[ "$TEST_TYPE" == "docker" ]]; then
       docker exec -it app /bin/bash -c ". $BASHRC && cd $DOCKER_WORKING_DIR && testflo . -v -n 1";
-      # check that new CGNS files have been generated;
       docker exec -it app /bin/bash -c ". $BASHRC && cd $DOCKER_WORKING_DIR/examples && ls -l */*.cgns";
     fi
 
