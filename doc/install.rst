@@ -13,7 +13,7 @@ pyHyp:
 - CGNS Libarary
 - PETSc
 
-See the MDO Lab installation guide `here <http://mdolab.engin.umich.edu/docs/installInstructions/install3rdPartyPackages.html>`_ for the supported versions and installation instructions.
+See the MDO Lab installation guide `here <https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/installInstructions/install3rdPartyPackages.html#installthirdpartypackages>`_ for the supported versions and installation instructions.
 
 .. NOTE:: A working MPI is not strictly required. However, in most
    cases PETSc should be configured with MPI.
