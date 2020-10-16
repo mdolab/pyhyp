@@ -5,6 +5,7 @@ from sphinx_mdolab_theme.config import (
     html_static_path,
     html_context,
     html_theme,
+    html_theme_options,
     extensions,
 )
 
