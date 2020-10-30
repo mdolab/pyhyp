@@ -52,7 +52,6 @@ if USE_WINGLET:
     def winglet(val, geo):
         # Move the last point on ref axis:
         C = geo.extractCoef("wing")
-        s = geo.extractS("wing")  # Unused: to be removed?
 
         C[-1, 0] += val[0]
         C[-1, 1] += val[1]

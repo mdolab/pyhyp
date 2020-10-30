@@ -1,4 +1,4 @@
-from sphinx_mdolab_theme.config import *
+from sphinx_mdolab_theme.config import *  # noqa: F403
 
 # -- Path setup --------------------------------------------------------------
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -17,7 +17,7 @@ project = "pyHyp"
 # Built-in Sphinx extensions are already contained in the imported variable
 # here we add external extensions, which must also be added to requirements.txt
 # so that RTD can import and use them
-extensions.extend(["numpydoc"])
+extensions.extend(["numpydoc"])  # noqa: F405
 numpydoc_show_class_members = False
 
 # mock import for autodoc
