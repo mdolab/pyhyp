@@ -185,14 +185,14 @@ class pyHypMulti(object):
                 # Get input file name
                 try:
                     inputFile = options["inputfile"]
-                except:
+                except KeyError:
                     inputFile = options["inputFile"]
 
                 # Check if output name exists or if we should get the
                 # the automatically generated one
                 try:
                     outputFile = options["outputfile"]
-                except:
+                except KeyError:
                     try:
                         outputFile = options["outputFile"]
                     except:  # User probably did not set neither in options or common options
@@ -274,7 +274,7 @@ class pyHypMulti(object):
                 # Crop filename
                 try:
                     filename = self.results["name"][index][:21]
-                except:
+                except:  # noqa: E722
                     filename = self.results["name"][index]
 
                 # Get remaining data
@@ -931,7 +931,7 @@ class pyHyp(object):
         if surfFile is not None:
             try:
                 from pygeo import pyGeo
-            except:
+            except ImportError:
                 raise Error(
                     "pyGeo must be available to use the surface "
                     "reprojection object. Try again without specifying "
