@@ -57,8 +57,6 @@ class MExt(object):
         if not self.debug:
             del sys.modules[self._module.__name__]
             del sys.modules[self._pkg.__name__]
-            # on win32, the DLL must be unloaded forcefully in order to delete it.
-            # on Darwin (other unix???) this doesn't appear to be necessary
 
             # now try to delete the files and directory
             shutil.rmtree(self._pkgdir)
@@ -69,5 +67,5 @@ class MExt(object):
             # and the exception is caught here
             try:
                 __import__(self.name)
-            except ImportError:  # What kind of exception is this?
+            except ImportError:
                 pass
