@@ -15,10 +15,10 @@ def _tmp_pkg(dir):
         path = tempfile.mkdtemp(dir=dir)
         name = os.path.basename(path)
         try:
-            modinfo = imp.find_module(name)
+            imp.find_module(name)
             # if name is found, delete and try again
             os.rmdir(path)
-        except:  # What kind of exception is this?
+        except:  # noqa: E722
             break
     init = open(os.path.join(path, "__init__.py"), "w")
     init.close()
@@ -59,10 +59,7 @@ class MExt(object):
             del sys.modules[self._pkg.__name__]
             # on win32, the DLL must be unloaded forcefully in order to delete it.
             # on Darwin (other unix???) this doesn't appear to be necessary
-            # try to unload the dll
-            if os.name == "nt":  # Are we supporting other OS ???
-                hModule = win32api.GetModuleHandle(self._module.__file__)
-                win32api.FreeLibrary(hModule)
+
             # now try to delete the files and directory
             shutil.rmtree(self._pkgdir)
             # make sure the original module is loaded -
@@ -72,5 +69,5 @@ class MExt(object):
             # and the exception is caught here
             try:
                 __import__(self.name)
-            except:  # What kind of exception is this?
+            except ImportError:  # What kind of exception is this?
                 pass
