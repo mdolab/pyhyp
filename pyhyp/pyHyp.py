@@ -988,17 +988,13 @@ class pyHyp(object):
 # =====================================================#
 
 
-def generateOutputName(inputFile, outputType=None):
+def generateOutputName(inputFile, outputType):
     """
     This function will automatically create an output filename by
     appending "_hyp" to the original filename.
     """
 
-    # Get fileFormat from options if none is provided
-    if outputType is None:
-        outputType = self.options["outputtype"]
-    else:
-        outputType = outputType.lower()  # Use just lower case strings
+    outputType = outputType.lower()  # Use just lower case strings
 
     # Get rid of the extension and add an 'hyp' to the end of the filename
     outputFile = os.path.splitext(os.path.basename(inputFile))[0] + "_hyp"
