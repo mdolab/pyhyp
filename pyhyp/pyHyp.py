@@ -195,12 +195,8 @@ class pyHypMulti(object):
                 except KeyError:
                     try:
                         outputFile = options["outputFile"]
-                    except:  # User probably did not set neither in options or common options
-                        outputFile = None
-
-                if outputFile is None:
-                    # Get an automatic one
-                    outputFile = generateOutputName(inputFile, outputType="cgns")
+                    except KeyError:  # User probably did not set neither in options or common options
+                        outputFile = generateOutputName(inputFile, outputType="cgns")
 
                 # Save results
                 self.results["name"][index] = optionName
