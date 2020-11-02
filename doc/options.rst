@@ -23,6 +23,27 @@ Here are the options currently available in pyHyp.
      - Type of the input file.
        Use either ``Plot3d`` or ``CGNS``.
 
+   * - ``unattachedEdgesAreSymmetry``
+     - ``bool``
+     - Automatically applies symmetry boundary conditions to any edges that do not interface with another block.
+       This option works in many cases but does not work for all surface meshes.
+       If you encounter negative volumes near the symmetry plane, try explicitly setting the symmetry boundary conditions using the ``BC`` option.
+
+   * - ``outerFaceBC``
+     - ``str``
+     - Specifies the boundary condition at the outermost face of the extruded mesh.
+       Use either ``farfield`` or ``overset``.
+
+   * - ``BC``
+     - ``dict``
+     - Specifies boundary condition information for specific block edges.
+
+   * - ``families``
+     - ``str`` / ``dict``
+     - Name given to wall surfaces.
+       If a dictionary is submitted, each wall patch can be named separately.
+       This can help with applying operations to specific wall patches.
+
    * - ``N``
      - ``int``
      - Number of grid levels to march.
