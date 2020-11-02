@@ -14,12 +14,12 @@ Here are the options currently available in pyHyp.
      - Description
 
    * - ``inputFile``
-     - ``char``
+     - ``str``
      - Name of the file that contains the surface mesh.
        This is a file that has been generated in an external meshing program, typically ICEMCFD.
 
    * - ``fileType``
-     - ``char``
+     - ``str``
      - Type of the input file.
        Use either ``Plot3d`` or ``CGNS``.
 
