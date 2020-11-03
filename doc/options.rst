@@ -36,7 +36,7 @@ Here are the options currently available in pyHyp.
 
    * - ``BC``
      - ``dict``
-     - Specifies boundary condition information for specific block edges.
+     - Specifies boundary condition information for specific block edges. See :ref:`here<pyhyp_BC>` for details.
 
    * - ``families``
      - ``str`` / ``dict``
