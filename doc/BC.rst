@@ -7,13 +7,13 @@ This page describes how to use the ``BC`` option to specify boundary conditions 
 
 Here is an example of a dictionary that can be used with ``BC``:
 
-.. code-block::
+.. code-block:: python
 
-   "BC":{1:{"iLow":"ySymm"}, 2:{"jHigh":"splay"}}
+   "BC":{1:{"iLow":"ySymm"}, 3:{"jHigh":"splay", "iHigh":"xConst"}}
 
-Each entry in the dictionary has a key, a nested key, and a value.
-For the first entry, these are ``1``, ``iLow``, and ``ySymm``, respectively.
+Each entry in the dictionary has a key and at least one nested key-value pair.
 The key is the 1-based block number, the nested key is the boundary edge specification, and the value is the boundary condition.
+For the first entry, these are ``1``, ``iLow``, and ``ySymm``, respectively.
 
 The 1-based block number and boundary edge specification for a boundary edge can be determined using Tecplot:
 
