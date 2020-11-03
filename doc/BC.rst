@@ -5,9 +5,7 @@ Using the BC option
 
 This page describes how to use the ``BC`` option to specify boundary conditions at boundary edges of the surface mesh.
 
-Here is an example of a dictionary that can be used with ``BC``:
-
-.. code-block:: python
+Here is an example of a dictionary that can be used with ``BC``::
 
    "BC":{1:{"iLow":"ySymm"}, 3:{"jHigh":"splay", "iHigh":"xConst"}}
 
