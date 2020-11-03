@@ -1,4 +1,4 @@
-from sphinx_mdolab_theme.config import *  # noqa: F403
+from sphinx_mdolab_theme.config import *
 
 # -- Path setup --------------------------------------------------------------
 # If extensions (or modules to document with autodoc) are in another directory,
