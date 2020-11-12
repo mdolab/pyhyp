@@ -40,6 +40,7 @@ module hypInput
   character(len=512) :: sourceStrengthFile
 
   ! Topology types:
+  integer(kind=intType), parameter :: topoUnknown = -1
   integer(kind=intType), parameter :: topoInternal = 0
   integer(kind=intType), parameter :: topoCorner = 1
   integer(kind=intType), parameter :: topoEdge = 2

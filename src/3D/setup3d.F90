@@ -285,6 +285,7 @@ subroutine setup(fileName, fileType)
      ! Here we can determine the topology of every node in the
      ! mesh. The topology refers to the number of faces and edges each
      ! node is connected to.
+     print *,'Determining topology ...'
 
      allocate(fullTopoType(nUnique))
      allocate(fullBCType(2, nUnique))
@@ -327,11 +328,31 @@ subroutine setup(fileName, fileType)
 
         else
            ! This is some really wonky combination which we assume we
-           ! can't deal with.
-           print *, "An unknown topology was encountered. I'm assuming we can't do that."
-           stop
+           ! can't deal with. Flag this node.
+           fullTopoType(i) = topoUnknown
         end if
      end do
+
+     ! Now check if we flagged any nodes during the assignments
+     if (minval(fullTopoType) .eq. topoUnknown) then
+
+        print *,' ERROR: Unknown topology encountered'
+        print *,'        Check the following coordinates:'
+
+        ! Print coordinates of flagged nodes
+        do i=1, nUnique
+           if (fullTopoType(i) .eq. topoUnknown) then
+              write(*, '(*(1x,g0))') uniquePts(:, i), '(node has', nEdge(i), 'edges and', nFace(i), 'faces)'
+           end if
+        end do
+        stop
+
+     else
+
+        ! Say everything is ok
+        print *,'Topology complete.'
+
+     end if
 
      ! The nte stucture is like this:
      !
