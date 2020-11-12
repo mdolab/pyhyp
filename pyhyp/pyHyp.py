@@ -619,14 +619,15 @@ class pyHyp(object):
                     )
                 BCToSet = BCs[blkBC][edgeKey].lower()
                 if BCToSet.lower() not in BCMap.keys():
+
                     raise Error(
                         "Boundary condition specification unknown. Must be one of: "
-                        "'splay', 'BCXSymm', 'BCYSymm', 'BCZSymm', "
-                        "'BCXConst', 'BCYConst', 'BCZConst, 'BCXYConst, "
-                        "'BCYZConst or BCXZConst'. %s" % helpStr
+                        "'splay', 'xSymm', 'ySymm', 'zSymm', "
+                        "'xConst', 'yConst', 'zConst, 'xyConst, "
+                        "'yzConst or xzConst'. %s" % helpStr
                     )
 
-                fBCs[edgeMap[lKey], blkBC - 1] = BCMap[BCToSet]
+                    fBCs[edgeMap[lKey], blkBC - 1] = BCMap[BCToSet]
 
         # Set the boundary condition information into fortran
         self.hyp.hypinput.bcs = fBCs

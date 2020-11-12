@@ -32,5 +32,6 @@ Contents:
    install
    plot3d
    cgns
+   BC
    options
    API
