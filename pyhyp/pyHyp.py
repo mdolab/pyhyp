@@ -627,7 +627,7 @@ class pyHyp(object):
                         "'yzConst or xzConst'. %s" % helpStr
                     )
 
-                    fBCs[edgeMap[lKey], blkBC - 1] = BCMap[BCToSet]
+                fBCs[edgeMap[lKey], blkBC - 1] = BCMap[BCToSet]
 
         # Set the boundary condition information into fortran
         self.hyp.hypinput.bcs = fBCs
