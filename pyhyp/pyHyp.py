@@ -410,23 +410,23 @@ class pyHyp(BaseSolver):
         # Convert file type to integer
         fileType = {"cgns": self.hyp.hypinput.cgnsfiletype, "plot3d": self.hyp.hypinput.plot3dfiletype}
 
-        intFileType = fileType[self._go("fileType")]
+        intFileType = fileType[self.getOption("fileType")]
 
         # Determine how we are getting data: by Input file or
         # explictly by patches.
         patchInput = False
-        patches = self._go("patches")
+        patches = self.getOption("patches")
 
         if len(patches) > 0:
             patchInput = True
             nBlocks = len(patches)
         if not patchInput:
-            if not os.path.isfile(self._go("inputFile")):
-                raise Error("Input file '%s' not found." % self._go("inputFile"))
+            if not os.path.isfile(self.getOption("inputFile")):
+                raise Error("Input file '%s' not found." % self.getOption("inputFile"))
 
             # Determine the number of blocks we have so we can initialize
             # the BC array:
-            nBlocks = self.hyp.getnblocks(self._go("inputFile"), intFileType)
+            nBlocks = self.hyp.getnblocks(self.getOption("inputFile"), intFileType)
 
         self.hyp.allocatefamilies(nBlocks)
         if self.getOption("noPointReduce") and nBlocks > 1:
@@ -437,7 +437,7 @@ class pyHyp(BaseSolver):
         fBCs[:, :] = self.hyp.hypinput.bcdefault
 
         # The python BC information
-        BCs = self._go("BC")
+        BCs = self.getOption("BC")
         BCMap = {
             "splay": self.hyp.hypinput.bcsplay,
             "xsymm": self.hyp.hypinput.bcxsymm,
@@ -488,7 +488,7 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.bcs = fBCs
 
         # Now process the family information if we have any:
-        families = self._go("families")
+        families = self.getOption("families")
 
         fFamilies = []
         # Set default a default name of "wall".
@@ -500,7 +500,7 @@ class pyHyp(BaseSolver):
         if intFileType == self.hyp.hypinput.cgnsfiletype:
             if self.comm.rank == 0:
                 for i in range(nBlocks):
-                    family, foundFam = self.hyp.readfamily(self._go("inputFile"), i + 1)
+                    family, foundFam = self.hyp.readfamily(self.getOption("inputFile"), i + 1)
                     if foundFam and len(family.strip()) > 0:
                         fFamilies[i] = family.strip()
             fFamilies = self.comm.bcast(fFamilies)
@@ -540,7 +540,7 @@ class pyHyp(BaseSolver):
             intFileType = self.hyp.hypinput.patchinput
 
         # Now run the fortran setup.
-        self.hyp.setup(self._go("inputFile"), intFileType)
+        self.hyp.setup(self.getOption("inputFile"), intFileType)
 
     @staticmethod
     def _getDefaultOptions():
@@ -619,9 +619,9 @@ class pyHyp(BaseSolver):
         Run given using the options given
         """
         if not self.getOption("skip"):
-            if self._go("mode") == "hyperbolic":
+            if self.getOption("mode") == "hyperbolic":
                 self.hyp.runhyperbolic()
-            elif self._go("mode") == "elliptic":
+            elif self.getOption("mode") == "elliptic":
                 self.hyp.setuppanels()
                 self.hyp.runelliptic()
             self.gridGenerated = True
@@ -648,7 +648,7 @@ class pyHyp(BaseSolver):
         self.hyp.writecgns(fileName)
 
         # Possibly perform autoconnect using cgns_utils
-        if self.comm.rank == 0 and self._go("autoConnect"):
+        if self.comm.rank == 0 and self.getOption("autoConnect"):
             error = os.system("cgns_utils connect %s" % fileName)
             if error:
                 raise Error(
@@ -705,49 +705,49 @@ class pyHyp(BaseSolver):
         """
         Internal function to set the options in pyHyp
         """
-        self.hyp.hypinput.n = self._go("N")
-        self.hyp.hypinput.nconstantstart = self._go("nConstantStart")
-        self.hyp.hypinput.nconstantend = self._go("nConstantEnd")
-        self.hyp.hypinput.nopointreduce = self._go("noPointReduce")
-        self.hyp.hypinput.s0 = self._go("s0")
-        self.hyp.hypinput.marchdist = self._go("marchdist")
-        self.hyp.hypinput.ps0 = self._go("ps0")
-        self.hyp.hypinput.pgridratio = self._go("pGridRatio")
-        self.hyp.hypinput.slexp = self._go("slExp")
-        self.hyp.hypinput.epse = self._go("epsE")
-        self.hyp.hypinput.epsi = self._go("epsI")
-        self.hyp.hypinput.theta = self._go("theta")
-        self.hyp.hypinput.volcoef = self._go("volCoef")
-        self.hyp.hypinput.volblend = self._go("volBlend")
-        self.hyp.hypinput.cmax = self._go("cMax")
-        self.hyp.hypinput.volsmoothiter = self._go("volSmoothIter")
-        self.hyp.hypinput.splay = self._go("splay")
-        self.hyp.hypinput.splayedgeorthogonality = self._go("splayEdgeOrthogonality")
-        self.hyp.hypinput.splaycornerorthogonality = self._go("splayCornerOrthogonality")
-        self.hyp.hypinput.cornerangle = self._go("cornerangle") * numpy.pi / 180
-        self.hyp.hypinput.coarsen = self._go("coarsen")
-        self.hyp.hypinput.kspreltol = self._go("kspRelTol")
-        self.hyp.hypinput.kspmaxits = self._go("kspMaxIts")
-        self.hyp.hypinput.nonlinear = self._go("nonLinear")
-        self.hyp.hypinput.kspsubspacesize = self._go("kspSubspaceSize")
-        self.hyp.hypinput.writemetrics = self._go("writeMetrics")
-        self.hyp.hypinput.nodetol = self._go("nodeTol")
-        self.hyp.hypinput.farfieldtol = self._go("farFieldTolerance")
-        self.hyp.hypinput.usematrixfree = self._go("useMatrixFree")
-        self.hyp.hypinput.unattachededgesaresymmetry = self._go("unattachEdedgesAreSymmetry")
+        self.hyp.hypinput.n = self.getOption("N")
+        self.hyp.hypinput.nconstantstart = self.getOption("nConstantStart")
+        self.hyp.hypinput.nconstantend = self.getOption("nConstantEnd")
+        self.hyp.hypinput.nopointreduce = self.getOption("noPointReduce")
+        self.hyp.hypinput.s0 = self.getOption("s0")
+        self.hyp.hypinput.marchdist = self.getOption("marchdist")
+        self.hyp.hypinput.ps0 = self.getOption("ps0")
+        self.hyp.hypinput.pgridratio = self.getOption("pGridRatio")
+        self.hyp.hypinput.slexp = self.getOption("slExp")
+        self.hyp.hypinput.epse = self.getOption("epsE")
+        self.hyp.hypinput.epsi = self.getOption("epsI")
+        self.hyp.hypinput.theta = self.getOption("theta")
+        self.hyp.hypinput.volcoef = self.getOption("volCoef")
+        self.hyp.hypinput.volblend = self.getOption("volBlend")
+        self.hyp.hypinput.cmax = self.getOption("cMax")
+        self.hyp.hypinput.volsmoothiter = self.getOption("volSmoothIter")
+        self.hyp.hypinput.splay = self.getOption("splay")
+        self.hyp.hypinput.splayedgeorthogonality = self.getOption("splayEdgeOrthogonality")
+        self.hyp.hypinput.splaycornerorthogonality = self.getOption("splayCornerOrthogonality")
+        self.hyp.hypinput.cornerangle = self.getOption("cornerangle") * numpy.pi / 180
+        self.hyp.hypinput.coarsen = self.getOption("coarsen")
+        self.hyp.hypinput.kspreltol = self.getOption("kspRelTol")
+        self.hyp.hypinput.kspmaxits = self.getOption("kspMaxIts")
+        self.hyp.hypinput.nonlinear = self.getOption("nonLinear")
+        self.hyp.hypinput.kspsubspacesize = self.getOption("kspSubspaceSize")
+        self.hyp.hypinput.writemetrics = self.getOption("writeMetrics")
+        self.hyp.hypinput.nodetol = self.getOption("nodeTol")
+        self.hyp.hypinput.farfieldtol = self.getOption("farFieldTolerance")
+        self.hyp.hypinput.usematrixfree = self.getOption("useMatrixFree")
+        self.hyp.hypinput.unattachededgesaresymmetry = self.getOption("unattachEdedgesAreSymmetry")
         modes = {
             "exact": self.hyp.hypinput.eval_exact,
             "slow": self.hyp.hypinput.eval_slow,
             "fast": self.hyp.hypinput.eval_fast,
         }
-        self.hyp.hypinput.evalmode = modes[self._go("evalMode")]
+        self.hyp.hypinput.evalmode = modes[self.getOption("evalMode")]
         ffType = {"farfield": self.hyp.hypinput.outerfacefarfield, "overset": self.hyp.hypinput.outerfaceoverset}
-        self.hyp.hypinput.outerfacetype = ffType[self._go("outerFaceBC")]
+        self.hyp.hypinput.outerfacetype = ffType[self.getOption("outerFaceBC")]
         self.hyp.hypinput.sourcestrengthfile = self._expandString("")
-        f = self._go("sourceStrengthFile")
+        f = self.getOption("sourceStrengthFile")
         self.hyp.hypinput.sourcestrengthfile = self._expandString(f)
 
-        sch = self._go("volSmoothSchedule")
+        sch = self.getOption("volSmoothSchedule")
         if sch is not None:
             sch = numpy.array(sch, "d")
             # Make sure its normalized
@@ -852,10 +852,6 @@ class pyHyp(BaseSolver):
                 self.hyp.setsurface(iSurf + 1, surf.ku, surf.kv, surf.tu, surf.tv, surf.coef.T)
 
         self.hyp.smoothwrap(nIter, stepSize)
-
-    def _go(self, name):
-        """Internal short-cut function to make text a litle shorter"""
-        return self.getOption(name)
 
 
 # =====================================================#
