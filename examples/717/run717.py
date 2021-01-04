@@ -17,7 +17,7 @@ options = {
     # ---------------------------
     "inputFile": fileName,
     "unattachedEdgesAreSymmetry": True,
-    "outerFaceBC": "farField",
+    "outerFaceBC": "farfield",
     "autoConnect": True,
     "BC": {},
     "families": "wall",
@@ -26,13 +26,13 @@ options = {
     # ---------------------------
     "N": 81,
     "s0": 5e-6,
-    "marchDist": 325,
+    "marchDist": 325.0,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    "ps0": -1,
-    "pGridRatio": -1,
-    "cMax": 4,
+    "ps0": -1.0,
+    "pGridRatio": -1.0,
+    "cMax": 4.0,
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------

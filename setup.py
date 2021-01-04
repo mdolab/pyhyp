@@ -29,6 +29,7 @@ setup(
     install_requires=[
         "numpy>=1.16",
         "mpi4py>=3.0",
+        "mdolab-baseclasses>=1.2",
     ],
     classifiers=["Operating System :: Linux", "Programming Language :: Python, Fortran"],
 )

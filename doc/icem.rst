@@ -1,28 +1,21 @@
-.. _pyhyp_cgns:
+.. _pyhyp_icem:
 
 .. pyHyp boundary conditions example.
    Written by: Ney Secco (February 2016)
    Edited by: 
 
-Usage with CGNS Files
-=====================
+Specifying BCs using ICEM
+=========================
 
-If the initial surface is given in a CGNS file, we can specify boundary conditions
-at each open edge of the geometry. The boundary conditions currently supported are:
+This section will show how we can use ICEM to specify boundary conditions at each open edge of a CGNS surface geometry.
+The boundary conditions currently supported are:
 
 * Constant X, Y, or Z planes;
 * Symmetry X, Y, or Z planes;
 * Splay (free edge).
 
-This section will show how we can use ICEM to specify boundary conditions in a CGNS file.
-
-.. NOTE::
-   It is still not possible to specify boundary conditions when plot3d files are
-   used as inputs. In this case, the surface should be entirely closed or it should
-   end at a symmetry plane with the 'mirror' option enabled.
-
 Flat square example
------------------------------------
+-------------------
 
 .. NOTE::
   If you have a surface geometry, this step is not required, and you
@@ -135,7 +128,7 @@ is the one used as an example of boundary conditions setup.
    See if everything looks right in your Pre-mesh.
 
 Preparing to export the mesh
------------------------------------
+----------------------------
 
 Just to recap, we have done the following procedures: 
 
@@ -301,15 +294,14 @@ Running pyHyp with the generated mesh
 -------------------------------------
 
 Create another empty folder and copy the CGNS file exported by ICEM to it. We can add the following Python script to
-the same folder (This script is also available in `examples/plate/generate_grid.py`, and just the file name was
-adjusted for this example)::
+the same folder::
 
   from pyhyp import pyHyp
 
   fileName = 'plate.cgns'
-  fileType = 'CGNS'
+  fileType = 'cgns'
 
-  options= {
+  options = {
       # ---------------------------
       #        Input File
       # ---------------------------
@@ -321,14 +313,14 @@ adjusted for this example)::
       # ---------------------------
       'N': 65, 
       's0': 1e-6,
-      'rMin': 2.5,
+      'marchDist': 2.5,
 
       # ---------------------------
       #   Pseudo Grid Parameters
       # ---------------------------
       'ps0': 1e-6,
       'pGridRatio': 1.15,
-      'cMax': 5,
+      'cMax': 5.0,
 
       # ---------------------------
       #   Smoothing parameters
@@ -341,18 +333,11 @@ adjusted for this example)::
       'volSmoothIter': 10,
 
       # ---------------------------
-      #   BC parameters
-      # ---------------------------
-      'sigmaSplay': 0.4,
-      'nuSplay': 0.95,
-
-      # ---------------------------
       #   Solution Parameters
       # ---------------------------
       'kspRelTol': 1e-15,
       'kspMaxIts': 1500,
-      'preConLag': 10,
-      'kspSubspaceSize':50,
+      'kspSubspaceSize': 50,
       'writeMetrics': False,
       }
 
@@ -376,7 +361,7 @@ You can also run pyHyp in parallel with the following command::
 The option '-np 4' indicates that 4 processors will be used. The results may vary slight due to the parallel solution of the linear system.
 
 Visualizing the mesh in TecPlot 360
--------------------------------------
+-----------------------------------
 
 If you have TecPlot 360 installed in your computer you can visualize the volume mesh. Open a terminal and navigate to the folder
 than contains the newly generated CGNS file with the volume mesh. Then type the following command::

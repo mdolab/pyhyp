@@ -8,14 +8,13 @@ and run multiple cases at once
 """
 
 fileName = "corner.cgns"
-fileType = "CGNS"
 
 commonOptions = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
     "inputFile": fileName,
-    "fileType": "CGNS",
+    "fileType": "cgns",
     "unattachedEdgesAreSymmetry": False,
     "outerFaceBC": "farfield",
     "autoConnect": True,
@@ -31,9 +30,9 @@ commonOptions = {
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    "ps0": -1,
-    "pGridRatio": -1,
-    "cMax": 5,
+    "ps0": -1.0,
+    "pGridRatio": -1.0,
+    "cMax": 5.0,
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------
