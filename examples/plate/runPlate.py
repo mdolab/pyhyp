@@ -1,14 +1,13 @@
 from pyhyp import pyHyp
 
 fileName = "plate_surf.cgns"
-fileType = "CGNS"
 
 options = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
     "inputFile": fileName,
-    "fileType": "CGNS",
+    "fileType": "cgns",
     "unattachedEdgesAreSymmetry": False,
     "outerFaceBC": "overset",
     "autoConnect": True,
@@ -24,9 +23,9 @@ options = {
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    "ps0": -1,
-    "pGridRatio": -1,
-    "cMax": 5,
+    "ps0": -1.0,
+    "pGridRatio": -1.0,
+    "cMax": 5.0,
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------

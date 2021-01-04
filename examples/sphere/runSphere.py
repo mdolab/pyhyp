@@ -10,7 +10,7 @@ commonOptions = {
     # ---------------------------
     "inputFile": fileName1,
     "unattachedEdgesAreSymmetry": True,
-    "outerFaceBC": "farField",
+    "outerFaceBC": "farfield",
     "autoConnect": True,
     "BC": {},
     "families": "wall",
@@ -19,13 +19,13 @@ commonOptions = {
     # ---------------------------
     "N": 73,
     "s0": 1e-4,
-    "marchDist": 10,
+    "marchDist": 10.0,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    "ps0": -1,
-    "pGridRatio": -1,
-    "cMax": 5,
+    "ps0": -1.0,
+    "pGridRatio": -1.0,
+    "cMax": 5.0,
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------

@@ -1,4 +1,6 @@
+# rst import (start)
 from pyhyp import pyHyp
+# rst import (end)
 
 fileName = "bwb.fmt"
 
@@ -8,7 +10,7 @@ options = {
     # ---------------------------
     "inputFile": fileName,
     "unattachedEdgesAreSymmetry": True,
-    "outerFaceBC": "farField",
+    "outerFaceBC": "farfield",
     "autoConnect": True,
     "BC": {},
     "families": "wall",
@@ -17,12 +19,12 @@ options = {
     # ---------------------------
     "N": 81,
     "s0": 4e-6,
-    "marchDist": 1100,
+    "marchDist": 1100.0,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    "ps0": -1,
-    "pGridRatio": -1,
+    "ps0": -1.0,
+    "pGridRatio": -1.0,
     "cMax": 2.5,
     # ---------------------------
     #   Smoothing parameters
@@ -35,6 +37,8 @@ options = {
     "volSmoothIter": 150,
 }
 
+# rst object
 hyp = pyHyp(options=options)
+# rst run
 hyp.run()
 hyp.writeCGNS("bwb.cgns")

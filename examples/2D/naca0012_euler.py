@@ -6,36 +6,6 @@ This mesh has a sharp trailing edge.
 from pyhyp import pyHyp
 import numpy
 
-options = {
-    # ---------------------------
-    #        Grid Parameters
-    # ---------------------------
-    "N": 129,
-    "s0": 0.1e-2,
-    "rMin": 100,
-    # ---------------------------
-    #   Pseudo Grid Parameters
-    # ---------------------------
-    "ps0": 0.50e-7,
-    "pGridRatio": 1.02,
-    "cMax": 6.0,
-    # ---------------------------
-    #   Smoothing parameters
-    # ---------------------------
-    "epsE": 1.0,
-    "epsI": 2.0,
-    "theta": 4.0,
-    "volCoef": 0.16,
-    "volBlend": 0.005,
-    "volSmoothIter": 25,
-    # ---------------------------
-    #   Solution Parameters
-    # ---------------------------
-    "kspRelTol": 1e-15,
-    "kspMaxIts": 500,
-    "preConLag": 5,
-    "kspSubspaceSize": 50,
-}
 alpha = numpy.linspace(0, 2 * numpy.pi, 257)
 x = numpy.cos(alpha) * 0.5 + 0.5
 y = numpy.zeros_like(x)
@@ -70,7 +40,7 @@ options = {
     # ---------------------------
     "inputFile": "naca0012_euler.fmt",
     "unattachedEdgesAreSymmetry": False,
-    "outerFaceBC": "farField",
+    "outerFaceBC": "farfield",
     "autoConnect": True,
     "BC": {1: {"jLow": "zSymm", "jHigh": "zSymm"}},
     "families": "wall",
@@ -79,12 +49,12 @@ options = {
     # ---------------------------
     "N": 129,
     "s0": 5e-3,
-    "marchDist": 100,
+    "marchDist": 100.0,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
     "ps0": 1e-6,
-    "pGridRatio": -1,
+    "pGridRatio": -1.0,
     "cMax": 3.0,
     # ---------------------------
     #   Smoothing parameters

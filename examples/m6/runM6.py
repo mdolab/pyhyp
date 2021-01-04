@@ -9,9 +9,9 @@ options = {
     #        Input Parameters
     # ---------------------------
     "inputFile": fileName,
-    "fileType": "Plot3D",
+    "fileType": "plot3d",
     "unattachedEdgesAreSymmetry": True,
-    "outerFaceBC": "farField",
+    "outerFaceBC": "farfield",
     "autoConnect": True,
     "BC": {},
     "families": "wall",
@@ -20,13 +20,13 @@ options = {
     # ---------------------------
     "N": 81,
     "s0": 1.5e-5,
-    "marchDist": 30,
+    "marchDist": 30.0,
     "nConstantStart": 1,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    "ps0": -1,
-    "pGridRatio": -1,
+    "ps0": -1.0,
+    "pGridRatio": -1.0,
     "cMax": 5.0,
     # ---------------------------
     #   Smoothing parameters

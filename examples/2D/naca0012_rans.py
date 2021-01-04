@@ -47,7 +47,7 @@ options = {
     # ---------------------------
     "inputFile": "naca0012_rans.fmt",
     "unattachedEdgesAreSymmetry": False,
-    "outerFaceBC": "farField",
+    "outerFaceBC": "farfield",
     "autoConnect": True,
     "BC": {1: {"jLow": "zSymm", "jHigh": "zSymm"}},
     "families": "wall",
@@ -56,12 +56,12 @@ options = {
     # ---------------------------
     "N": 129,
     "s0": 1e-6,
-    "marchDist": 100,
+    "marchDist": 100.0,
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
-    "ps0": -1,
-    "pGridRatio": -1,
+    "ps0": -1.0,
+    "pGridRatio": -1.0,
     "cMax": 3.0,
     # ---------------------------
     #   Smoothing parameters
