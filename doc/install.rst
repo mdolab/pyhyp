@@ -49,9 +49,6 @@ Finally, install the Python interface with::
 
     pip install .
 
-
-.. _pyhyp_theory:
-
 Testing Your Installation
 -------------------------
 

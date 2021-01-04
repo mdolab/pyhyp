@@ -20,7 +20,9 @@ line) corresponding to the geometry of interest and then *grow* or
 distance from the original surface. In the process, the entire space
 surrounding the geometry is meshed.
 
-Most the theory for `pyHyp` was taken from `Chan and Steger <https://www.sciencedirect.com/science/article/pii/009630039290073A>`_.
+.. _pyhyp_theory:
+
+Most of the theory for `pyHyp` was taken from `Chan and Steger <https://www.sciencedirect.com/science/article/pii/009630039290073A>`_.
 
 
 
@@ -30,8 +32,8 @@ Contents:
    :maxdepth: 2
 
    install
-   plot3d
-   cgns
+   tutorial
+   icem
    BC
    options
    API
