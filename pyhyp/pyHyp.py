@@ -380,6 +380,7 @@ class pyHyp(BaseSolver):
 
         name = "pyHyp"
         category = "Hyperbolic mesh generator"
+        informs = {}
 
         # Set the possible MPI Intracomm
         if comm is None:
@@ -393,7 +394,7 @@ class pyHyp(BaseSolver):
             raise Error("The options = keyword argument is *NOT* optional. " "It must always be provided")
 
         # Initialize the inherited BaseSolver
-        super().__init__(name, category, defOpts, options, comm=comm)
+        super().__init__(name, category, defaultOptions=defOpts, options=options, comm=comm, informs=informs)
 
         # Import and set the hyp module
         curDir = os.path.dirname(os.path.realpath(__file__))
