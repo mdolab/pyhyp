@@ -384,10 +384,16 @@ class pyHyp(BaseSolver):
         # Set the possible MPI Intracomm
         if comm is None:
             comm = MPI.COMM_WORLD
-        self.comm = comm
 
         # Default options for hyperbolic generation
         defOpts = self._getDefaultOptions()
+
+        # Use supplied options
+        if options is None:
+            raise Error("The options = keyword argument is *NOT* optional. " "It must always be provided")
+
+        # Initialize the inherited BaseSolver
+        super().__init__(name, category, defOpts, options, comm=comm)
 
         # Import and set the hyp module
         curDir = os.path.dirname(os.path.realpath(__file__))
@@ -395,13 +401,6 @@ class pyHyp(BaseSolver):
 
         # Initialize PETSc and MPI if not already done so:
         self.hyp.initpetsc(self.comm.py2f())
-
-        # Use supplied options
-        if options is None:
-            raise Error("The options = keyword argument is *NOT* optional. " "It must always be provided")
-
-        # Initialize the inherited BaseSolver
-        super().__init__(name, category, defOpts, options)
 
         # Set the fortan options
         self._setOptions()
