@@ -9,7 +9,7 @@ options = {
     #        Input Parameters
     # ---------------------------
     "inputFile": fileName,
-    "fileType": "plot3d",
+    "fileType": "PLOT3D",
     "unattachedEdgesAreSymmetry": True,
     "outerFaceBC": "farfield",
     "autoConnect": True,

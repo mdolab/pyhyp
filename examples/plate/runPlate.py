@@ -7,7 +7,7 @@ options = {
     #        Input Parameters
     # ---------------------------
     "inputFile": fileName,
-    "fileType": "cgns",
+    "fileType": "CGNS",
     "unattachedEdgesAreSymmetry": False,
     "outerFaceBC": "overset",
     "autoConnect": True,
