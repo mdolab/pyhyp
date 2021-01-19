@@ -408,7 +408,7 @@ class pyHyp(BaseSolver):
         self.gridGenerated = False
 
         # Convert file type to integer
-        fileType = {"cgns": self.hyp.hypinput.cgnsfiletype, "plot3d": self.hyp.hypinput.plot3dfiletype}
+        fileType = {"CGNS": self.hyp.hypinput.cgnsfiletype, "PLOT3D": self.hyp.hypinput.plot3dfiletype}
 
         intFileType = fileType[self.getOption("fileType")]
 
@@ -532,7 +532,7 @@ class pyHyp(BaseSolver):
         for i in range(nBlocks):
             self.hyp.setfamily(i + 1, fFamilies[i])
 
-        # Explictly set patches if necessary
+        # Explicitly set patches if necessary
         if patchInput:
             self.hyp.setnumberpatches(len(patches))
             for i in range(len(patches)):
@@ -550,7 +550,7 @@ class pyHyp(BaseSolver):
             # ---------------------------
             "inputFile": [str, ""],
             "patches": [list, []],
-            "fileType": [str, ["plot3d", "cgns"]],
+            "fileType": [str, ["PLOT3D", "CGNS"]],
             "skip": [bool, False],
             "mode": [str, ["hyperbolic", "elliptic"]],
             "unattachedEdgesAreSymmetry": [bool, True],
@@ -577,7 +577,7 @@ class pyHyp(BaseSolver):
             #   Elliptic Parameters
             # ---------------------------
             "panelEps": [float, 1e-8],
-            "farFieldTolerance": [float, 4.0],
+            "farfieldTolerance": [float, 4.0],
             "useMatrixFree": [bool, True],
             "evalMode": [str, ["fast", "exact", "slow"]],
             "sourceStrengthFile": [str, "panelStrength.source"],
@@ -602,14 +602,14 @@ class pyHyp(BaseSolver):
             # -------------------------------
             #   Solution Parameters (Common)
             # -------------------------------
-            "kspRelTol": [float, 1e-8],
-            "kspMaxIts": [int, 500],
-            "kspSubspaceSize": [int, 50],
+            "KSPRelTol": [float, 1e-8],
+            "KSPMaxIts": [int, 500],
+            "KSPSubspaceSize": [int, 50],
             # ---------------------------
             #   Output Parameters
             # ---------------------------
             "writeMetrics": [bool, False],
-            "outputType": [str, ["cgns", "plot3d"]],
+            "outputType": [str, ["CGNS", "PLOT3D"]],
             "outputFile": [(str, type(None)), None],
         }
         return defOpts
@@ -665,13 +665,13 @@ class pyHyp(BaseSolver):
 
         # Get desired output type from options, unless provided
         if fileType is None:
-            outputType = self.getOption("outputtype")
+            outputType = self.getOption("outputType")
         else:
             outputType = fileType
 
         # Check if the user specified name in the options
         if fileName is None:
-            fileName = self.getOption("outputfile")
+            fileName = self.getOption("outputFile")
 
         # If no name is specified even in the options, then
         # we generate one
@@ -679,11 +679,11 @@ class pyHyp(BaseSolver):
             fileName = generateOutputName(self.getOption("inputfile"), outputType=outputType)
 
         # Update the name stored in the options for future uses
-        self.setOption("outputfile", fileName)
+        self.setOption("outputFile", fileName)
 
-        if outputType == "cgns":
+        if outputType == "CGNS":
             self.writeCGNS(fileName)
-        elif outputType == "plot3d":
+        elif outputType == "PLOT3D":
             self.writePlot3D(fileName)
 
     def getSurfaceCoordinates(self):
@@ -732,7 +732,7 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.kspsubspacesize = self.getOption("kspSubspaceSize")
         self.hyp.hypinput.writemetrics = self.getOption("writeMetrics")
         self.hyp.hypinput.nodetol = self.getOption("nodeTol")
-        self.hyp.hypinput.farfieldtol = self.getOption("farFieldTolerance")
+        self.hyp.hypinput.farfieldtol = self.getOption("farfieldTolerance")
         self.hyp.hypinput.usematrixfree = self.getOption("useMatrixFree")
         self.hyp.hypinput.unattachededgesaresymmetry = self.getOption("unattachEdedgesAreSymmetry")
         modes = {
@@ -794,7 +794,7 @@ class pyHyp(BaseSolver):
 
     def freezeEdge(self, blockID, edge, dstar):
         """
-        Specifiy an edge that will be frozen.
+        Specify an edge that will be frozen.
 
         Parameters
         ----------
@@ -810,7 +810,7 @@ class pyHyp(BaseSolver):
 
     def freezeFaces(self, blockIDs, dstar):
         """
-        Specifiy one or more faces (blocks) that will be frozen
+        Specify one or more faces (blocks) that will be frozen
 
         Parameters
         ----------

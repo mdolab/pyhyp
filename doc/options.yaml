@@ -10,8 +10,8 @@ patches:
 fileType:
   desc: >
     Type of the input file.
-  cgns: CGNS format
-  plot3d: PLOT3D format
+  CGNS: CGNS format
+  PLOT3D: PLOT3D format
     
 skip:
   desc: >
@@ -114,7 +114,7 @@ panelEps:
     Distance source panels are "below" nodes.
     This parameter usually does not need to be changed.
     
-farFieldTolerance:
+farfieldTolerance:
   desc: >
     Only used in elliptic mode.
     The multiple of the panel length cutoff to use the approximation formula.
@@ -217,18 +217,18 @@ volSmoothSchedule:
   desc: >
     If provided, use a user-supplied volume smoothing schedule.
 
-kspRelTol:
+KSPRelTol:
   desc: >
     Tolerance for the solution of the linear system at each iteration.
     Typically :math:`1\times 10^{-8}` is sufficient.
     Very difficult cases may benefit from a tighter convergence tolerance.
 
-kspMaxIts:
+KSPMaxIts:
   desc: >
     Maximum number of iterations to perform for each step.
     The default should be sufficient for most cases.
 
-kspSubspaceSize:
+KSPSubspaceSize:
   desc: >
     Size of the ksp subspace.
     Very large and difficult problems may benefit from a larger subspace size.
@@ -241,8 +241,8 @@ writeMetrics:
 outputType:
   desc: >
     Output format for the volume mesh.
-  cgns: CGNS format
-  plot3d: PLOT3D format
+  CGNS: CGNS format
+  PLOT3D: PLOT3D format
 
 outputFile:
   desc: >
