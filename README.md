@@ -1,5 +1,5 @@
 # pyHyp
-[![Build Status](https://travis-ci.com/mdolab/pyhyp.svg?branch=master)](https://travis-ci.com/mdolab/pyhyp)
+[![Build Status](https://dev.azure.com/mdolab/Public/_apis/build/status/mdolab.pyhyp?branchName=master)](https://dev.azure.com/mdolab/Public/_build/latest?definitionId=13&branchName=master)
 [![Documentation Status](https://readthedocs.com/projects/mdolab-pyhyp/badge/?version=latest)](https://mdolab-pyhyp.readthedocs-hosted.com/en/latest)
 
 pyHyp uses hyperbolic volume mesh marching schemes to extrude structured surface meshes into volume meshes.
