@@ -20,7 +20,7 @@ If you use pyHyp in any publication for which you find it useful, please cite th
 N. Secco, G. K. W. Kenway, P. He, C. A. Mader, and J. R. R. A. Martins, “Efficient Mesh Generation and Deformation for Aerodynamic Shape Optimization”, AIAA Journal, 2021. [doi:10.2514/1.J059491](https://doi.org/10.2514/1.J059491)
 
 ```
-@article{Secco2020a,
+@article{Secco2021,
     title = {Efficient Mesh Generation and Deformation for Aerodynamic Shape Optimization},
     author = {Ney Secco and Gaetan K. W. Kenway and Ping He and Charles A. Mader and Joaquim R. R. A. Martins},
     doi = {10.2514/1.J059491},
