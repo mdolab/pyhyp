@@ -48,7 +48,7 @@ MAKE_CLEAN_ARGUMENTS = *~ *.o *.mod *.il *.stb c_*
 #      *                                                                *
 #      ******************************************************************
 
-FF90_ALL_FLAGS   = -I$(HYP_MODDIR) $(CGNS_INCLUDE_FLAGS) $(CGNS_VERSION_FLAG) \
+FF90_ALL_FLAGS   = -I$(HYP_MODDIR) $(CGNS_INCLUDE_FLAGS) \
 		   $(FF90_GEN_FLAGS) $(FF90_OPT_FLAGS) $(PETSC_INCLUDE_FLAGS)
 
 CC_ALL_FLAGS = -I$(HYP_MODDIR) $(CGNS_INCLUDE_FLAGS) \
