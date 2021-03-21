@@ -26,8 +26,8 @@ mode:
 unattachedEdgesAreSymmetry:
   desc: >
     Automatically applies symmetry boundary conditions to any edges that do not interface with another block.
-    This option works in many cases but does not work for all surface meshes.
-    If you encounter negative volumes near the symmetry plane, try explicitly setting the symmetry boundary conditions using the ``BC`` option.
+    This option may fail in rare cases.
+    See :ref:`here<pyhyp_autoSymm>` for details.
 
 outerFaceBC:
   desc: >
@@ -47,7 +47,7 @@ families:
 
 autoConnect:
   desc: >
-    Run cgnsutilities connect function to add any necessary block to block connectivity.
+    Run the cgnsUtilities ``connect`` function to add any necessary block to block connectivity.
 
 noPointReduce:
   desc: >
@@ -100,6 +100,7 @@ splayCornerOrthogonality:
 cornerAngle:
   desc: >
     Maximum convex corner angle in degrees necessary to trigger the implicit node averaging scheme.
+    See Section 8 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
 
 coarsen:
   desc: >
@@ -140,10 +141,9 @@ sourceStrengthFile:
 
 cMax:
   desc: >
-    The maximum permissible ratio of marching direction length to the any other in-plane edge.
+    The maximum permissible ratio of the step in the marching direction to the length of any in-plane edge.
     This parameter effectively operates as a CFL-type limit.
-    If a step would require a step which would result in a ratio ``c`` greater than ``cMax``, the step is automatically split internally to respect this user-supplied limit.
-    Typical values of ``cMax`` are around 6-8.
+    If a step would result in a ratio ``c`` greater than ``cMax``, the step is automatically split internally to respect this user-supplied limit.
     Increased robustness can be achieved at the expense of computational cost by lowering ``cMax``.
 
 nonLinear:
@@ -154,14 +154,14 @@ nonLinear:
 slExp:
   desc: >
     Exponent for the :math:`S_l` computation.
-    The :math:`S_l` value serves the same purpose as found in Chan et al. but the computation is different.
+    The :math:`S_l` value serves the same purpose as found in Section 6 of :ref:`Chan and Steger<pyhyp_theory>`, but the computation is different.
     The :math:`S_l` computation in Chan is given as :math:`\sqrt{\frac{N-1}{l-1}}` for :math:`l > 2`.
 
 ps0:
   desc: >
     Initial pseudo off-wall spacing.
     This spacing **must** be less than or equal to ``s0``.
-    This is actual spacing the hyperbolic scheme uses.
+    This is the actual spacing the hyperbolic scheme uses.
     The solver may take many pseudo steps before the first real grid level at ``s0``.
     This is computed internally if a non-positive value is provided.
 
@@ -176,42 +176,44 @@ pGridRatio:
 epsE:
   desc: >
     The explicit smoothing parameter.
-    See the :ref:`Theory<pyhyp_theory>` section for more information.
-    Typical values are approximately 1.0. Increasing the explicit smoothing may result in a smoother grid, at the expense of orthogonality.
-    If the geometry is very sharp corners, too much explicit smoothing will cause the solver to rapidly "soften" the corner and the grid will fold back on itself.
+    Typical values are approximately 1.0.
+    Increasing the explicit smoothing may result in a smoother grid, at the expense of orthogonality.
+    If the geometry has very sharp corners, too much explicit smoothing will cause the solver to rapidly "soften" the corner and the grid will fold back on itself.
     In concave corners, additional smoothing will prevent lines from crossing (avoiding negative cells).
+    See Section 3 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
 
 epsI:
   desc: >
     Implicit smoothing parameter.
-    See the :ref:`Theory<pyhyp_theory>` section for more information.
     Typical values are from 2.0 to 6.0.
     Generally increasing the implicit coefficient results in a more stable solution procedure.
     Usually this value should be twice the explicit smoothing parameter.
+    See Section 3 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
 
 theta:
   desc: >
-    Kinsley-Barth coefficient See the :ref:`Theory<pyhyp_theory>` section for more information.
-    Only a single theta value is used for both directions.
+    Kinsey-Barth coefficient.
+    This provides additional implicit smoothing.
+    A single theta value is used for both in-plane directions.
     Typical values are ~2.0 to ~4.0.
+    See Section 3 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
 
 volCoef:
   desc: >
     Coefficient used in point-Jacobi local volume smoothing algorithm.
-    Typically this value is 0.16 and need not be modified.
+    Typically this value does not need to be modified.
     Use more ``volSmoothIter`` for stronger local smoothing.
+    See Section 5 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
 
 volBlend:
   desc: >
     The global volume blending coefficient.
-    See the :ref:`Theory<pyhyp_theory>` section for more information.
-    This value will typically be very small, especially if you widely varying cell sizes.
+    This value will typically be very small, especially if you have widely varying cell sizes.
     Typical values are from ~0 to 0.001.
 
 volSmoothIter:
   desc: >
     The number of point-Jacobi local volume smoothing iterations to perform.
-    Typical values are ~5 to ~25.
 
 volSmoothSchedule:
   desc: >
@@ -230,7 +232,7 @@ KSPMaxIts:
 
 KSPSubspaceSize:
   desc: >
-    Size of the ksp subspace.
+    Size of the Krylov subspace.
     Very large and difficult problems may benefit from a larger subspace size.
 
 writeMetrics:
