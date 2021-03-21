@@ -9,22 +9,14 @@
 pyHyp
 =====
 
-Introduction
-============
-
-`pyHyp` is hyperbolic mesh generator that is capable of automatically
-generating two or three dimensional 3D meshes around simple geometric
-configurations. The basic idea is to start with an initial surface (or
-line) corresponding to the geometry of interest and then *grow* or
-*extrude* the mesh in successive layers until it reaches a sufficient
-distance from the original surface. In the process, the entire space
-surrounding the geometry is meshed.
+pyHyp is a hyperbolic mesh generator that automatically generates two or three dimensional meshes around simple geometric configurations.
+The basic idea is to start with an initial surface (or curve) corresponding to the geometry of interest and then *grow* or *extrude* the mesh in successive layers until it reaches a sufficient distance from the original surface.
+In the process, the entire space surrounding the geometry is meshed.
 
 .. _pyhyp_theory:
 
-Most of the theory for `pyHyp` was taken from `Chan and Steger <https://www.sciencedirect.com/science/article/pii/009630039290073A>`_.
-
-
+An overview of the hyperbolic mesh marching method implemented in pyHyp can be found in Section II.A of `Secco et al <https://arc.aiaa.org/doi/pdf/10.2514/1.J059491>`__.
+Most of the theory for pyHyp was taken from `Chan and Steger <https://www.sciencedirect.com/science/article/pii/009630039290073A>`__.
 
 Contents:
 
@@ -33,6 +25,7 @@ Contents:
 
    install
    tutorial
+   autoSymm
    icem
    BC
    options

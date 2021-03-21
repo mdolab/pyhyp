@@ -540,6 +540,13 @@ subroutine setup(fileName, fileType)
                     if (((xSum(mod(i, 3)+1) - xSum(i)) < 1.e-10) .or. &
                         ((xSum(mod(i+1, 3)+1) - xSum(i)) < 1.e-10)) then
 
+                      print *, ""
+                      print *, "WARNING: 'unattachedEdgesAreSymmetry' may fail when an"
+                      print *, "edge is coincident with a coordinate axis. Set the"
+                      print *, "symmetry BCs manually with the 'BC' option if you"
+                      print *, "encounter negative volumes near the symmetry plane."
+                      print *, ""
+
                       ! Get the row of coordinates one inboard from the edge of the patch.
                       select case(iEdge)
                       case (iLow)
@@ -567,7 +574,7 @@ subroutine setup(fileName, fileType)
                     ! Set the symmetry plane BCs according to which coordinate
                     ! index corresponded to the edge coordinates being 0.
                     if (i== 1) then
-                       BCs(iEdge, ii) = BCXsymm
+                       BCs(iEdge, ii) = BCXSymm
                     else if(i==2) then
                        BCs(iEdge, ii) = BCYSymm
                     else if(i==3) then
