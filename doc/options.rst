@@ -3,4 +3,4 @@
 Options
 =======
 
-.. optionstable:: pyhyp.pyHyp
+.. optionslist:: pyhyp.pyHyp
