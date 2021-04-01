@@ -3,9 +3,11 @@
 Using the BC option
 ===================
 
-This page describes how to use the ``BC`` option to specify boundary conditions at boundary edges of the surface mesh.
+This page describes how to use the :py:data:`BC` option to specify boundary conditions at boundary edges of the surface mesh.
 
-Here is an example of a dictionary that can be used with ``BC``::
+Here is an example of a dictionary that can be used with :py:data:`BC`:
+
+.. code-block:: python
 
    "BC":{1:{"iLow":"ySymm"}, 3:{"jHigh":"splay", "iHigh":"xConst"}}
 
