@@ -3,7 +3,7 @@
 Automatic symmetry BCs
 ======================
 
-Using the ``unattachedEdgesAreSymmetry`` option will automatically apply symmetry boundary conditions to any edges that do not interface with another block.
+Using the :py:data:`unattachedEdgesAreSymmetry` option will automatically apply symmetry boundary conditions to any edges that do not interface with another block.
 This page describes how this option works and a rare case where this option can fail.
 
 Automatically applying symmetry boundary conditions involves determining the correct symmetry direction for each unattached edge.

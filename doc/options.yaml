@@ -124,7 +124,7 @@ useMatrixFree:
   desc: >
     Only used in elliptic mode.
     Use matrix-free solution technique. 
-    This is always True when evalMode is ``fast``.
+    This is always True when :py:data:`evalMode` is ``fast``.
 
 evalMode:
   desc: >
@@ -202,7 +202,7 @@ volCoef:
   desc: >
     Coefficient used in point-Jacobi local volume smoothing algorithm.
     Typically this value does not need to be modified.
-    Use more ``volSmoothIter`` for stronger local smoothing.
+    Use more :py:data:`volSmoothIter` for stronger local smoothing.
     See Section 5 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
 
 volBlend:
