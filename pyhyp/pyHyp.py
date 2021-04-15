@@ -566,6 +566,7 @@ class pyHyp(BaseSolver):
             "s0": [float, 0.01],
             "nConstantStart": [int, 1],
             "nConstantEnd": [int, 1],
+            "nTruncate": [int, -1],
             "marchDist": [float, 50.0],
             "nodeTol": [float, 1e-8],
             "splay": [float, 0.25],
@@ -708,6 +709,7 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.n = self.getOption("N")
         self.hyp.hypinput.nconstantstart = self.getOption("nConstantStart")
         self.hyp.hypinput.nconstantend = self.getOption("nConstantEnd")
+        self.hyp.hypinput.ntruncate = self.getOption("nTruncate")
         self.hyp.hypinput.nopointreduce = self.getOption("noPointReduce")
         self.hyp.hypinput.s0 = self.getOption("s0")
         self.hyp.hypinput.marchdist = self.getOption("marchdist")

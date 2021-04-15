@@ -100,6 +100,13 @@ subroutine runHyperbolic
      ! Write info for this layer
      call writeIteration
 
+     ! Stop marching if nTruncate has been reached
+     if (marchIter == nTruncate) then
+        ! Overwrite N so that the mesh is output correctly
+        N = nTruncate
+        exit
+     end if
+
   end do marchLoop
 
 end subroutine runHyperbolic
@@ -335,10 +342,10 @@ subroutine initialGuess(Xnew)
   !     Written by Gaetan Kenway
   !
   !     Abstract: initialGuess determines a good initial guess for the
-  !     next grid level. In fact this function implements the a pseudo
-  !     stepping version of the Chean and Steger algorithm. If the
+  !     next grid level. In fact, this function implements a pseudo
+  !     stepping version of the Chan and Steger algorithm. If the
   !     nonLinear option is False, only this routine is called. Note
-  !     that sensitivty information cannot be performed with the
+  !     that sensitivity information cannot be performed with the
   !     linear method because the intermediate grid levels are not
   !     stored.
   !

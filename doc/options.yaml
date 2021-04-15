@@ -74,6 +74,12 @@ nConstantEnd:
   desc: >
     Number of constant layers at the end of the march.
 
+nTruncate:
+  desc: >
+    Stop marching at ``nTruncate`` layers.
+    This is mainly useful for debugging low quality cells or negative volumes in the first few layers of the mesh.
+    This option is only valid for :math:`1 <` ``nTruncate`` :math:`<` :py:data:`N` and has no effect otherwise.
+
 marchDist:
   desc: >
     Distance to march in the normal direction.
