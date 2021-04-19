@@ -76,9 +76,9 @@ nConstantEnd:
 
 nTruncate:
   desc: >
-    Stop marching at ``nTruncate`` layers.
-    This is mainly useful for debugging low quality cells or negative volumes in the first few layers of the mesh.
-    This option is only valid for :math:`1 <` ``nTruncate`` :math:`<` :py:data:`N` and has no effect otherwise.
+    Specifying :math:`1 <` ``nTruncate`` :math:`<` :py:data:`N` will produce a mesh that is identical to the first ``nTruncate`` levels of the full mesh with :py:data:`N` levels.
+    Values outside of this range have no effect.
+    This option is mainly useful for debugging low quality cells or negative volumes in the first few layers of the mesh.
 
 marchDist:
   desc: >
