@@ -76,6 +76,7 @@ nConstantEnd:
 
 nTruncate:
   desc: >
+    This will stop the mesh marching after the specified number of levels.
     Specifying :math:`1 <` ``nTruncate`` :math:`<` :py:data:`N` will produce a mesh that is identical to the first ``nTruncate`` levels of the full mesh with :py:data:`N` levels.
     Values outside of this range have no effect.
     This option is mainly useful for debugging low quality cells or negative volumes in the first few layers of the mesh.
