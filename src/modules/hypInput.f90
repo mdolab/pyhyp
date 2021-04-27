@@ -14,7 +14,7 @@ module hypInput
   real(kind=realType) :: kspRelTol, cmax, marchDist
   real(kind=realType) :: nodeTol, symTol, cornerAngle
   real(kind=realType) :: splay, splayEdgeOrthogonality, splayCornerOrthogonality
-  integer(kind=intType) :: N, nConstantStart, nConstantEnd
+  integer(kind=intType) :: N, nConstantStart, nConstantEnd, nTruncate
   integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
   integer(kind=intType) :: coarsen
   real(kind=realType), dimension(:, :), allocatable :: volSmoothSchedule

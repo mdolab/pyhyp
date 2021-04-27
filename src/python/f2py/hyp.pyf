@@ -11,7 +11,8 @@ python module hyp ! in
             real(kind=realtype) :: pgridratio
             integer(kind=inttype) :: n
             integer(kind=inttype) :: nconstantstart
-            integer(kind=inttype) :: nconstantend 
+            integer(kind=inttype) :: nconstantend
+            integer(kind=inttype) :: ntruncate
             integer(kind=inttype) :: volsmoothiter
             integer(kind=inttype) :: coarsen
             real(kind=realtype) :: slexp
