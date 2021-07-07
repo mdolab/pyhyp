@@ -54,7 +54,7 @@ subroutine writePlot3d(fileName)
                  do i=1, patches(iPatch)%il
                     ! We will use l_index to get the correct pointer into grid3D
                     idGlobal = patches(iPatch)%l_index(i, j)
-                    write(7,7), xx(3*(idGlobal-1)+iDim)
+                    write(7,7) xx(3*(idGlobal-1)+iDim)
                  end do
               end do
               call VecRestoreArrayF90(XLocal, xx, ierr)

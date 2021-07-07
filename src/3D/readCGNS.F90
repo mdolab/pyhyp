@@ -19,7 +19,7 @@ subroutine readCGNS(cgnsFile)
   integer(kind=intType) :: dummybocoType, DirichletFlag, NeumannFlag
   integer(kind=cgsize_t) :: dims(6)
   real(kind=realType), dimension(:, :), allocatable :: coor
-  character*32 :: baseName, zoneName, bocoName, DatasetName
+  character(len=32) :: baseName, zoneName, bocoName, DatasetName
 
   if (myid == 0) then
      ! Open and get the number of zones:
@@ -133,7 +133,7 @@ subroutine readFamily(cgnsFile, iBlock, family, foundFam)
   ! Input/Output Arguments
   character*(*),intent(in) :: cgnsFile
   integer(kind=intType), intent(in) :: iBlock
-  character*32,intent(out) :: family
+  character(len=32),intent(out) :: family
   logical, intent(out) :: foundFam
 
   ! Working
@@ -143,7 +143,7 @@ subroutine readFamily(cgnsFile, iBlock, family, foundFam)
   integer(kind=intType) :: NormalIndex(3), NormalDataType, ndataset
   integer(kind=intType) :: ptset_type,  normalList
   integer(cgsize_t) :: pts(2,2), npnts, NormalListSize
-  character*32 :: zoneName, bocoName
+  character(len=32) :: zoneName, bocoName
 
   family = ""
   call cg_open_f(trim(cgnsFile), CG_MODE_READ, cg, ierr)

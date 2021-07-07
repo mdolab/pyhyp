@@ -295,7 +295,7 @@ subroutine writeIteration
   if (myid == 0) then
 
      ! Iteration Count
-     write(*,"(i7,x)",advance="no") marchIter
+     write(*,"(i7,1x)",advance="no") marchIter
 
      ! CPU time
      write(*,"(f6.1,1x)",advance="no") dble(mpi_wtime()) - timeStart
