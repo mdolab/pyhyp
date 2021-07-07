@@ -17,10 +17,10 @@ CGNS_INCLUDE_FLAGS=-I$(CGNS_HOME)/include
 CGNS_LINKER_FLAGS=-L$(CGNS_HOME)/lib -lcgns
 
 # ------- Define Compiler Flags ----------------------------------------
-FF90_GEN_FLAGS = -fPIC
+FF90_GEN_FLAGS = -fPIC -stand f08
 CC_GEN_FLAGS   = -fPIC
 
-FF90_OPT_FLAGS   =  -fPIC -r8 -O2
+FF90_OPT_FLAGS   =  -fPIC -r8 -O2 -stand f08
 CC_OPT_FLAGS     = -O2
 
 # ------- Define Linker Flags ------------------------------------------

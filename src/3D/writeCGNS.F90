@@ -29,14 +29,14 @@ subroutine writeCGNS(fileName)
   ! Working Variables
   integer(kind=intType) :: cg, ierr, iEdge, il, jl
   integer(kind=intType) :: cellDim, physDim, base, coordID, gridShp(3)
-  character*256 :: zoneName, bcName
+  character(len=256) :: zoneName, bcName
   integer(kind=intType) :: zone, ii, i, j, k, cgtransform(3)
   integer(cgsize_t) :: sizes(9), ptRange(3,2)
   integer(kind=intType) ::  fullRange(3,2), iBoco
   integer(kind=intType) :: s, f
   real(kind=realType), dimension(:,:,:), allocatable :: coordArray, solArray
-  character*12, dimension(3) :: coorNames, r_ksi, r_eta, r_zeta
-  character*12, dimension(3) :: r_ksi_ksi, r_eta_eta, diss
+  character(len=12), dimension(3) :: coorNames, r_ksi, r_eta, r_zeta
+  character(len=12), dimension(3) :: r_ksi_ksi, r_eta_eta, diss
   integer(kind=intType) :: iPatch, idim, idglobal
   real(kind=realType), pointer, dimension(:) :: xxtmp
 
@@ -207,7 +207,7 @@ subroutine writeCGNS(fileName)
 contains
   subroutine writeVar(vectors, names)
     Vec, dimension(:) :: vectors
-    character*12, dimension(3) :: names
+    character(len=12), dimension(3) :: names
 
     do idim=1,3
        do k=1,N
@@ -250,7 +250,7 @@ contains
     if (myid == 0) then
 998    FORMAT('boco.',I5.5)
        iBoco = iBoco + 1
-       write (bcName, 998), iBoco
+       write (bcName, 998) iBoco
 
        call cg_boco_write_f(cg, base, iPatch, trim(bcName), &
             BCType, PointRange, 2_cgsize_t, ptRange, BCout, ierr)
