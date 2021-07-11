@@ -5,7 +5,7 @@ USE_WINGLET = True
 
 if USE_WINGLET:
     from pygeo import DVGeometry
-    from pyspline import pySpline
+    from pyspline import Curve
     import numpy
 
 ffd_file = "mdo_tutorial_ffd.fmt"
@@ -81,7 +81,7 @@ if USE_WINGLET:
         ref[k, 1] = numpy.average(coef[:, :, k, 1])
         ref[k, 2] = numpy.average(coef[:, :, k, 2])
 
-    c0 = pySpline.Curve(X=ref, k=2)
+    c0 = Curve(X=ref, k=2)
     DVGeo.addRefAxis("wing", c0)
     DVGeo.addGeoDVGlobal("winglet", [0, 0, 0, 1], winglet, lower=-5, upper=5)
     DVGeo.addPointSet(coords, "coords")
