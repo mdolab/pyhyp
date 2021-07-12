@@ -17,3 +17,4 @@ extends:
     REPO_NAME: pyhyp
     GCC_CONFIG: config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk
     INTEL_CONFIG: config/defaults/config.LINUX_INTEL_OPENMPI.mk
+    COVERAGE: true
