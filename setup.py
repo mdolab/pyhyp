@@ -31,6 +31,6 @@ setup(
         "mpi4py>=3.0",
         "mdolab-baseclasses>=1.3",
     ],
-    extra_require={"testing": ["pygeo>=1.5", "testflo"]},
+    extra_require={"testing": ["pygeo>=1.5", "cgnsutilities>=2.5", "testflo"]},
     classifiers=["Operating System :: Linux", "Programming Language :: Python, Fortran"],
 )
