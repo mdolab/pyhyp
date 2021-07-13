@@ -83,7 +83,7 @@ if USE_WINGLET:
 
     c0 = Curve(X=ref, k=2)
     DVGeo.addRefAxis("wing", c0)
-    DVGeo.addGeoDVGlobal("winglet", [0, 0, 0, 1], winglet, lower=-5, upper=5)
+    DVGeo.addGlobalDV("winglet", [0, 0, 0, 1], winglet, lower=-5, upper=5)
     DVGeo.addPointSet(coords, "coords")
     DVGeo.setDesignVars({"winglet": [1.5, 2.5, -2.0, 0.60]})
     hyp.setSurfaceCoordinates(DVGeo.update("coords"))
