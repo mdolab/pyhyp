@@ -5,6 +5,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
   use hypData, only : ellipScatter, localSol, xx
   use panel
 #include "petsc/finclude/petsc.h"
+#include "petscversion.h"
   use petsc
   implicit none
 
@@ -502,8 +503,13 @@ subroutine generateSolution
   call KSPSetTolerances(ellipKSP, kspRelTol, 1e-16, 1e20, kspMaxIts, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
+#if PETSC_VERSION_GT(3, 14, 0)
+  call KSPMonitorSet(ellipKSP, kspmonitorresidual, PETSC_NULL_SCALAR, &
+       PETSC_NULL_FUNCTION, ierr)
+#else
   call KSPMonitorSet(ellipKSP, kspmonitordefault, PETSC_NULL_SCALAR, &
        PETSC_NULL_FUNCTION, ierr)
+#endif
   call EChk(ierr, __FILE__, __LINE__)
 
   if (myid == 0) then
