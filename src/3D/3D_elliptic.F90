@@ -503,7 +503,7 @@ subroutine generateSolution
   call KSPSetTolerances(ellipKSP, kspRelTol, 1e-16, 1e20, kspMaxIts, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
-#if PETSC_VERSION_GT(3, 14, 0)
+#if PETSC_VERSION_GE(3, 15, 0)
   call KSPMonitorSet(ellipKSP, kspmonitorresidual, PETSC_NULL_SCALAR, &
        PETSC_NULL_FUNCTION, ierr)
 #else
