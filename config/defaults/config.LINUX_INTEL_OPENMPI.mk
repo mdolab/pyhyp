@@ -7,7 +7,7 @@ PMAKE = make -j 4
 
 # ------- Define the MPI Compilers--------------------------------------
 FF90 = mpiifort
-CC   = mpicc
+CC   = mpiicc
 
 # ------- Define CGNS Inlcude and linker flags -------------------------
 # Define the CGNS include directory and linking flags for the CGNS library.
