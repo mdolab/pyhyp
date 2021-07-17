@@ -65,7 +65,7 @@ subroutine writeLayerPlot3d(fileName, layer)
         do idim=1,3
            do j=1, patches(iPatch)%jl
               do i=1, patches(iPatch)%il
-                 write(7,7), patches(ii)%X(idim, i, j)
+                 write(7,7) patches(ii)%X(idim, i, j)
               end do
            end do
         end do
@@ -116,7 +116,7 @@ subroutine writeLayerFE(fileName, layer, partitions)
 102  format(g20.12, g20.12, g20.12, g20.12)
 103  format(I6,I6,I6,I6)
 
-     write(7, 101), nxGlobal, faceTotal
+     write(7, 101) nxGlobal, faceTotal
      do i=1,nxGlobal
         write(7, 102) xx(3*i-2), xx(3*i-1), xx(3*i)
      end do

@@ -19,9 +19,9 @@ contains
 
     ! Input/Output
     type(surfType), intent(in) :: surf
+    integer(kind=intType), intent(in):: n
     real(kind=realType), intent(in), dimension(n) :: u, v
     real(kind=realType), intent(out), dimension(3, n) :: pts
-    integer(kind=intType), intent(in):: n
     ! Working
     integer(kind=intType) :: ileftu, ileftv, istartu, istartv, ii, i, j, idim
     real(kind=realType) :: basisu(surf%ku)
@@ -127,8 +127,8 @@ contains
     implicit none
 
     ! Input
-    real(kind=realType), intent(in)  :: t(nctl+k), u
     integer(kind=intType), intent(in)  :: nctl, k, ind
+    real(kind=realType), intent(in)  :: t(nctl+k), u
 
     ! Output
     real(kind=realType), intent(out) :: B(0:k-1)

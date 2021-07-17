@@ -262,8 +262,8 @@ subroutine freezeFaces(blockIDs, nBlockIDs, dstar)
   implicit none
 
   ! Input Parameters
-  integer (kind=intType), intent(in), dimension(nBlockIDs) :: blockIDs
   integer(kind=intType), intent(in) :: nBLockIDs
+  integer (kind=intType), intent(in), dimension(nBlockIDs) :: blockIDs
   real(kind=realType), intent(in) :: dstar
 
   ! Working

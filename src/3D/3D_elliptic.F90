@@ -5,6 +5,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
   use hypData, only : ellipScatter, localSol, xx
   use panel
 #include "petsc/finclude/petsc.h"
+#include "petscversion.h"
   use petsc
   implicit none
 
@@ -60,7 +61,7 @@ subroutine runElliptic
   integer(kind=intType) :: istart, iend, inds(3)
 
   integer(kind=intType) ::  cg, nzones, zone, zoneSize(9), s, F, base, k
-  character*32 :: zonename
+  character(len=32) :: zonename
   logical :: successful
   real(kind=realType), dimension(:, :, :), allocatable  :: coorX, coorY, coorZ, valPhi, vX, vY, vZ
   real(kind=realType) :: pt(3), V(3), phi, times(2)
@@ -502,8 +503,13 @@ subroutine generateSolution
   call KSPSetTolerances(ellipKSP, kspRelTol, 1e-16, 1e20, kspMaxIts, ierr)
   call EChk(ierr, __FILE__, __LINE__)
 
+#if PETSC_VERSION_GE(3, 15, 0)
+  call KSPMonitorSet(ellipKSP, kspmonitorresidual, PETSC_NULL_SCALAR, &
+       PETSC_NULL_FUNCTION, ierr)
+#else
   call KSPMonitorSet(ellipKSP, kspmonitordefault, PETSC_NULL_SCALAR, &
        PETSC_NULL_FUNCTION, ierr)
+#endif
   call EChk(ierr, __FILE__, __LINE__)
 
   if (myid == 0) then
@@ -1180,7 +1186,7 @@ subroutine setupPanels
   ! grid levels: Because of the MG approach we can know exactly how
   ! many panels we be on each level:
   if (myid == 0) then
-     write(*, "(a,I2,a,I6,a)"), 'Level ',1, ' has ',nPglobal, ' panels'
+     write(*, "(a,I2,a,I6,a)") 'Level ',1, ' has ',nPglobal, ' panels'
   end if
 
   MGLoop: do iLevel = 2, levelMax
@@ -1203,7 +1209,7 @@ subroutine setupPanels
         ii = ii + sizes(1)*sizes(2)
      end do
      if (myid == 0) then
-        write(*, "(a,I2,a,I6,a)"), 'Level ',iLevel, ' has ',ii, ' panels'
+        write(*, "(a,I2,a,I6,a)") 'Level ',iLevel, ' has ',ii, ' panels'
      end if
      ! Now allocate this level
      allocate(MGP(iLevel)%panels(ii))
