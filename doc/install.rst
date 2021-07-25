@@ -23,21 +23,22 @@ Compilation
 pyHyp follows the standard MDO Lab build procedure.
 To start, first clone the repo. For stability we recommend checking out a tagged release.
 
-Next, find a configuration file close to your current setup in::
+Next, find a configuration file close to your current setup in ``config/defaults`` and copy it to ``config/config.mk``.
+For example:
 
-    $ config/defaults
+.. prompt:: bash
 
-and copy it to ``config/config.mk``. For example::
-
-    $ cp config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk config/config.mk
+    cp config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk config/config.mk
 
 If you are a beginner user installing the packages on a Linux desktop, 
 you should use the ``config.LINUX_GFORTRAN_OPENMPI.mk`` versions of the configuration 
 files. The ``config.LINUX_INTEL.mk`` versions are usually used on clusters.
 
-Once you have copied the config file, compile pyHyp by running::
+Once you have copied the config file, compile pyHyp by running:
 
-    $ make
+.. prompt:: bash
+
+    make
 
 If everything was successful, the following lines will be printed to
 the screen (near the end)::
@@ -45,12 +46,19 @@ the screen (near the end)::
    Testing if module hyp can be imported...
    Module hyp was successfully imported.
 
-Finally, install the Python interface with::
+Finally, install the Python interface with:
+
+.. prompt:: bash
 
     pip install .
 
 Testing Your Installation
 -------------------------
 
-To test your installation, you can run some of the scripts in the ``examples`` folder or run the regression tests with ``testflo -v`` from the root directory.
-Some of the examples require you to have `cgnsUtilities <https://github.com/mdolab/cgnsutilities>`_ installed.
+To test your installation, run the regression tests with ``testflo -v`` from the root directory.
+Running the tests requires additional dependencies.
+Check if you have these installed by running:
+
+.. prompt:: bash
+
+    pip install .[testing]
