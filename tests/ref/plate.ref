@@ -1,0 +1,61 @@
+{
+    "Block info": {
+        "1": {
+            "BCs": [
+                22,
+                1,
+                1,
+                1,
+                1
+            ],
+            "dims": [
+                {
+                    "__ndarray__": 17,
+                    "dtype": "int32",
+                    "shape": []
+                },
+                {
+                    "__ndarray__": 17,
+                    "dtype": "int32",
+                    "shape": []
+                },
+                {
+                    "__ndarray__": 65,
+                    "dtype": "int32",
+                    "shape": []
+                }
+            ],
+            "nCells": {
+                "__ndarray__": 16384,
+                "dtype": "int64",
+                "shape": []
+            },
+            "nNodes": {
+                "__ndarray__": 18785,
+                "dtype": "int32",
+                "shape": []
+            }
+        },
+        "totalCells": {
+            "__ndarray__": 16384,
+            "dtype": "int64",
+            "shape": []
+        },
+        "totalNodes": {
+            "__ndarray__": 18785,
+            "dtype": "int64",
+            "shape": []
+        },
+        "totalZones": 1
+    },
+    "Wall cells": {
+        "__ndarray__": 256,
+        "dtype": "int64",
+        "shape": []
+    },
+    "Wall nodes": {
+        "__ndarray__": 289,
+        "dtype": "int64",
+        "shape": []
+    }
+}
