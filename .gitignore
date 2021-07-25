@@ -14,4 +14,8 @@
 *.fmt
 *.lay
 *.plt
+*.cgns
+*.out
+*.egg-info
 doc/tmp.rst
+doc/_build
