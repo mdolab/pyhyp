@@ -4,13 +4,13 @@ Tutorial
 ========
 
 A complete sample script to generate a grid is given below. This
-particular example is available under `examples/BWB/runBWB.py`.
+particular example is available under `pyhyp_examples/BWB/runBWB.py`.
 
-.. literalinclude:: ../examples/BWB/runBWB.py
+.. literalinclude:: ../pyhyp_examples/BWB/runBWB.py
 
 Each section of the example is now described.
 
-.. literalinclude:: ../examples/BWB/runBWB.py
+.. literalinclude:: ../pyhyp_examples/BWB/runBWB.py
    :start-after: # rst import (start)
    :end-before: # rst import (end)
 
@@ -23,7 +23,7 @@ explained in :ref:`pyhyp_options`.
 
 The next line of code
 
-.. literalinclude:: ../examples/BWB/runBWB.py
+.. literalinclude:: ../pyhyp_examples/BWB/runBWB.py
    :start-after: # rst object
    :end-before: # rst run
 
@@ -44,7 +44,7 @@ generates the pyHyp object.
 The next two lines perform the actual generation and write the
 resulting grid to a cgns file:
 
-.. literalinclude:: ../examples/BWB/runBWB.py
+.. literalinclude:: ../pyhyp_examples/BWB/runBWB.py
    :start-after: # rst run
 
 The output of the run should look similar to the following::
