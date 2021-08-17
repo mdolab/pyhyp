@@ -9,6 +9,13 @@ Most of this information assumes that the final grid is independent of the start
 This means that most of these tips are given with the intent of getting the first grid to converge any sort of solution that will allow the adaptive meshing algorithm to take over.
 The coarser the initial mesh, the more work the adaptive algorithm can do, hopefully reducing the discritization error as much as possible.
 
+The obvious way to do this is to generate a typical mesh and then call ``cgns_utils coarsen`` to coarsen the grid to the desired level.
+This method does work, but it doesn't provide the user with obvious ways to make quick changes to a grid.
+As an example, how do we ensure that a grid will have an intitial off wall spacing of a certain value after a number of calls to ``cgns_utils``?
+The answer is too much math and thinking, and it would unecessarily add some number of ``cgns_utils coarsen`` calls to the workflow.
+Suffice to say it would be much easier to make a grid where the initial output is of interest rather than the output after a number of calls to ``cgns_utils``. 
+With that in mind, this discussion will provide methods for getting a coarse grid straight out of pyHyp.
+
 This discussion will use a 2D RAE 2822 airfoil as an example.
 Even though this is restricted to a rather simple 2D case, the tips can be extended to 3D and more complex geometries.
 Below is an example of a mesh that pyHyp created with obvious negative volumes.
