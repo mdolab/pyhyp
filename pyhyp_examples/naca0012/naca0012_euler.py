@@ -2,9 +2,13 @@
 This script uses the NACA 0012 airfoil equation to generate 2D Euler mesh.
 This mesh has a sharp trailing edge.
 """
-
-from pyhyp import pyHyp
+import os
 import numpy
+from pyhyp import pyHyp
+
+baseDir = os.path.dirname(os.path.abspath(__file__))
+surfaceFile = os.path.join(baseDir, "naca0012_euler.fmt")
+volumeFile = os.path.join(baseDir, "naca0012_euler.cgns")
 
 alpha = numpy.linspace(0, 2 * numpy.pi, 257)
 x = numpy.cos(alpha) * 0.5 + 0.5
@@ -20,7 +24,7 @@ for i in range(len(x)):
         )
 
 # Write the plot3d input file:
-f = open("naca0012_euler.fmt", "w")
+f = open(surfaceFile, "w")
 f.write("1\n")
 f.write("%d %d %d\n" % (len(x), 2, 1))
 for iDim in range(3):
@@ -38,7 +42,7 @@ options = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
-    "inputFile": "naca0012_euler.fmt",
+    "inputFile": surfaceFile,
     "unattachedEdgesAreSymmetry": False,
     "outerFaceBC": "farfield",
     "autoConnect": True,
@@ -70,4 +74,4 @@ options = {
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS("naca0012_euler.cgns")
+hyp.writeCGNS(volumeFile)

@@ -1,19 +1,19 @@
+"""
+This example shows how to set up dictionaries to run multiple extrusions with pyHypMulti.
+We use pyHypMulti to extrude a 90 deg corner twice with different smoothing settings.
+"""
+import os
 from pyhyp import pyHypMulti
 
-"""
-In this example we extrude a 90 deg corner twice using two different
-setting.
-This example shows how the dictionary format can be used to set up
-and run multiple cases at once
-"""
-
-fileName = "corner.cgns"
+baseDir = os.path.dirname(os.path.abspath(__file__))
+surfaceFile = os.path.join(baseDir, "corner.cgns")
+volumeFile = os.path.join(baseDir, "corner_vol.cgns")
 
 commonOptions = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
-    "inputFile": fileName,
+    "inputFile": surfaceFile,
     "fileType": "CGNS",
     "unattachedEdgesAreSymmetry": False,
     "outerFaceBC": "farfield",
@@ -46,11 +46,10 @@ commonOptions = {
 
 # Now set up specific options
 options1 = {"outputFile": "corner1_hyp.cgns"}
-
 options2 = {"epsE": 4.0, "epsI": 8.0, "outputFile": "corner2_hyp.cgns"}
 
 # Gather options in a list
 options = [options1, options2]
 
 hyp = pyHypMulti(options=options, commonOptions=commonOptions)
-hyp.combineCGNS()
+hyp.combineCGNS(combinedFile=volumeFile)
