@@ -23,6 +23,7 @@ This is a bit of a ridiculous example, but someone actually managed to get a gri
 
     .. image:: images/Figure_CoarseWarp.png
       :width: 400
+      :align: center
 
 This grid was created using a surface mesh with 50 points around the airfoil and the following non-default options:
 
@@ -76,6 +77,7 @@ The next image shows a grid that pyHyp generated with the same surface mesh afte
 
     .. image:: images/Figure_CoarseGood.png
       :width: 400
+      :align: center
 
 Much better!
 
