@@ -30,3 +30,4 @@ Contents:
    BC
    options
    API
+   adapt
