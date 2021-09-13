@@ -262,7 +262,7 @@ class pyHypMulti(object):
                 # Crop filename
                 try:
                     filename = self.results["name"][index][:21]
-                except:  # noqa: E722
+                except Exception:  # noqa: E722
                     filename = self.results["name"][index]
 
                 # Get remaining data
@@ -492,7 +492,7 @@ class pyHyp(BaseSolver):
 
         fFamilies = []
         # Set default a default name of "wall".
-        for i in range(nBlocks):
+        for _i in range(nBlocks):
             fFamilies.append("Wall")
 
         # If we were given a CGNS file we might have families

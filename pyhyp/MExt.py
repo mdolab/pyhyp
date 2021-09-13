@@ -5,20 +5,20 @@ import shutil
 import sys
 
 
-def _tmp_pkg(dir):
+def _tmp_pkg(directory):
     """
     Create a temporary package.
 
     Returns (name, path)
     """
     while True:
-        path = tempfile.mkdtemp(dir=dir)
+        path = tempfile.mkdtemp(dir=directory)
         name = os.path.basename(path)
         try:
             imp.find_module(name)
             # if name is found, delete and try again
             os.rmdir(path)
-        except:  # noqa: E722
+        except Exception:  # noqa: E722
             break
     init = open(os.path.join(path, "__init__.py"), "w")
     init.close()
