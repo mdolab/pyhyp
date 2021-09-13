@@ -18,7 +18,7 @@ def _tmp_pkg(dirName):
             imp.find_module(name)
             # if name is found, delete and try again
             os.rmdir(path)
-        except Exception:
+        except Exception:  # noqa: E722
             break
     init = open(os.path.join(path, "__init__.py"), "w")
     init.close()

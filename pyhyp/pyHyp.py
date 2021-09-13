@@ -262,7 +262,7 @@ class pyHypMulti(object):
                 # Crop filename
                 try:
                     filename = self.results["name"][index][:21]
-                except Exception:
+                except Exception:  # noqa: E722
                     filename = self.results["name"][index]
 
                 # Get remaining data
