@@ -1,12 +1,15 @@
+import os
 from pyhyp import pyHyp
 
-fileName = "plate_surf.cgns"
+baseDir = os.path.dirname(os.path.abspath(__file__))
+surfaceFile = os.path.join(baseDir, "plate_surf.cgns")
+volumeFile = os.path.join(baseDir, "plate_vol.cgns")
 
 options = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
-    "inputFile": fileName,
+    "inputFile": surfaceFile,
     "fileType": "CGNS",
     "unattachedEdgesAreSymmetry": False,
     "outerFaceBC": "overset",
@@ -40,4 +43,4 @@ options = {
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS("face3D.cgns")
+hyp.writeCGNS(volumeFile)

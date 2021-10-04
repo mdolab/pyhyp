@@ -1,15 +1,18 @@
 # rst import (start)
+import os
 from pyhyp import pyHyp
 
 # rst import (end)
 
-fileName = "bwb.fmt"
+baseDir = os.path.dirname(os.path.abspath(__file__))
+surfaceFile = os.path.join(baseDir, "bwb.fmt")
+volumeFile = os.path.join(baseDir, "bwb.cgns")
 
 options = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
-    "inputFile": fileName,
+    "inputFile": surfaceFile,
     "unattachedEdgesAreSymmetry": True,
     "outerFaceBC": "farfield",
     "autoConnect": True,
@@ -42,4 +45,4 @@ options = {
 hyp = pyHyp(options=options)
 # rst run
 hyp.run()
-hyp.writeCGNS("bwb.cgns")
+hyp.writeCGNS(volumeFile)

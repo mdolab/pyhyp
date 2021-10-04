@@ -1,14 +1,15 @@
+import os
 from pyhyp import pyHyp
 
-fileName = "m6_small.fmt"
-# fileName = 'm6_large.fmt'
-# fileName = 'm6_tiny.fmt'
+baseDir = os.path.dirname(os.path.abspath(__file__))
+surfaceFile = os.path.join(baseDir, "m6_small.fmt")
+volumeFile = os.path.join(baseDir, "m6.cgns")
 
 options = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
-    "inputFile": fileName,
+    "inputFile": surfaceFile,
     "fileType": "PLOT3D",
     "unattachedEdgesAreSymmetry": True,
     "outerFaceBC": "farfield",
@@ -42,4 +43,4 @@ options = {
 
 hyp = pyHyp(options=options)
 hyp.run()
-hyp.writeCGNS("m6.cgns")
+hyp.writeCGNS(volumeFile)

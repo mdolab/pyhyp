@@ -1,4 +1,10 @@
+import os
 from pyhyp import pyHyp
+
+baseDir = os.path.dirname(os.path.abspath(__file__))
+surfaceFile = os.path.join(baseDir, "717_small.fmt")
+volumeFile = os.path.join(baseDir, "717.cgns")
+ffdFile = os.path.join(baseDir, "mdo_tutorial_ffd.fmt")
 
 # Parameter to determine if morphed winglet surface is used.
 USE_WINGLET = True
@@ -8,14 +14,11 @@ if USE_WINGLET:
     from pyspline import Curve
     import numpy
 
-ffd_file = "mdo_tutorial_ffd.fmt"
-fileName = "717_small.fmt"
-
 options = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
-    "inputFile": fileName,
+    "inputFile": surfaceFile,
     "unattachedEdgesAreSymmetry": True,
     "outerFaceBC": "farfield",
     "autoConnect": True,
@@ -57,7 +60,7 @@ if USE_WINGLET:
         C[-1, 1] += val[1]
         C[-1, 2] += val[2]
 
-        # Also need to get "dihedreal" angle for this section
+        # Also need to get "dihedral" angle for this section
         theta = numpy.arctan(val[1] / (C[-1, 2] - C[-2, 2]))
         geo.rot_x["wing"].coef[-1] = -theta * 180 / numpy.pi
         geo.restoreCoef(C, "wing")
@@ -66,7 +69,7 @@ if USE_WINGLET:
         geo.scale["wing"].coef[-1] = val[3]
 
     coords = hyp.getSurfaceCoordinates()
-    DVGeo = DVGeometry(ffd_file)
+    DVGeo = DVGeometry(ffdFile)
     coef = DVGeo.FFD.vols[0].coef.copy()
 
     # First determine the reference chord lengths:
@@ -90,4 +93,4 @@ if USE_WINGLET:
 
 # Run and write grid
 hyp.run()
-hyp.writeCGNS("717.cgns")
+hyp.writeCGNS(volumeFile)

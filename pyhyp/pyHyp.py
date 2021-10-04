@@ -353,6 +353,9 @@ class pyHypMulti(object):
 
                 os.remove(filename)
 
+        # Wait for root process to finish before returning
+        self.comm.Barrier()
+
 
 # =============================================================================
 # pyHyp class

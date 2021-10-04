@@ -5,14 +5,14 @@ import shutil
 import sys
 
 
-def _tmp_pkg(directory):
+def _tmp_pkg(dirName):
     """
     Create a temporary package.
 
     Returns (name, path)
     """
     while True:
-        path = tempfile.mkdtemp(dir=directory)
+        path = tempfile.mkdtemp(dir=dirName)
         name = os.path.basename(path)
         try:
             imp.find_module(name)

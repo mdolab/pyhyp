@@ -1,14 +1,17 @@
+import os
 from pyhyp import pyHypMulti
 
-fileName1 = "even_sphere.fmt"
-fileName2 = "uneven_sphere.fmt"
-fileName3 = "uneven_sphere_large.fmt"
+baseDir = os.path.dirname(os.path.abspath(__file__))
+surfaceFile1 = os.path.join(baseDir, "even_sphere.fmt")
+surfaceFile2 = os.path.join(baseDir, "uneven_sphere.fmt")
+surfaceFile3 = os.path.join(baseDir, "uneven_sphere_large.fmt")
+volumeFile = os.path.join(baseDir, "sphere.cgns")
 
 commonOptions = {
     # ---------------------------
     #        Input Parameters
     # ---------------------------
-    "inputFile": fileName1,
+    "inputFile": surfaceFile1,
     "unattachedEdgesAreSymmetry": True,
     "outerFaceBC": "farfield",
     "autoConnect": True,
@@ -39,9 +42,9 @@ commonOptions = {
 
 # Set up specific options that will overwrite the commonOptions
 
-options1 = {"inputFile": fileName1, "skip": False}
-options2 = {"inputFile": fileName2, "skip": False}
-options3 = {"inputFile": fileName3, "skip": False}
+options1 = {"inputFile": surfaceFile1, "skip": False}
+options2 = {"inputFile": surfaceFile2, "skip": False}
+options3 = {"inputFile": surfaceFile3, "skip": False}
 
 # Create list with different options
 options = [options1, options2, options3]
@@ -50,4 +53,4 @@ options = [options1, options2, options3]
 skipList = []
 
 hyp = pyHypMulti(options=options, commonOptions=commonOptions, skipList=skipList)
-hyp.combineCGNS(combinedFile="combined.cgns")
+hyp.combineCGNS(combinedFile=volumeFile)
