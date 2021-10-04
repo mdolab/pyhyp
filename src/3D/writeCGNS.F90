@@ -92,6 +92,9 @@ subroutine writeCGNS(fileName)
         ! Copy values and write:
         do k=1,N
 
+           ! Synchronize before scattering
+           call mpi_barrier(hyp_comm_world, ierr)
+
            call VecScatterBegin(rootScatter, X(k), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)
            call EChk(ierr,__FILE__,__LINE__)
            call VecScatterEnd(rootScatter, X(k), XLocal, INSERT_VALUES, SCATTER_FORWARD, ierr)

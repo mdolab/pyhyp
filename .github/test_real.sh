@@ -1,5 +1,8 @@
 #!/bin/bash
 set -e
-testflo . -v -n 1  --coverage --coverpkg pyhyp
-cd examples
+cd tests
+./ref/get-ref-files.sh
+testflo . -v -n 1
+
+cd ../examples
 ls -l */*.cgns
