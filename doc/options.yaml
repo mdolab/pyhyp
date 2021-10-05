@@ -93,7 +93,7 @@ nodeTol:
 splay:
   desc: >
     Splay BC spreading factor.
-    This controls how far the floating edges splay outwards.
+    This controls how far the floating edges splay outwards and can be useful for increasing the volume overlap in overset meshes.
 
 splayEdgeOrthogonality:
   desc: >
@@ -160,9 +160,11 @@ nonLinear:
 
 slExp:
   desc: >
-    Exponent for the :math:`S_l` computation.
-    The :math:`S_l` value serves the same purpose as found in Section 6 of :ref:`Chan and Steger<pyhyp_theory>`, but the computation is different.
-    The :math:`S_l` computation in Chan is given as :math:`\sqrt{\frac{N-1}{l-1}}` for :math:`l > 2`.
+    Exponent used in the scaling function :math:`S_l`, which is computed as :math:`S_l = \left(\frac{\text{Distance from wall}}{\texttt{marchDist}}\right)^\texttt{slExp}`.
+    :math:`S_l` scales the explicit smoothing such that it is low near the wall to maintain orthogonality and high away from the wall to prevent crossing of grid lines in concave regions.
+    This is the same purpose as described in Section 6 of :ref:`Chan and Steger<pyhyp_theory>`, but the computation is different.
+    The exponent determines how quickly the smoothing ramps up as the extrusion moves away from the wall.
+    An exponent closer to zero will result in steeper ramping.
 
 ps0:
   desc: >
@@ -200,7 +202,7 @@ epsI:
 theta:
   desc: >
     Kinsey-Barth coefficient.
-    This provides additional implicit smoothing.
+    This provides additional implicit smoothing and is useful for preventing grid lines from crossing at concave corners.
     A single theta value is used for both in-plane directions.
     Typical values are ~2.0 to ~4.0.
     See Section 3 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
@@ -208,8 +210,9 @@ theta:
 volCoef:
   desc: >
     Coefficient used in point-Jacobi local volume smoothing algorithm.
-    Typically this value does not need to be modified.
-    Use more :py:data:`volSmoothIter` for stronger local smoothing.
+    The value should be between 0 and 1.
+    Larger values will result in a more uniform cell volume distribution.
+    Alternatively, use more :py:data:`volSmoothIter` for stronger local smoothing.
     See Section 5 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
 
 volBlend:
@@ -220,11 +223,17 @@ volBlend:
 
 volSmoothIter:
   desc: >
-    The number of point-Jacobi local volume smoothing iterations to perform.
+    The number of point-Jacobi local volume smoothing iterations to perform at each level.
+    More iterations will result in a more uniform cell volume distribution.
 
 volSmoothSchedule:
   desc: >
-    If provided, use a user-supplied volume smoothing schedule.
+    Define a piecewise linear schedule for volume smoothing iterations.
+    If provided, this supersedes :py:data:`volSmoothIter`.
+    This option is usually used to limit the number of smoothing iterations early in the extrusion to maintain orthogonality near the wall and ramp up the number of smoothing iterations later in the extrusion to achieve a more uniform cell volume distribution in the farfield.
+    An example of a smoothing schedule is ``"volSmoothSchedule": [[0, 10], [0.4, 50], [1.0, 100]]``.
+    In this example, the number of smoothing iterations increases linearly from 10 to 50 over the first 40% of grid levels.
+    For the remaining levels, the number of smoothing iterations increases linearly from 50 to 100.
 
 KSPRelTol:
   desc: >
