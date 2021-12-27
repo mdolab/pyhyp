@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 import re
 from os import path
 
@@ -22,9 +22,10 @@ setup(
     author_email="",
     url="https://github.com/mdolab/pyhyp",
     license="Apache License Version 2.0",
-    packages=[
-        "pyhyp",
-    ],
+    packages=find_packages(
+        where=".",
+        include=["pyhyp"],
+    ),
     package_data={"pyhyp": ["*.so"]},
     install_requires=[
         "numpy>=1.16",

@@ -1,7 +1,7 @@
 import os
-import subprocess
 import sys
 import unittest
+from mpi4py import MPI
 
 baseDir = os.path.dirname(os.path.abspath(__file__))
 refDir = os.path.join(baseDir, "ref")
@@ -23,14 +23,28 @@ class TestExamples(unittest.TestCase):
         absTol = marchDist * relTol
 
         # Run cgnsdiff and store the terminal output
-        output = subprocess.getoutput(f"cgnsdiff -d -t {absTol} {testFile} {refFile}")
+        # HACK: For some reason subprocess.run doesn't work here on the Intel image
+        # so we have to call os.system and then pipe the output to a temporary file
+        # we use self.id() to make these unique so there are no race conditions
+        # when tests are run in parallel
+        TEMPFILE = f"TEMP_{self.id()}.txt"
+        if MPI.COMM_WORLD.rank == 0:
+            cmd = f"cgnsdiff -d -t {absTol} {testFile} {refFile}"
+            os.system(f"{cmd} > {TEMPFILE}")
+            with open(TEMPFILE) as f:
+                output = f.read()
+            os.remove(TEMPFILE)
+        else:
+            output = None
+        # broadcast the output to all procs so we can assert on all procs
+        output = MPI.COMM_WORLD.bcast(output, root=0)
 
         # Assert that there is no diff
         try:
             self.assertEqual(output, "")
         # Or that only the CGNS version differs
         except AssertionError:
-            self.assertEqual(output, "/CGNSLibraryVersion <> /CGNSLibraryVersion : data values differ")
+            self.assertEqual(output, "/CGNSLibraryVersion <> /CGNSLibraryVersion : data values differ\n")
 
     def test_2D_euler(self):
         from examples.naca0012.naca0012_euler import volumeFile, hyp
