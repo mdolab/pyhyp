@@ -1,7 +1,7 @@
 # pyHyp
-[![Build Status](https://dev.azure.com/mdolab/Public/_apis/build/status/mdolab.pyhyp?branchName=master)](https://dev.azure.com/mdolab/Public/_build/latest?definitionId=13&branchName=master)
+[![Build Status](https://dev.azure.com/mdolab/Public/_apis/build/status/mdolab.pyhyp?branchName=main)](https://dev.azure.com/mdolab/Public/_build/latest?definitionId=13&branchName=main)
 [![Documentation Status](https://readthedocs.com/projects/mdolab-pyhyp/badge/?version=latest)](https://mdolab-pyhyp.readthedocs-hosted.com/en/latest)
-[![codecov](https://codecov.io/gh/mdolab/pyhyp/branch/master/graph/badge.svg?token=QJ9DFTGPYX)](https://codecov.io/gh/mdolab/pyhyp)
+[![codecov](https://codecov.io/gh/mdolab/pyhyp/branch/main/graph/badge.svg?token=QJ9DFTGPYX)](https://codecov.io/gh/mdolab/pyhyp)
 
 pyHyp uses hyperbolic volume mesh marching schemes to extrude structured surface meshes into volume meshes.
 pyHyp is used as a preprocessing step in the geometry and mesh-creation process prior to an optimization.
