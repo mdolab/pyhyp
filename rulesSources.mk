@@ -15,31 +15,31 @@
 #      *                                                                *
 #      ******************************************************************
 
-.F90.o:	Makefile
+%.o: %.F90
 	$(FF90) $(FF90_ALL_FLAGS) -c $< -o $(HYP_OBJDIR)/$(@F)
 	@echo
 	@echo "        --- Compiled $*.F90 successfully ---"
 	@echo
 
-.f90.o:	Makefile
+%.o: %.f90
 	$(FF90) $(FF90_ALL_FLAGS) -c $< -o $(HYP_OBJDIR)/$(@F)
 	@echo
 	@echo "        --- Compiled $*.f90 successfully ---"
 	@echo
 
-.f.o:	Makefile
+%.o: %.f
 	$(FF90) $(FF90_ALL_FLAGS) -c $< -o $(HYP_OBJDIR)/$(@F)
 	@echo
 	@echo "        --- Compiled $*.f successfully ---"
 	@echo
 
-.F.o:	Makefile
+%.o: %.F
 	$(FF90) $(FF90_ALL_FLAGS) -c $< -o $(HYP_OBJDIR)/$(@F)
 	@echo
 	@echo "        --- Compiled $*.f successfully ---"
 	@echo
 
-.c.o:   Makefile
+%.o: %.c
 	$(CC) $(CC_ALL_FLAGS) -c $< -o $(HYP_OBJDIR)/$(@F)
 	@echo
 	@echo "        --- Compiled $*.c successfully ---"
