@@ -889,7 +889,7 @@ subroutine setup(fileName, fileType)
      end do
 
      if (nAverage > 0) then
-        print *, 'Coner averaging activated for ', nAverage, ' nodes.'
+        print *, 'Corner averaging activated for ', nAverage, ' nodes.'
      end if
 
      ! Do a sanity check to make sure that all nodes have their
@@ -906,12 +906,12 @@ subroutine setup(fileName, fileType)
      ! their fullnPtr populated.
      do i=1, nUnique
         if (fullTopoType(i) == topoEdge .and. fullBCType(1, i) == BCDefault) then
-           print *, 'There was a boundary condition for edge node:',  uniquePts(:, i)
+           print *, 'There was a missing boundary condition for edge node:',  uniquePts(:, i)
            stop
 
         else if (fullTopoType(i) == topoCorner .and. (fullBCType(1, i) == BCDefault .or. &
              fullBCType(2, i) == BCDefault)) then
-           print *, 'There was a boundary condition for corner node:',  uniquePts(:, i)
+           print *, 'There was a missing boundary condition for corner node:',  uniquePts(:, i)
            stop
         end if
 
