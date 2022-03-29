@@ -27,6 +27,7 @@ from collections import OrderedDict
 from copy import deepcopy
 from baseclasses import BaseSolver
 from baseclasses.utils import Error
+from cgnsutilities.cgnsutilities import readGrid, combineGrids
 
 
 # =============================================================================
@@ -653,12 +654,10 @@ class pyHyp(BaseSolver):
 
         # Possibly perform autoconnect using cgns_utils
         if self.comm.rank == 0 and self.getOption("autoConnect"):
-            error = os.system("cgns_utils connect %s" % fileName)
-            if error:
-                raise Error(
-                    "system command 'cgns_utils connect' failed, \
-                            autoconnect was NOT performed"
-                )
+            grid = readGrid(fileName)
+            grid.connect()
+            grid.writeToCGNS(fileName)
+
         self.comm.barrier()
 
     def writeOutput(self, fileName=None, fileType=None):
