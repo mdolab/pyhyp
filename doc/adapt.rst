@@ -30,28 +30,32 @@ This grid was created using a surface mesh with 50 points around the airfoil and
     .. code-block:: python
 
        options = {
-              # ---------------------------
-              #        Input Parameters
-              # ---------------------------
-              'inputFile': 'rae2822.xyz',
-              'unattachedEdgesAreSymmetry': False,
-              'outerFaceBC': 'farfield',
-              'autoConnect': True,
-              'BC': {1: {'jLow': 'zSymm',
-                         'jHigh': 'zSymm'}},
-              'families': 'wall',
-              # ---------------------------
-              #        Grid Parameters
-              # ---------------------------
-              'N': 31,
-              's0': 4e-5,
-              'marchDist': 100.,  
-              'nConstantStart': 1,
-              # ---------------------------
-              #   Pseudo Grid Parameters
-              # ---------------------------
-              'cMax': 3.0,
-          }
+           # ---------------------------
+           #        Input Parameters
+           # ---------------------------
+           "inputFile": "rae2822.xyz",
+           "unattachedEdgesAreSymmetry": False,
+           "outerFaceBC": "farfield",
+           "autoConnect": True,
+           "BC": {
+               1: {
+                   "jLow": "zSymm",
+                   "jHigh": "zSymm",
+               }
+           },
+           "families": "wall",
+           # ---------------------------
+           #        Grid Parameters
+           # ---------------------------
+           "N": 31,
+           "s0": 4e-5,
+           "marchDist": 100.0,
+           "nConstantStart": 1,
+           # ---------------------------
+           #   Pseudo Grid Parameters
+           # ---------------------------
+           "cMax": 3.0,
+       }
 
 There are a few ways to try and fix this problem with the grid. 
 The first thing to check is to make sure that :py:data:`cMax` is set to 1.
@@ -84,26 +88,30 @@ Much better!
     .. code-block:: python
 
        options = {
-              # ---------------------------
-              #        Input Parameters
-              # ---------------------------
-              'inputFile': 'rae2822.xyz',
-              'unattachedEdgesAreSymmetry': False,
-              'outerFaceBC': 'farfield',
-              'autoConnect': True,
-              'BC': {1: {'jLow': 'zSymm',
-                         'jHigh': 'zSymm'}},
-              'families': 'wall',
-              # ---------------------------
-              #        Grid Parameters
-              # ---------------------------
-              'N': 31,
-              's0': 1e-3,
-              'marchDist': 100.,  
-              'nConstantStart': 1,
-              # ---------------------------
-              #   Pseudo Grid Parameters
-              # ---------------------------
-              'cMax': 1.0,
-          }
+           # ---------------------------
+           #        Input Parameters
+           # ---------------------------
+           "inputFile": "rae2822.xyz",
+           "unattachedEdgesAreSymmetry": False,
+           "outerFaceBC": "farfield",
+           "autoConnect": True,
+           "BC": {
+               1: {
+                   "jLow": "zSymm",
+                   "jHigh": "zSymm",
+               }
+           },
+           "families": "wall",
+           # ---------------------------
+           #        Grid Parameters
+           # ---------------------------
+           "N": 31,
+           "s0": 1e-3,
+           "marchDist": 100.0,
+           "nConstantStart": 1,
+           # ---------------------------
+           #   Pseudo Grid Parameters
+           # ---------------------------
+           "cMax": 1.0,
+       }
 

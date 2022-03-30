@@ -9,7 +9,7 @@ Here is an example of a dictionary that can be used with :py:data:`BC`:
 
 .. code-block:: python
 
-   "BC":{1:{"iLow":"ySymm"}, 3:{"jHigh":"splay", "iHigh":"xConst"}}
+   "BC": {1: {"iLow": "ySymm"}, 3: {"jHigh": "splay", "iHigh": "xConst"}}
 
 Each entry in the dictionary has a key and at least one nested key-value pair.
 The key is the 1-based block number, the nested key is the boundary edge specification, and the value is the boundary condition.
