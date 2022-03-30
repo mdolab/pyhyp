@@ -52,24 +52,30 @@ class pyHypMulti(object):
 
             .. code-block:: python
 
-               options = {'epsE':4.0,
-                          'epsI':8.0,
-                          'outputFile':'corner_hyp.cgns',
-                          'skip':False}
+               options = {
+                   "epsE": 4.0,
+                   "epsI": 8.0,
+                   "outputFile": "corner_hyp.cgns",
+                   "skip": False,
+               }
 
             We can set a list of dictionaries as input:
 
             .. code-block:: python
 
-               options1 = {'epsE':4.0,
-                           'epsI':8.0,
-                           'outputFile':'corner1_hyp.cgns',
-                           'skip':False}
-               options2 = 'cartesian.cgns'
-               options3 = {'epsE':2.0,
-                           'epsI':4.0,
-                           'outputFile':'corner2_hyp.cgns',
-                           'skip':False}
+               options1 = {
+                   "epsE": 4.0,
+                   "epsI": 8.0,
+                   "outputFile": "corner1_hyp.cgns",
+                   "skip": False,
+               }
+               options2 = "cartesian.cgns"
+               options3 = {
+                   "epsE": 2.0,
+                   "epsI": 4.0,
+                   "outputFile": "corner2_hyp.cgns",
+                   "skip": False,
+               }
                options = [options1, options2, options3]
 
             Alternatively, we can set an ORDERED dictionary of dictionaries as input:
@@ -77,16 +83,21 @@ class pyHypMulti(object):
             .. code-block:: python
 
                from collections import OrderedDict
+
                options = OrderedDict()
-               options{'case1'} = {'epsE':4.0,
-                                   'epsI':8.0,
-                                   'outputFile':'corner1_hyp.cgns',
-                                   'skip':False}
-               options{'block'} = 'cartesian.cgns'
-               options{'case2'} = {'epsE':2.0,
-                                   'epsI':4.0,
-                                   'outputFile':'corner2_hyp.cgns',
-                                   'skip':False}
+               options["case1"] = {
+                   "epsE": 4.0,
+                   "epsI": 8.0,
+                   "outputFile": "corner1_hyp.cgns",
+                   "skip": False,
+               }
+               options["block"] = "cartesian.cgns"
+               options["case2"] = {
+                   "epsE": 2.0,
+                   "epsI": 4.0,
+                   "outputFile": "corner2_hyp.cgns",
+                   "skip": False,
+               }
 
             Each element of the list/dictionary will be considered as a different case.
             One of the elements can be a string specifying a CGNS file that should be combined
