@@ -99,3 +99,8 @@ class TestExamples(unittest.TestCase):
 
         marchDist = commonOptions["marchDist"]
         self.common_test(volumeFile, marchDist)
+
+    def test_simpleOCart(self):
+        from examples.simpleOCart.runSimpleOCart import outFile, hExtra
+
+        self.common_test(outFile, hExtra)
