@@ -30,14 +30,20 @@ class TestExamples(unittest.TestCase):
         TEMPFILE = f"TEMP_{self.id()}.txt"
         if MPI.COMM_WORLD.rank == 0:
             cmd = f"cgnsdiff -d -t {absTol} {testFile} {refFile}"
-            os.system(f"{cmd} > {TEMPFILE}")
+            exitCode = os.system(f"{cmd} > {TEMPFILE}")
             with open(TEMPFILE) as f:
                 output = f.read()
             os.remove(TEMPFILE)
         else:
+            exitCode = None
             output = None
-        # broadcast the output to all procs so we can assert on all procs
+
+        # Broadcast the output to all procs so we can assert on all procs
+        x = MPI.COMM_WORLD.bcast(exitCode, root=0)
         output = MPI.COMM_WORLD.bcast(output, root=0)
+
+        # Check that cgnsdiff ran properly
+        self.assertEqual(x, 0)
 
         # Assert that there is no diff
         try:
