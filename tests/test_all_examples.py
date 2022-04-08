@@ -39,11 +39,11 @@ class TestExamples(unittest.TestCase):
             output = None
 
         # Broadcast the output to all procs so we can assert on all procs
-        x = MPI.COMM_WORLD.bcast(exitCode, root=0)
+        exitCode = MPI.COMM_WORLD.bcast(exitCode, root=0)
         output = MPI.COMM_WORLD.bcast(output, root=0)
 
         # Check that cgnsdiff ran properly
-        self.assertEqual(x, 0)
+        self.assertEqual(exitCode, 0)
 
         # Assert that there is no diff
         try:
