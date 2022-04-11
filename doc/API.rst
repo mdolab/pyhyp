@@ -9,3 +9,5 @@ pyHyp API
 
 .. autoclass:: pyhyp.pyHyp.pyHypMulti
    :members:
+
+.. autofunction:: pyhyp.utils.simpleOCart
