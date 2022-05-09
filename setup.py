@@ -11,6 +11,9 @@ this_directory = path.abspath(path.dirname(__file__))
 with open(path.join(this_directory, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
+with open("doc/requirements.txt") as f:
+    docs_require = f.read().splitlines()
+
 setup(
     name="pyhyp",
     version=__version__,
@@ -31,7 +34,11 @@ setup(
         "numpy>=1.16",
         "mpi4py>=3.0",
         "mdolab-baseclasses>=1.3",
+        "cgnsutilities>=2.5",
     ],
-    extras_require={"testing": ["pygeo>=1.5", "cgnsutilities>=2.5", "testflo"]},
+    extras_require={
+        "docs": docs_require,
+        "testing": ["pygeo>=1.5", "testflo"],
+    },
     classifiers=["Operating System :: Linux", "Programming Language :: Python, Fortran"],
 )

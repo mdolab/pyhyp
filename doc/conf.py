@@ -21,4 +21,4 @@ extensions.extend(["numpydoc"])
 numpydoc_show_class_members = False
 
 # mock import for autodoc
-autodoc_mock_imports = ["numpy", "mpi4py", "baseclasses"]
+autodoc_mock_imports = ["numpy", "mpi4py", "baseclasses", "cgnsutilities"]
