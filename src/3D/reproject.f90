@@ -1,37 +1,35 @@
 subroutine allocateSurfaces(nSurf)
 
-  use bspline
-  implicit none
+    use bspline
+    implicit none
 
-  integer(kind=intType), intent(in) :: nSurf
-  allocate(surfs(nsurf))
+    integer(kind=intType), intent(in) :: nSurf
+    allocate (surfs(nsurf))
 
 end subroutine allocateSurfaces
 
 subroutine setSurface(iSurf, ku, kv, tu, tv, coef, nCtlu, nCtlv)
-  use bspline
-  implicit none
+    use bspline
+    implicit none
 
-  ! Set the supplied surface data into the specified slot
-  integer(kind=intType), intent(in) :: ku, kv, nCtlu, nCtlv, iSurf
-  real(kind=realType), intent(in), dimension(nctlu+ku) :: tu
-  real(kind=realType), intent(in), dimension(nctlv+kv) :: tv
-  real(kind=realType), intent(in), dimension(3, nctlv, nctlu) :: coef
+    ! Set the supplied surface data into the specified slot
+    integer(kind=intType), intent(in) :: ku, kv, nCtlu, nCtlv, iSurf
+    real(kind=realType), intent(in), dimension(nctlu + ku) :: tu
+    real(kind=realType), intent(in), dimension(nctlv + kv) :: tv
+    real(kind=realType), intent(in), dimension(3, nctlv, nctlu) :: coef
 
-  allocate(surfs(iSurf)%tu(nctlu+ku))
-  allocate(surfs(iSurf)%tv(nctlv+kv))
-  allocate(surfs(iSurf)%coef(3, nctlv, nctlu))
+    allocate (surfs(iSurf)%tu(nctlu + ku))
+    allocate (surfs(iSurf)%tv(nctlv + kv))
+    allocate (surfs(iSurf)%coef(3, nctlv, nctlu))
 
-  ! Now set the data
-  surfs(iSurf)%ku = ku
-  surfs(iSurf)%kv = kv
-  surfs(iSurf)%tu = tu
-  surfs(iSurf)%tv = tv
-  surfs(iSurf)%coef = coef
+    ! Now set the data
+    surfs(iSurf)%ku = ku
+    surfs(iSurf)%kv = kv
+    surfs(iSurf)%tu = tu
+    surfs(iSurf)%tv = tv
+    surfs(iSurf)%coef = coef
 
 end subroutine setSurface
-
-
 
 ! recursive subroutine getQuad(surf, uLow, uHigh, vLow, vHigh, tol)
 !   !***DESCRIPTION
@@ -39,7 +37,7 @@ end subroutine setSurface
 !   !     Written by Gaetan Kenway
 !   !
 !   !     Abstract: getQuad is the main (recursive) subroutine for
-!   !     adaptively "meshing" a b-spline surface patch to a given tolerance. 
+!   !     adaptively "meshing" a b-spline surface patch to a given tolerance.
 !   !
 !   !     Description of Arguments
 !   !     Input
@@ -65,7 +63,7 @@ end subroutine setSurface
 
 !   ! Step 1: Evaluate the 4 corners:
 !   call evalSurface(surf, (/uLow, uHigh, uHigh, uLow/), &
-!        (/vLow, vLow, vHigh, vHigh/), 4, corners) 
+!        (/vLow, vLow, vHigh, vHigh/), 4, corners)
 
 !   ! Step 2: Evaluate the approximate midPts from the previously computed corners
 !   do i=1, 4
@@ -97,7 +95,7 @@ end subroutine setSurface
 !   ! Step 5: Determine if quad is OK or we have to recursively call
 !   ! ourself with smaller ranges:
 
-!   if (.not. splitU .and. .not. splitV) then 
+!   if (.not. splitU .and. .not. splitV) then
 !      ! This quad is ok...add it to the list:
 !      nElements = nElements + 1
 !      do i=1,4
@@ -107,7 +105,7 @@ end subroutine setSurface
 !      nNodes = nNodes + 4
 !   else
 !      ! Otherwise we have to split 4 ways or two ways:
-!      if (splitU .and. splitV) then 
+!      if (splitU .and. splitV) then
 !         call getQuad(surf, uLow, uMid, vLow, vMid, tol)
 !         call getQuad(surf, uMid, uHigh, vLow, vMid, tol)
 !         call getQuad(surf, uLow, uMid , vMid, vHigh, tol)
