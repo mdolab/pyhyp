@@ -2,11 +2,11 @@ import os
 import tempfile
 import numpy as np
 from mpi4py import MPI
-from cgnsutilities.cgnsutilities import readGrid, Block
+from cgnsutilities.cgnsutilities import readGrid, Block, simpleCart
 from .pyHyp import pyHyp
 
 
-def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions=None):
+def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions=None, xBounds=None, useFarfield=True):
     """
     Generates a Cartesian mesh around the provided grid, surrounded by an O-mesh.
 
@@ -40,13 +40,31 @@ def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions
     userOptions : dict, optional
         The name of the nearfield CGNS file to mesh around.
 
+    xBounds : array (2 x 3)
+        optional bounding box coordinates desired for the center cartesian grid.
+        It can be obtained by:
+            xMin, xMax = grid.getBoundingBox()
+        and then the xBounds array can be set as
+            xBounds = [xMin, xMax]
+        this is useful for modifying the xmin and xmax values rather than just using
+        the bounding box of the grid.
+
+    useFarfield : bool
+        optional flag to control the outermost layer's BC. Default, True, will result
+        in a farfield outer layer, setting this to false does overset BCs
+        on the outermost layer
+
     """
 
     # Read the nearfield file
     grid = readGrid(nearFile)
 
-    # First run simpleCart with no extension
-    X, dx = grid.simpleCart(dh, 0.0, 0, sym, mgcycle, outFile=None)
+    if xBounds is None:
+        # we will automatically determine the bounding box
+        X, dx = grid.simpleCart(dh, 0.0, 0, sym, mgcycle, outFile=None)
+    else:
+        # we are provided the bounding box, skip to the generic simple cart routine
+        X, dx = simpleCart(xBounds[0], xBounds[1], dh, 0, 0, sym, mgcycle, outFile=None)
 
     # Pull out the patches from the Cartesian mesh.
     # We have to pay attention to the symmetry and the ordering of the patches
@@ -73,7 +91,7 @@ def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions
     hypOptions = {
         "patches": patches,
         "unattachedEdgesAreSymmetry": True,
-        "outerFaceBC": "farfield",
+        "outerFaceBC": "farfield",  # this is not important because it gets overwritten later anyways
         "autoConnect": True,
         "BC": {},
         "N": nExtra,
@@ -113,7 +131,10 @@ def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions
         grid.renameBlocks()
         grid.connect()
         grid.BCs = []
-        grid.autoFarfieldBC(sym)
+        if useFarfield:
+            grid.autoFarfieldBC(sym)
+        else:
+            grid.autoNearfieldBC(sym)
         grid.writeToCGNS(outFile)
 
         # Delete the temp file
