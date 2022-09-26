@@ -2,18 +2,20 @@ import os
 import tempfile
 import numpy as np
 from mpi4py import MPI
-from cgnsutilities.cgnsutilities import readGrid, Block, simpleCart
+from cgnsutilities.cgnsutilities import readGrid, Block, simpleCart, Grid
 from .pyHyp import pyHyp
 
 
-def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions=None, xBounds=None, useFarfield=True):
+def simpleOCart(inputGrid, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions=None, xBounds=None, useFarfield=True):
     """
     Generates a Cartesian mesh around the provided grid, surrounded by an O-mesh.
 
     Parameters
     ----------
-    nearFile : str
-        The name of the nearfield CGNS file to mesh around.
+    inputGrid : cgnsutils Grid object or str
+        If a cgnsutils Grid object is provided, we use it as is.
+        Alternatively if a string is provided, we treat it as
+        the name of the nearfield CGNS file to mesh around.
 
     dh : float or list of float
         The target edge length of each cell in the Cartesian part of the mesh.
@@ -38,7 +40,7 @@ def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions
         Output file name.
 
     userOptions : dict, optional
-        The name of the nearfield CGNS file to mesh around.
+        Custom pyhyp options to be used with this extrusion.
 
     xBounds : array (2 x 3)
         optional bounding box coordinates desired for the center cartesian grid.
@@ -56,12 +58,18 @@ def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions
 
     """
 
-    # Read the nearfield file
-    grid = readGrid(nearFile)
+    # check if we have a grid object as input or the filename
+    if type(inputGrid) == Grid:
+        # use the grid object as is
+        pass
+    elif type(inputGrid) == str:
+        # Read the nearfield file
+        input_filename = inputGrid
+        inputGrid = readGrid(input_filename)
 
     if xBounds is None:
         # we will automatically determine the bounding box
-        X, dx = grid.simpleCart(dh, 0.0, 0, sym, mgcycle, outFile=None)
+        X, dx = inputGrid.simpleCart(dh, 0.0, 0, sym, mgcycle, outFile=None)
     else:
         # we are provided the bounding box, skip to the generic simple cart routine
         X, dx = simpleCart(xBounds[0], xBounds[1], dh, 0, 0, sym, mgcycle, outFile=None)
@@ -125,17 +133,17 @@ def simpleOCart(nearFile, dh, hExtra, nExtra, sym, mgcycle, outFile, userOptions
 
     if MPI.COMM_WORLD.rank == 0:
         # Read the pyhyp mesh back in and add our additional "X" from above.
-        grid = readGrid(fName)
+        simple_ocart_grid = readGrid(fName)
         dims = X.shape[0:3]
-        grid.addBlock(Block("interiorBlock", dims, X))
-        grid.renameBlocks()
-        grid.connect()
-        grid.BCs = []
+        simple_ocart_grid.addBlock(Block("interiorBlock", dims, X))
+        simple_ocart_grid.renameBlocks()
+        simple_ocart_grid.connect()
+        simple_ocart_grid.BCs = []
         if useFarfield:
-            grid.autoFarfieldBC(sym)
+            simple_ocart_grid.autoFarfieldBC(sym)
         else:
-            grid.autoNearfieldBC(sym)
-        grid.writeToCGNS(outFile)
+            simple_ocart_grid.autoNearfieldBC(sym)
+        simple_ocart_grid.writeToCGNS(outFile)
 
         # Delete the temp file
         os.remove(fName)
