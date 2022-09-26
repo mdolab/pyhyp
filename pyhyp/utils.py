@@ -2,6 +2,7 @@ import os
 import tempfile
 import numpy as np
 from mpi4py import MPI
+from baseclasses.utils import Error
 from cgnsutilities.cgnsutilities import readGrid, Block, simpleCart, Grid
 from .pyHyp import pyHyp
 
@@ -40,32 +41,38 @@ def simpleOCart(inputGrid, dh, hExtra, nExtra, sym, mgcycle, outFile, userOption
         Output file name.
 
     userOptions : dict, optional
-        Custom pyhyp options to be used with this extrusion.
+        Custom pyhyp options to be used with this extrusion. If overset BCs are desired
+        on the outer face, do not set it in this dictionary because after extrusion
+        we overwrite all BCs on the combined grid. See the option useFarfield
+        below. The default value (True) results in farfield BCs on the outer face,
+        and setting it to false results in overset for the far face. Other pyhyp extrusion
+        parameters can be set here.
 
-    xBounds : array (2 x 3)
-        optional bounding box coordinates desired for the center cartesian grid.
-        It can be obtained by:
-            xMin, xMax = grid.getBoundingBox()
-        and then the xBounds array can be set as
-            xBounds = [xMin, xMax]
-        this is useful for modifying the xmin and xmax values rather than just using
-        the bounding box of the grid.
+    xBounds : array (2 x 3), optional
+        Optional bounding box coordinates desired for the center cartesian grid.
+        The default value can be obtained by: ``xMin, xMax = grid.getBoundingBox()``,
+        and then the xBounds array can be set as ``xBounds = [xMin, xMax]``. This option
+        allows users to modify the bounding box coordinates rather than simply defaulting
+        to the bounding box of the nearfield grid.
 
-    useFarfield : bool
-        optional flag to control the outermost layer's BC. Default, True, will result
-        in a farfield outer layer, setting this to false does overset BCs
-        on the outermost layer
+    useFarfield : bool, optional
+        Optional flag to control the outermost layer's BC. Default, ``True``, will result
+        in a farfield outer layer, setting this to ``False`` does overset BCs on the
+        outermost layer
 
     """
 
     # check if we have a grid object as input or the filename
-    if type(inputGrid) == Grid:
-        # use the grid object as is
-        pass
-    elif type(inputGrid) == str:
+    if type(inputGrid) == str:
         # Read the nearfield file
         input_filename = inputGrid
         inputGrid = readGrid(input_filename)
+    # if the input grid is not provided as a filename, it must be a Grid instance
+    elif type(inputGrid) != Grid:
+        # if not, raise an error
+        raise Error(
+            "The inputGrid to simpleOCart must either be the filename of the nearfield grid or a Grid type object from cgnsutilities."
+        )
 
     if xBounds is None:
         # we will automatically determine the bounding box
@@ -99,7 +106,6 @@ def simpleOCart(inputGrid, dh, hExtra, nExtra, sym, mgcycle, outFile, userOption
     hypOptions = {
         "patches": patches,
         "unattachedEdgesAreSymmetry": True,
-        "outerFaceBC": "farfield",  # this is not important because it gets overwritten later anyways
         "autoConnect": True,
         "BC": {},
         "N": nExtra,
