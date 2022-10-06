@@ -57,7 +57,7 @@ all:
 
 	$(FF90) $(FF90_ALL_FLAGS) -I$(HYP_MODDIR) -c hyp-f2pywrappers2.f90
 	$(FF90) -shared $(PYTHON_OBJECTS) $(LINKER_ALL_FLAGS) -o hyp.so
-	$(PYTHON) importTest.py
+	$(PYTHON) importTest.py hyp.so
 
 	mv hyp.so ../../../pyhyp
 # Clean up temporary files
