@@ -40,7 +40,6 @@ class pyHypMulti(object):
     """
 
     def __init__(self, comm=None, options=None, commonOptions=None, debug=False, skipList=[]):
-
         """
         The inititalization method will setup, run, and write all the results.
 
@@ -166,11 +165,9 @@ class pyHypMulti(object):
 
         # Loop over all elements in the options list
         for optionName in optionsDict:
-
             options = optionsDict[optionName]
 
             if type(options) is str:
-
                 # Just set up relationships to combine it with the other grids
                 # later on
                 self.results["name"][index] = optionName
@@ -213,7 +210,6 @@ class pyHypMulti(object):
                 index = index + 1
 
             elif type(options) is dict:
-
                 # Only the root processor will print
                 if myid == 0:
                     print("")
@@ -256,7 +252,6 @@ class pyHypMulti(object):
 
         # Only the root processor will print
         if myid == 0:
-
             print("")
             print("")
             print("")
@@ -270,7 +265,6 @@ class pyHypMulti(object):
             print("+----+-----------------------+-----------+-------------------+------------------+")
 
             for index in range(self.numGrids):
-
                 # Crop filename
                 try:
                     filename = self.results["name"][index][:21]
@@ -341,7 +335,6 @@ class pyHypMulti(object):
 
         # Run cgnsUtilities on the root processor
         if self.comm.rank == 0:
-
             # Add generated grids that we do not want to skip
             selectedGrids = []
             gridList = []
@@ -491,7 +484,6 @@ class pyHyp(BaseSolver):
                     )
                 BCToSet = BCs[blkBC][edgeKey].lower()
                 if BCToSet.lower() not in BCMap.keys():
-
                     raise Error(
                         "Boundary condition specification unknown. Must be one of: "
                         "'splay', 'xSymm', 'ySymm', 'zSymm', "
