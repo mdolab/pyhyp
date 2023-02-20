@@ -8,7 +8,6 @@ refDir = os.path.join(baseDir, "ref")
 
 
 class TestExamples(unittest.TestCase):
-
     N_PROCS = 2
 
     def setUp(self):
