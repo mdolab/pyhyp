@@ -67,6 +67,13 @@ def simpleOCart(inputGrid, dh, hExtra, nExtra, sym, mgcycle, outFile, userOption
         # Read the nearfield file
         input_filename = inputGrid
         inputGrid = readGrid(input_filename)
+    # the input Grid can be None, in this acse, we must have xBounds
+    elif inputGrid is None:
+        # make sure we have xbounds
+        if xBounds is None:
+            raise Error(
+                "If the inputGrid is None, xBounds must be provided"
+            )
     # if the input grid is not provided as a filename, it must be a Grid instance
     elif type(inputGrid) != Grid:
         # if not, raise an error
