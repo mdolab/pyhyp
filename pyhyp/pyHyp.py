@@ -587,6 +587,7 @@ class pyHyp(BaseSolver):
             "marchDist": [float, 50.0],
             "nodeTol": [float, 1e-8],
             "splay": [float, 0.25],
+            "splaySchedule": [(list, type(None)), None],
             "splayEdgeOrthogonality": [float, 0.1],
             "splayCornerOrthogonality": [float, 0.2],
             "cornerAngle": [float, 60.0],
@@ -613,10 +614,14 @@ class pyHyp(BaseSolver):
             "epsE": [float, 1.0],
             "epsI": [float, 2.0],
             "theta": [float, 3.0],
+            "epsESchedule": [(list, type(None)), None],
+            "epsISchedule": [(list, type(None)), None],
+            "thetaSchedule": [(list, type(None)), None],
             "volCoef": [float, 0.25],
             "volBlend": [float, 0.0001],
             "volSmoothIter": [int, 100],
             "volSmoothSchedule": [(list, type(None)), None],
+            "volBlendSchedule": [(list, type(None)), None],
             # -------------------------------
             #   Solution Parameters (Common)
             # -------------------------------
@@ -764,14 +769,30 @@ class pyHyp(BaseSolver):
         f = self.getOption("sourceStrengthFile")
         self.hyp.hypinput.sourcestrengthfile = self._expandString(f)
 
-        sch = self.getOption("volSmoothSchedule")
-        if sch is not None:
-            sch = numpy.array(sch, "d")
-            # Make sure its normalized
-            low = sch[0, 0]
-            high = sch[-1, 0]
-            sch[:, 0] = (sch[:, 0] - low) / (high - low)
-            self.hyp.hypinput.volsmoothschedule = sch
+        # initialize the schedule parameters
+        scheduleVarList = ["volSmooth", "volBlend", "epsE", "epsI", "theta", "splay"]
+
+        for scheduleVar in scheduleVarList:
+            scheduleInput = self.getOption(f"{scheduleVar}Schedule")
+
+            if scheduleInput is not None:
+                scheduleInput = numpy.array(scheduleInput, "d")
+                # Make sure its normalized
+                low = scheduleInput[0, 0]
+                high = scheduleInput[-1, 0]
+                scheduleInput[:, 0] = (scheduleInput[:, 0] - low) / (high - low)
+                if scheduleVar == "volSmooth":
+                    self.hyp.hypinput.volsmoothschedule = scheduleInput
+                elif scheduleVar == "volBlend":
+                    self.hyp.hypinput.volblendschedule = scheduleInput
+                elif scheduleVar == "epsE":
+                    self.hyp.hypinput.epseschedule = scheduleInput
+                elif scheduleVar == "epsI":
+                    self.hyp.hypinput.epsischedule = scheduleInput
+                elif scheduleVar == "theta":
+                    self.hyp.hypinput.thetaschedule = scheduleInput
+                elif scheduleVar == "splay":
+                    self.hyp.hypinput.splayschedule = scheduleInput
 
     def _expandString(self, s):
         """Expand a supplied string 's' to be of the constants.maxstring

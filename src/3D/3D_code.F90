@@ -15,6 +15,9 @@ subroutine runHyperbolic
     integer(kind=intType) :: i, ierr, idim, l, reason
     real(kind=realType) :: tmp
 
+    ! initialize the scheduled inputs
+    call computeScheduledVariables(1)
+
     call calcGridRatio(N, nConstantStart, nConstantEnd, s0, marchDist, gridRatio)
 
     ! Defaults/Error checking
@@ -73,6 +76,9 @@ subroutine runHyperbolic
 
         ! Compute the how far this layer should go:
         call computeStretch(L)
+
+        ! compute the scheduled parameters
+        call computeScheduledVariables(marchIter)
 
         ! Run the "initial guess" function. If the user is running in
         ! 'linear' mode this is all that is done. This function computes
@@ -257,28 +263,9 @@ subroutine volumeSmooth
 
     ! Working Parameters
     real(kind=realType) :: factor, nNeighbors, vSum, frac, low, high, frac2
-    integer(kind=intType) :: i, iSize, iter, ierr, ii, jj, nIter
+    integer(kind=intType) :: i, iSize, iter, ierr, ii, jj
     real(kind=realType), allocatable, dimension(:) :: Vtmp
     logical :: search
-
-    if (allocated(volSmoothSchedule)) then
-        ! We need to determine how many smoothing iterations to do by
-        ! interpolating the volumeSmoothing Schedule
-        frac = (marchIter - one) / (N - 1)
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(volSmoothSchedule, 1) - 1
-            if (frac >= volSmoothSchedule(i, 1) .and. frac <= volSmoothSchedule(i + 1, 1)) then
-                frac2 = (frac - volSmoothSchedule(i, 1)) / &
-                        (volSmoothSchedule(i + 1, 1) - volSmoothSchedule(i, 1))
-                low = volSmoothSchedule(i, 2)
-                high = volSmoothSchedule(i + 1, 2)
-                nIter = int(low + frac2 * (high - low))
-            end if
-        end do
-    else
-        nIter = volSmoothIter
-    end if
 
     ! Do a Jacobi volume smooth
     call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
@@ -289,7 +276,7 @@ subroutine volumeSmooth
 
     call VecGetArrayF90(VolumeLocal, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
-    do iter = 1, nIter
+    do iter = 1, volSmoothIter
 
         ! Copy vptr to vtmp
         do i = 1, isize
@@ -335,6 +322,111 @@ subroutine volumeSmooth
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine volumeSmooth
+
+subroutine computeScheduledVariables(curIter)
+    use hypInput
+    implicit none
+
+    integer(kind=intType), intent(in) :: curIter
+
+    integer(kind=intType) :: i
+    real(kind=realType) :: frac, low, high, frac2
+
+    ! TODO convert the duplicated code to a pointer based select case
+
+    if (allocated(volSmoothSchedule)) then
+        ! We need to determine how many smoothing iterations to do by
+        ! interpolating the volumeSmoothing Schedule
+        frac = (curIter - one) / (N - 1)
+
+        ! Just do a linear search for the bin:
+        do i = 1, size(volSmoothSchedule, 1) - 1
+            if (frac >= volSmoothSchedule(i, 1) .and. frac <= volSmoothSchedule(i + 1, 1)) then
+                frac2 = (frac - volSmoothSchedule(i, 1)) / &
+                        (volSmoothSchedule(i + 1, 1) - volSmoothSchedule(i, 1))
+                low = volSmoothSchedule(i, 2)
+                high = volSmoothSchedule(i + 1, 2)
+                volSmoothIter = int(low + frac2 * (high - low))
+            end if
+        end do
+    end if
+
+    if (allocated(volBlendSchedule)) then
+        frac = (curIter - one) / (N - 1)
+
+        ! Just do a linear search for the bin:
+        do i = 1, size(volBlendSchedule, 1) - 1
+            if (frac >= volBlendSchedule(i, 1) .and. frac <= volBlendSchedule(i + 1, 1)) then
+                frac2 = (frac - volBlendSchedule(i, 1)) / &
+                        (volBlendSchedule(i + 1, 1) - volBlendSchedule(i, 1))
+                low = volBlendSchedule(i, 2)
+                high = volBlendSchedule(i + 1, 2)
+                volBlend = low + frac2 * (high - low)
+            end if
+        end do
+    end if
+
+    if (allocated(splaySchedule)) then
+        frac = (curIter - one) / (N - 1)
+
+        ! Just do a linear search for the bin:
+        do i = 1, size(splaySchedule, 1) - 1
+            if (frac >= splaySchedule(i, 1) .and. frac <= splaySchedule(i + 1, 1)) then
+                frac2 = (frac - splaySchedule(i, 1)) / &
+                        (splaySchedule(i + 1, 1) - splaySchedule(i, 1))
+                low = splaySchedule(i, 2)
+                high = splaySchedule(i + 1, 2)
+                splay = low + frac2 * (high - low)
+            end if
+        end do
+    end if
+
+    if (allocated(epsESchedule)) then
+        frac = (curIter - one) / (N - 1)
+
+        ! Just do a linear search for the bin:
+        do i = 1, size(epsESchedule, 1) - 1
+            if (frac >= epsESchedule(i, 1) .and. frac <= epsESchedule(i + 1, 1)) then
+                frac2 = (frac - epsESchedule(i, 1)) / &
+                        (epsESchedule(i + 1, 1) - epsESchedule(i, 1))
+                low = epsESchedule(i, 2)
+                high = epsESchedule(i + 1, 2)
+                epsE = low + frac2 * (high - low)
+            end if
+        end do
+    end if
+
+    if (allocated(epsISchedule)) then
+        frac = (curIter - one) / (N - 1)
+
+        ! Just do a linear search for the bin:
+        do i = 1, size(epsISchedule, 1) - 1
+            if (frac >= epsISchedule(i, 1) .and. frac <= epsISchedule(i + 1, 1)) then
+                frac2 = (frac - epsISchedule(i, 1)) / &
+                        (epsISchedule(i + 1, 1) - epsISchedule(i, 1))
+                low = epsISchedule(i, 2)
+                high = epsISchedule(i + 1, 2)
+                epsI = low + frac2 * (high - low)
+            end if
+        end do
+    end if
+
+    if (allocated(thetaSchedule)) then
+        frac = (curIter - one) / (N - 1)
+
+        ! Just do a linear search for the bin:
+        do i = 1, size(thetaSchedule, 1) - 1
+            if (frac >= thetaSchedule(i, 1) .and. frac <= thetaSchedule(i + 1, 1)) then
+                frac2 = (frac - thetaSchedule(i, 1)) / &
+                        (thetaSchedule(i + 1, 1) - thetaSchedule(i, 1))
+                low = thetaSchedule(i, 2)
+                high = thetaSchedule(i + 1, 2)
+                theta = low + frac2 * (high - low)
+            end if
+        end do
+    end if
+
+end subroutine computeScheduledVariables
 
 subroutine initialGuess(Xnew)
     !***DESCRIPTION

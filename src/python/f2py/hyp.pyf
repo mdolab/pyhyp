@@ -4,8 +4,11 @@ python module hyp ! in
         module hypinput ! in :hyp:hypInput.f90
             use precision
             real(kind=realtype) :: epse
+            real(kind=realtype), dimension(:, :), allocatable :: epseschedule
             real(kind=realtype) :: epsi
+            real(kind=realtype), dimension(:, :), allocatable :: epsischedule
             real(Kind=realtype) :: theta
+            real(kind=realtype), dimension(:, :), allocatable :: thetaschedule
             real(kind=realtype) :: s0
             real(kind=realtype) :: ps0
             real(kind=realtype) :: pgridratio
@@ -19,6 +22,7 @@ python module hyp ! in
             real(kind=realtype) :: volcoef
             real(kind=realtype) :: volblend
             real(kind=realtype) :: splay
+            real(kind=realtype), dimension(:, :), allocatable :: splayschedule
             real(kind=realtype) :: splayedgeorthogonality
             real(kind=realtype) :: splaycornerorthogonality
             real(kind=realtype) :: kspreltol
@@ -62,6 +66,7 @@ python module hyp ! in
             integer(kind=inttype), parameter:: outerfaceoverset = 2
             integer(kind=inttype), dimension(:, :), allocatable :: bcs
             real(kind=realtype), dimension(:, :), allocatable :: volsmoothschedule
+            real(kind=realtype), dimension(:, :), allocatable :: volblendschedule
         end module hypinput
 
         module hypdata

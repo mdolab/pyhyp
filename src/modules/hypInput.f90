@@ -18,6 +18,11 @@ module hypInput
     integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
     integer(kind=intType) :: coarsen
     real(kind=realType), dimension(:, :), allocatable :: volSmoothSchedule
+    real(kind=realType), dimension(:, :), allocatable :: volBlendSchedule
+    real(kind=realType), dimension(:, :), allocatable :: splaySchedule
+    real(kind=realType), dimension(:, :), allocatable :: epsESchedule
+    real(kind=realType), dimension(:, :), allocatable :: epsISchedule
+    real(kind=realType), dimension(:, :), allocatable :: thetaSchedule
 
     logical :: nonLinear, writeMetrics, unattachedEdgesAreSymmetry
     logical :: noPointReduce
