@@ -23,6 +23,7 @@ module hypInput
     real(kind=realType), dimension(:, :), allocatable :: epsESchedule
     real(kind=realType), dimension(:, :), allocatable :: epsISchedule
     real(kind=realType), dimension(:, :), allocatable :: thetaSchedule
+    real(kind=realType), dimension(:), allocatable :: growthRatios
 
     logical :: nonLinear, writeMetrics, unattachedEdgesAreSymmetry
     logical :: noPointReduce

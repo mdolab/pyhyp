@@ -57,8 +57,32 @@ subroutine releaseMemory
         deallocate (conn)
     end if
 
+    if (allocated(epseschedule)) then
+        deallocate (epseschedule)
+    end if
+
+    if (allocated(epsischedule)) then
+        deallocate (epsischedule)
+    end if
+
+    if (allocated(thetaschedule)) then
+        deallocate (thetaschedule)
+    end if
+
+    if (allocated(splayschedule)) then
+        deallocate (splayschedule)
+    end if
+
     if (allocated(volSmoothSchedule)) then
         deallocate (volSmoothSchedule)
+    end if
+
+    if (allocated(volblendschedule)) then
+        deallocate (volblendschedule)
+    end if
+
+    if (allocated(growthRatios)) then
+        deallocate (growthRatios)
     end if
 
     if (varsAllocated) then

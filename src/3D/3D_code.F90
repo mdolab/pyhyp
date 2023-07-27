@@ -27,7 +27,7 @@ subroutine runHyperbolic
 
     if (pGridRatio > gridRatio) then
         if (myid == 0) then
-            print *, 'Erorr: The supplied pseudo grid ratio is too large. It must be less than', gridRatio
+            print *, 'Error: The supplied pseudo grid ratio is too large. It must be less than', gridRatio
         end if
         call mpi_barrier(hyp_comm_world, ierr)
         stop
@@ -42,7 +42,7 @@ subroutine runHyperbolic
 
     if (deltaS > s0) then
         if (myid == 0) then
-            print *, 'Erorr: The supplied pseudo grid s0 is too large. It must be less than', s0
+            print *, 'Error: The supplied pseudo grid s0 is too large. It must be less than', s0
         end if
         call mpi_barrier(hyp_comm_world, ierr)
         stop
@@ -78,7 +78,7 @@ subroutine runHyperbolic
         call computeStretch(L)
 
         ! compute the scheduled parameters
-        call computeScheduledVariables(marchIter)
+        call computeScheduledVariables(L)
 
         ! Run the "initial guess" function. If the user is running in
         ! 'linear' mode this is all that is done. This function computes
@@ -559,6 +559,7 @@ subroutine initialGuess(Xnew)
 
         ! Update the deltaS. We always multiply by but never let it go
         ! higher than desired deltas
+        ! TODO change this calc so that the pGridRatio is also using whatever's provided by the user
         deltaS = deltaS * pGridRatio
         deltaS = min(deltaS, desiredDeltaS)
 

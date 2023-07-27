@@ -36,7 +36,7 @@ subroutine calcGridRatio(N, nStart, nEnd, s0, S, ratio)
     !     Written by Gaetan Kenway
     !
     !     Abstract: calcGridRatio() calculates the exponential
-    !     distribution Turns out we need to solve a transendental
+    !     distribution Turns out we need to solve a transcendental
     !     equation here. We will do this with a bisection search
     !
     !     Parameters
@@ -58,7 +58,7 @@ subroutine calcGridRatio(N, nStart, nEnd, s0, S, ratio)
     !     -------
     !     ratio : real
     !         The computed grid ratio that satifies all the inputs.
-    use hypInput, only: fullDeltas
+    use hypInput, only: fullDeltas, growthRatios
     use precision
 
     implicit none
@@ -74,54 +74,70 @@ subroutine calcGridRatio(N, nStart, nEnd, s0, S, ratio)
     integer(kind=intType) :: i, j
     real(kind=realType) :: r, a, b, c, f, fa, fb, curSize
 
-    ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
-    ! initial ratio and r is the grid ratio.
-
-    ! Do a bisection search
-    ! Max and min bounds...root must be in here...
-    a = one + 1e-8
-    b = four
-
-    fa = func(a)
-    fb = func(b)
-    do i = 1, 100
-        c = half * (a + b)
-        f = func(c)
-        if (abs(f) < 1e-10) then ! Converged
-            exit
-        end if
-
-        if (f * fa > 0) then
-            a = c
-        else
-            b = c
-        end if
-    end do
-
-    ! Finally set the ratio variable to r
-    ratio = c
-
-    ! And we precompute all stretches:
+    ! allocate the array that holds delta S values
     if (.not. allocated(fullDeltaS)) then
         allocate (fullDeltaS(2:N))
     end if
 
-    curSize = s0
-    do j = 1, nStart
-        fullDeltaS(j + 1) = curSize
-    end do
+    ! if user provided a growthRatio array, compute delta S values based on this
+    if (allocated(growthRatios)) then
 
-    ! Next we have N - nStart - nEnd layers of exponential
-    do j = 1, N - 1 - nStart - nEnd
+        curSize = s0
+        do j = 1, N - 1
+            curSize = curSize * growthRatios(j)
+            fullDeltaS(j + 1) = curSize
+        end do
+
+        ratio = 1.05
+
+    else ! compute fullDeltaS based on input parameters
+
+        ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
+        ! initial ratio and r is the grid ratio.
+
+        ! Do a bisection search
+        ! Max and min bounds...root must be in here...
+        a = one + 1e-8
+        b = four
+
+        fa = func(a)
+        fb = func(b)
+        do i = 1, 100
+            c = half * (a + b)
+            f = func(c)
+            if (abs(f) < 1e-10) then ! Converged
+                exit
+            end if
+
+            if (f * fa > 0) then
+                a = c
+            else
+                b = c
+            end if
+        end do
+
+        ! Finally set the ratio variable to r
+        ratio = c
+
+        ! And we precompute all stretches:
+        curSize = s0
+        do j = 1, nStart
+            fullDeltaS(j + 1) = curSize
+        end do
+
+        ! Next we have N - nStart - nEnd layers of exponential
+        do j = 1, N - 1 - nStart - nEnd
+            curSize = curSize * ratio
+            fullDeltaS(nStart + j + 1) = curSize
+        end do
+
+        ! Finally we have the last nEnd constant layers
         curSize = curSize * ratio
-        fullDeltaS(nStart + j + 1) = curSize
-    end do
+        do j = 1, nEnd
+            fullDeltaS(N - nEnd + j) = curSize
+        end do
 
-    ! Finally we have the last nEnd constant layers
-    curSize = curSize * ratio
-    do j = 1, nEnd
-        fullDeltaS(N - nEnd + j) = curSize
-    end do
+    end if
 
 contains
     function func(r)

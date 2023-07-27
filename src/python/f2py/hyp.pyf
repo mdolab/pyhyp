@@ -12,6 +12,7 @@ python module hyp ! in
             real(kind=realtype) :: s0
             real(kind=realtype) :: ps0
             real(kind=realtype) :: pgridratio
+            real(kind=realtype), dimension(:), allocatable :: growthratios
             integer(kind=inttype) :: n
             integer(kind=inttype) :: nconstantstart
             integer(kind=inttype) :: nconstantend

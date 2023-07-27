@@ -608,6 +608,7 @@ class pyHyp(BaseSolver):
             "slExp": [float, 0.15],
             "ps0": [float, -1.0],
             "pGridRatio": [float, -1.0],
+            "growthRatios": [(list, type(None)), None],
             # ----------------------------------------
             #   Smoothing parameters (Hyperbolic only)
             # ----------------------------------------
@@ -793,6 +794,14 @@ class pyHyp(BaseSolver):
                     self.hyp.hypinput.thetaschedule = scheduleInput
                 elif scheduleVar == "splay":
                     self.hyp.hypinput.splayschedule = scheduleInput
+
+        # set the growth ratios if a full array is prescribed
+        growthRatioInput = self.getOption("growthRatios")
+        if growthRatioInput is not None:
+            # check the length of growth ratios, which should be N - 1
+            if len(growthRatioInput) != self.getOption("N") - 1:
+                raise Error("The `growthRatios` option must have length `N` - 1")
+            self.hyp.hypinput.growthratios = growthRatioInput
 
     def _expandString(self, s):
         """Expand a supplied string 's' to be of the constants.maxstring
