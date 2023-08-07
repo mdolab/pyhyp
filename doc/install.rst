@@ -67,7 +67,7 @@ Once you have the necessary dependencies, download the reference mesh files:
 
 .. prompt:: bash
 
-    ./reg_tests/ref/get-ref-files.sh
+    ./tests/ref/get-ref-files.sh
 
 Then, in the root directory, run:
 
