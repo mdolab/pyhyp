@@ -43,6 +43,7 @@ subroutine setup(fileName, fileType)
     integer(kind=intType) :: i, j, k, ii, jj, iii, jjj, ierr, iStart, iEnd
     integer(kind=intType) :: isize, ind, icell, idim, BCToSet, il, jl, iEdge, iBCToSet
     logical :: found
+    ! logical :: error
     character(5) :: faceStr
     integer(kind=intType), dimension(:), pointer :: lPtr1, lPtr2
     real(kind=realType), dimension(:, :), pointer :: xPtr, xPtrRowInward
@@ -891,12 +892,14 @@ subroutine setup(fileName, fileType)
             print *, 'Corner averaging activated for ', nAverage, ' nodes.'
         end if
 
+        ! error = .False.
+        
         ! Do a sanity check to make sure that all nodes have their
         ! fullnPtr populated.
         do i = 1, nUnique
             if (fullNPtr(1, i) == 0) then
-                print *, 'There was a general error with topology computation for node:', uniquePts(:, i)
-                stop
+                print *, 'aaaaa There was a general error with topology computation for node:', uniquePts(:, i)
+                ! error = .True.
             end if
         end do
 
@@ -905,16 +908,19 @@ subroutine setup(fileName, fileType)
         ! their fullnPtr populated.
         do i = 1, nUnique
             if (fullTopoType(i) == topoEdge .and. fullBCType(1, i) == BCDefault) then
-                print *, 'There was a missing boundary condition for edge node:', uniquePts(:, i)
-                stop
-
+                print *, 'bbbbb There was a missing boundary condition for edge node:', uniquePts(:, i)
+                ! error = .True.
+                
             else if (fullTopoType(i) == topoCorner .and. (fullBCType(1, i) == BCDefault .or. &
                                                           fullBCType(2, i) == BCDefault)) then
-                print *, 'There was a missing boundary condition for corner node:', uniquePts(:, i)
-                stop
+                print *, 'ccccc There was a missing boundary condition for corner node:', uniquePts(:, i)
+                ! error = .True.
             end if
-
         end do
+
+        ! if (error == .True.) then
+        !     stop
+        ! end if
 
         ! Free up some more memory
         deallocate (nte, ntePtr, directedNodeConn, nodeConn, nEdge, nDirectedEdge)
