@@ -1,14 +1,18 @@
 # ----------------------------------------------------------------------
-# Config file for Gfortran  with OpenMPI
+# Config file for Intel ifort
 # ----------------------------------------------------------------------
 
 # ------- Define a possible parallel make ------------------------------
 PMAKE = make -j 4
 
 # ------- Define the MPI Compilers--------------------------------------
-FF90 = mpifort
-CC   = mpicc
-
+ifdef I_MPI_ROOT # Using Intel MPI
+  FF90 = mpiifort
+  CC   = mpiicc
+else # Using HPE MPI
+  FF90 = ifort -lmpi
+  CC   = icc -lmpi
+endif
 
 # ------- Define CGNS Inlcude and linker flags -------------------------
 # Define the CGNS include directory and linking flags for the CGNS library.
@@ -18,18 +22,17 @@ CGNS_INCLUDE_FLAGS=-I$(CGNS_HOME)/include
 CGNS_LINKER_FLAGS=-L$(CGNS_HOME)/lib -lcgns
 
 # ------- Define Compiler Flags ----------------------------------------
-FF90_GEN_FLAGS = -fPIC -std=f2008
+FF90_GEN_FLAGS = -fPIC -stand f08
 CC_GEN_FLAGS   = -fPIC
 
-FF90_OPT_FLAGS   = -fdefault-real-8 -O2
+FF90_OPT_FLAGS   = -r8 -O2
 CC_OPT_FLAGS     = -O2
 
 # ------- Define Linker Flags ------------------------------------------
-LINKER_FLAGS =
+LINKER_FLAGS = -nofor-main
 
 # ------- Define Petsc Info --- Should not need to modify this -----
-include ${PETSC_DIR}/lib/petsc/conf/variables # PETSc 3.6
-#include ${PETSC_DIR}/conf/variables # PETSc 3.5
+include ${PETSC_DIR}/lib/petsc/conf/variables
 PETSC_INCLUDE_FLAGS=${PETSC_CC_INCLUDES} -I$(PETSC_DIR)
 PETSC_LINKER_FLAGS=${PETSC_LIB}
 

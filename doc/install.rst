@@ -28,10 +28,10 @@ For example:
 
 .. prompt:: bash
 
-    cp config/defaults/config.LINUX_GFORTRAN_OPENMPI.mk config/config.mk
+    cp config/defaults/config.LINUX_GFORTRAN.mk config/config.mk
 
-If you are a beginner user installing the packages on a Linux desktop, 
-you should use the ``config.LINUX_GFORTRAN_OPENMPI.mk`` versions of the configuration 
+If you are a beginner user installing the packages on a Linux desktop,
+you should use the ``config.LINUX_GFORTRAN.mk`` versions of the configuration
 files. The ``config.LINUX_INTEL.mk`` versions are usually used on clusters.
 
 Once you have copied the config file, compile pyHyp by running:
