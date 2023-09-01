@@ -43,12 +43,15 @@ subroutine setup(fileName, fileType)
     integer(kind=intType) :: i, j, k, ii, jj, iii, jjj, ierr, iStart, iEnd
     integer(kind=intType) :: isize, ind, icell, idim, BCToSet, il, jl, iEdge, iBCToSet
     logical :: found
-    ! logical :: error
+    logical :: bcTopoError
     character(5) :: faceStr
     integer(kind=intType), dimension(:), pointer :: lPtr1, lPtr2
     real(kind=realType), dimension(:, :), pointer :: xPtr, xPtrRowInward
     real(kind=realType) :: xSum(3), vals(2, 3)
     integer(kind=intType) :: mask(2, 3), nn(2), mm(2), f(3), iFace, jp2
+
+    ! error flag for issues with BCs or topology
+    bcTopoError = .False.
 
     ! Only the root processor reads the mesh and does the initial processing:
     rootProc: if (myid == 0) then
@@ -635,7 +638,7 @@ subroutine setup(fileName, fileType)
 101                         format(a, a, a, I3, a)
                             print 101, 'ERROR: A boundary condition was specifed for ', &
                                 trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
-                            stop
+                                bcTopoError = .True.
                         end if
 
                     else if (fullTopoType(iNode) == topoEdge) then
@@ -690,7 +693,7 @@ subroutine setup(fileName, fileType)
                         ! Do a sanity check: This should only occur if i==1 or i==iSize
                         if (i /= 1 .and. i /= iSize) then
                             print *, 'ERROR: Unknown corner topology error detected.', i, isize
-                            stop
+                            bcTopoError = .True.
                         end if
 
                         ! By definition , corner topology nodes must have 2 neighbours
@@ -892,14 +895,13 @@ subroutine setup(fileName, fileType)
             print *, 'Corner averaging activated for ', nAverage, ' nodes.'
         end if
 
-        ! error = .False.
         
         ! Do a sanity check to make sure that all nodes have their
         ! fullnPtr populated.
         do i = 1, nUnique
             if (fullNPtr(1, i) == 0) then
-                print *, 'aaaaa There was a general error with topology computation for node:', uniquePts(:, i)
-                ! error = .True.
+                print *, 'There was a general error with topology computation for node:', uniquePts(:, i)
+                bcTopoError = .True.
             end if
         end do
 
@@ -908,19 +910,21 @@ subroutine setup(fileName, fileType)
         ! their fullnPtr populated.
         do i = 1, nUnique
             if (fullTopoType(i) == topoEdge .and. fullBCType(1, i) == BCDefault) then
-                print *, 'bbbbb There was a missing boundary condition for edge node:', uniquePts(:, i)
-                ! error = .True.
+                print *, 'There was a missing boundary condition for edge node:', uniquePts(:, i)
+                bcTopoError = .True.
                 
             else if (fullTopoType(i) == topoCorner .and. (fullBCType(1, i) == BCDefault .or. &
                                                           fullBCType(2, i) == BCDefault)) then
-                print *, 'ccccc There was a missing boundary condition for corner node:', uniquePts(:, i)
-                ! error = .True.
+                print *, 'There was a missing boundary condition for corner node:', uniquePts(:, i)
+                bcTopoError = .True.
             end if
         end do
 
-        ! if (error == .True.) then
-        !     stop
-        ! end if
+        ! if we ran into topology or BC errors, stop
+        if (bcTopoError) then
+            print *, 'pyHyp exited. See above errors.'
+            stop
+        end if
 
         ! Free up some more memory
         deallocate (nte, ntePtr, directedNodeConn, nodeConn, nEdge, nDirectedEdge)
