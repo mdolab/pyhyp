@@ -33,7 +33,6 @@ subroutine setup(fileName, fileType)
     integer(kind=intType), dimension(:, :), allocatable :: nodeConn
     integer(kind=intType), dimension(:, :), allocatable :: directedNodeConn
     integer(kind=intType), dimension(:), allocatable :: nEdge, nDirectedEdge
-    integer(kind=intType), dimension(:), allocatable :: bcError
 
     integer(kind=intType) :: nBlocks, nUnique, corners(4), iCorner
     integer(kind=intType) :: nodeTotal, node1, node2, node3, node4
@@ -45,6 +44,7 @@ subroutine setup(fileName, fileType)
     integer(kind=intType) :: isize, ind, icell, idim, BCToSet, il, jl, iEdge, iBCToSet
     logical :: found
     logical :: bcTopoError
+    logical :: bcError
     character(5) :: faceStr
     integer(kind=intType), dimension(:), pointer :: lPtr1, lPtr2
     real(kind=realType), dimension(:, :), pointer :: xPtr, xPtrRowInward
@@ -596,8 +596,8 @@ subroutine setup(fileName, fileType)
         end do patchLoop0
 
         nAverage = 0
-        allocate (patchBCError(nPatch))
         bcError = .False.
+        bcTopoError = .False.
 
         patchLoop: do ii = 1, nPatch
             il = patches(ii)%il
@@ -640,6 +640,10 @@ subroutine setup(fileName, fileType)
                         ! error since this isn't *actually* a boundary condition
                         if (BCs(iEdge, ii) /= BCDefault) then
                             bcError = .True.
+                            
+101                         format(a, a, a, I3, a)
+                            print 101, 'ERROR: A boundary condition was specifed for ', &
+                                trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
                         end if
 
                     else if (fullTopoType(iNode) == topoEdge) then
@@ -726,12 +730,10 @@ subroutine setup(fileName, fileType)
                 end do edgeNodeLoop
             end do edgeLoop
 
-            ! if there was an error in the BC setup print out each patch that had an issue
-            if bcError:
-                bcErrorLoop do ii = 1, nPatch
-101                 format(a, a, a, I3, a)
-                    print 101, 'ERROR: A boundary condition was specifed for ', &
-                        trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
+            ! if there was an error in the BC setup stop
+            if (bcError) then
+                stop
+            end if
 
             ! We now do a special check to see if corners have boundary
             ! conditions that would require the averaging procedure. This
