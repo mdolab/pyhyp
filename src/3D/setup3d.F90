@@ -33,6 +33,7 @@ subroutine setup(fileName, fileType)
     integer(kind=intType), dimension(:, :), allocatable :: nodeConn
     integer(kind=intType), dimension(:, :), allocatable :: directedNodeConn
     integer(kind=intType), dimension(:), allocatable :: nEdge, nDirectedEdge
+    integer(kind=intType), dimension(:), allocatable :: bcError
 
     integer(kind=intType) :: nBlocks, nUnique, corners(4), iCorner
     integer(kind=intType) :: nodeTotal, node1, node2, node3, node4
@@ -595,6 +596,9 @@ subroutine setup(fileName, fileType)
         end do patchLoop0
 
         nAverage = 0
+        allocate (patchBCError(nPatch))
+        bcError = .False.
+
         patchLoop: do ii = 1, nPatch
             il = patches(ii)%il
             jl = patches(ii)%jl
@@ -635,10 +639,7 @@ subroutine setup(fileName, fileType)
                         ! it means someone explictly specifid it which is an
                         ! error since this isn't *actually* a boundary condition
                         if (BCs(iEdge, ii) /= BCDefault) then
-101                         format(a, a, a, I3, a)
-                            print 101, 'ERROR: A boundary condition was specifed for ', &
-                                trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
-                                bcTopoError = .True.
+                            bcError = .True.
                         end if
 
                     else if (fullTopoType(iNode) == topoEdge) then
@@ -724,6 +725,13 @@ subroutine setup(fileName, fileType)
                     end if checkTopoType
                 end do edgeNodeLoop
             end do edgeLoop
+
+            ! if there was an error in the BC setup print out each patch that had an issue
+            if bcError:
+                bcErrorLoop do ii = 1, nPatch
+101                 format(a, a, a, I3, a)
+                    print 101, 'ERROR: A boundary condition was specifed for ', &
+                        trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
 
             ! We now do a special check to see if corners have boundary
             ! conditions that would require the averaging procedure. This
