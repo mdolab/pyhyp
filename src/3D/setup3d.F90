@@ -639,7 +639,7 @@ subroutine setup(fileName, fileType)
                         ! error since this isn't *actually* a boundary condition
                         if (BCs(iEdge, ii) /= BCDefault) then
                             bcError = .True.
-                            
+
 101                         format(a, a, a, I3, a)
                             print 101, 'ERROR: A boundary condition was specifed for ', &
                                 trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
@@ -903,7 +903,7 @@ subroutine setup(fileName, fileType)
         if (nAverage > 0) then
             print *, 'Corner averaging activated for ', nAverage, ' nodes.'
         end if
-        
+
         ! Do a sanity check to make sure that all nodes have their
         ! fullnPtr populated.
         do i = 1, nUnique
