@@ -903,7 +903,6 @@ subroutine setup(fileName, fileType)
         if (nAverage > 0) then
             print *, 'Corner averaging activated for ', nAverage, ' nodes.'
         end if
-
         
         ! Do a sanity check to make sure that all nodes have their
         ! fullnPtr populated.
@@ -921,7 +920,6 @@ subroutine setup(fileName, fileType)
             if (fullTopoType(i) == topoEdge .and. fullBCType(1, i) == BCDefault) then
                 print *, 'There was a missing boundary condition for edge node:', uniquePts(:, i)
                 bcTopoError = .True.
-                
             else if (fullTopoType(i) == topoCorner .and. (fullBCType(1, i) == BCDefault .or. &
                                                           fullBCType(2, i) == BCDefault)) then
                 print *, 'There was a missing boundary condition for corner node:', uniquePts(:, i)
