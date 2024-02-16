@@ -51,9 +51,6 @@ subroutine setup(fileName, fileType)
     real(kind=realType) :: xSum(3), vals(2, 3)
     integer(kind=intType) :: mask(2, 3), nn(2), mm(2), f(3), iFace, jp2
 
-    ! error flag for issues with BCs or topology
-    bcTopoError = .False.
-
     ! Only the root processor reads the mesh and does the initial processing:
     rootProc: if (myid == 0) then
 
@@ -596,6 +593,8 @@ subroutine setup(fileName, fileType)
         end do patchLoop0
 
         nAverage = 0
+
+        ! error flag for issues with BCs or topology
         bcError = .False.
         bcTopoError = .False.
 
@@ -730,11 +729,6 @@ subroutine setup(fileName, fileType)
                 end do edgeNodeLoop
             end do edgeLoop
 
-            ! if there was an error in the BC setup stop
-            if (bcError) then
-                stop
-            end if
-
             ! We now do a special check to see if corners have boundary
             ! conditions that would require the averaging procedure. This
             ! will happen if the two neighbour nodes are constrained to
@@ -812,6 +806,11 @@ subroutine setup(fileName, fileType)
                 end if
             end do
         end do patchLoop
+
+        ! if there was an error in the BC setup stop
+        if (bcError) then
+            stop
+        end if
 
         do i = 1, nUnique
             ! Special loop for the LCorners
