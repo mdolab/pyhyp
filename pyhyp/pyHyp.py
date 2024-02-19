@@ -218,7 +218,7 @@ class pyHypMulti(object):
                     elif "outputFile" in options.keys():
                         caseName = options["outputFile"]
                     else:
-                        caseName = "case"
+                        caseName = ""
                     print("\n\nRunning case %d : %s\n" % (index, caseName))
 
                 # Create pyHyp object using the corresponding options
