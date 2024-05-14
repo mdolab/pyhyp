@@ -810,7 +810,7 @@ subroutine setup(fileName, fileType)
         ! if there was an error in the BC setup stop
         if (bcError) then
             print *, 'pyHyp exited due to one or more issues with mesh boundary conditions. &
-            See above error printouts.'
+&            See above error printouts.'
             stop
         end if
 
