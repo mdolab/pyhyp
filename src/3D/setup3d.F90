@@ -809,6 +809,8 @@ subroutine setup(fileName, fileType)
 
         ! if there was an error in the BC setup stop
         if (bcError) then
+            print *, 'pyHyp exited due to one or more issues with mesh boundary conditions. &
+            See above error printouts.'
             stop
         end if
 
@@ -908,7 +910,7 @@ subroutine setup(fileName, fileType)
         ! fullnPtr populated.
         do i = 1, nUnique
             if (fullNPtr(1, i) == 0) then
-                print *, 'There was a general error with topology computation for node:', uniquePts(:, i)
+                print *, 'ERROR: There was a general error with topology computation for node:', uniquePts(:, i)
                 bcTopoError = .True.
             end if
         end do
@@ -918,18 +920,18 @@ subroutine setup(fileName, fileType)
         ! their fullnPtr populated.
         do i = 1, nUnique
             if (fullTopoType(i) == topoEdge .and. fullBCType(1, i) == BCDefault) then
-                print *, 'There was a missing boundary condition for edge node:', uniquePts(:, i)
+                print *, 'ERROR: There was a missing boundary condition for edge node:', uniquePts(:, i)
                 bcTopoError = .True.
             else if (fullTopoType(i) == topoCorner .and. (fullBCType(1, i) == BCDefault .or. &
                                                           fullBCType(2, i) == BCDefault)) then
-                print *, 'There was a missing boundary condition for corner node:', uniquePts(:, i)
+                print *, 'ERROR: There was a missing boundary condition for corner node:', uniquePts(:, i)
                 bcTopoError = .True.
             end if
         end do
 
         ! if we ran into topology or BC errors, stop
         if (bcTopoError) then
-            print *, 'pyHyp exited. See above errors.'
+            print *, 'ERROR: pyHyp exited due to one or more issues with mesh topology. See above error printouts.'
             stop
         end if
 
