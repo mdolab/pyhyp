@@ -235,6 +235,40 @@ volSmoothSchedule:
     In this example, the number of smoothing iterations increases linearly from 10 to 50 over the first 40% of grid levels.
     For the remaining levels, the number of smoothing iterations increases linearly from 50 to 100.
 
+volBlendSchedule:
+  desc: >
+    Define a piecewise linear schedule for the global blending coefficient.
+    If provided, this supersedes :py:data:`volBlend`.
+    Usage is equivalent to :py:data:`volSmoothSchedule`.
+
+epsESchedule:
+  desc: >
+    Define a piecewise linear schedule for the explicit smoothing parameter.
+    If provided, this supersedes :py:data:`epsE`.
+    Usage is equivalent to :py:data:`volSmoothSchedule`.
+
+epsISchedule:
+  desc: >
+    Define a piecewise linear schedule for the implicit smoothing parameter.
+    If provided, this supersedes :py:data:`epsI`.
+    Usage is equivalent to :py:data:`volSmoothSchedule`.
+
+thetaSchedule:
+  desc: >
+    Define a piecewise linear schedule for the Kinsey-Barth parameter.
+    If provided, this supersedes :py:data:`theta`.
+    Usage is equivalent to :py:data:`volSmoothSchedule`.
+
+splaySchedule:
+  desc: >
+    Define a piecewise linear schedule for the splay BC spreading factor.
+    If provided, this supersedes :py:data:`splay`.
+    Usage is equivalent to :py:data:`volSmoothSchedule`.
+
+growthRatios:
+  desc: >
+    Manually specify the growth ratio for each layer. This must be a list with :py:data:`N` - 1 ratios. 
+
 KSPRelTol:
   desc: >
     Tolerance for the solution of the linear system at each iteration.
