@@ -1,17 +1,16 @@
 """
 This script uses the NACA 0012 airfoil equation to generate a 2D RANS mesh.
-This mesh has a blunt trailing edge. 
+This mesh has a blunt trailing edge.
 
-This script is the same as 'naca0012_rans.py' except for some 'schedule'
-parameters that were changed.
+This script is the same as 'naca0012_rans.py' except for manual 'growth ratios'.
 """
 import os
 import numpy
 from pyhyp import pyHyp
 
 baseDir = os.path.dirname(os.path.abspath(__file__))
-surfaceFile = os.path.join(baseDir, "naca0012_schedule.fmt")
-volumeFile = os.path.join(baseDir, "naca0012_schedule.cgns")
+surfaceFile = os.path.join(baseDir, "naca0012_growth_ratios.fmt")
+volumeFile = os.path.join(baseDir, "naca0012_growth_ratios.cgns")
 
 alpha = numpy.linspace(0, 2 * numpy.pi, 273)
 x = numpy.cos(alpha) * 0.5 + 0.5
@@ -64,7 +63,7 @@ options = {
     # ---------------------------
     "N": 129,
     "s0": 1e-6,
-    "marchDist": 100.0,
+    "growthRatios": numpy.linspace(1.05, 1.3, 128).tolist(),
     # ---------------------------
     #   Pseudo Grid Parameters
     # ---------------------------
@@ -74,12 +73,12 @@ options = {
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------
-    "epsESchedule": [[0.0,1.0], [1.0, 5.0]],
-    "epsISchedule": [[0.0, 2.0], [1.0, 10.0]],
-    "thetaSchedule": [[0.0, 3.0],[1.0, 0.0]],
+    "epsE": 1.0,
+    "epsI": 2.0,
+    "theta": 3.0,
     "volCoef": 0.25,
-    "volBlendSchedule": [[0.0, 0.0001, 1.0, 0.1]],
-    "volSmoothSchedule": [[0.0, 100], [1.0, 500]],
+    "volBlend": 0.0001,
+    "volSmoothIter": 100,
 }
 
 
