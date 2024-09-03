@@ -64,6 +64,12 @@ class TestExamples(unittest.TestCase):
         marchDist = hyp.getOption("marchDist")
         self.common_test(volumeFile, marchDist)
 
+    def test_2D_schedule(self):
+        from examples.naca0012.naca0012_schedule import volumeFile, hyp
+
+        marchDist = hyp.getOption("marchDist")
+        self.common_test(volumeFile, marchDist)
+
     def test_717(self):
         from examples.wing_717.run717 import volumeFile, hyp
 
