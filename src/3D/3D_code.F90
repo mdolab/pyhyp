@@ -52,8 +52,14 @@ subroutine runHyperbolic
     if (myid == 0) then
         write (*, "(a)", advance="no") '#--------------------#'
         print "(1x)"
-        write (*, "(a)", advance="no") "Grid Ratio:"
-        write (*, "(f8.4,1x)", advance="no") gridRatio
+        write (*, "(a)", advance="no") " Grid Ratio:"
+        if (allocated(growthRatios)) then
+            write (*, "(f8.4,1x)", advance="no") minval(growthRatios)
+            write (*, "(a)", advance="no") "-"
+            write (*, "(f8.4,1x)", advance="no") maxval(growthRatios)
+        else
+            write (*, "(f8.4,1x)", advance="no") gridRatio
+        end if
         print "(1x)"
         write (*, "(a)", advance="no") '#--------------------#'
         print "(1x)"
