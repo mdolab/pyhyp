@@ -43,6 +43,8 @@ subroutine setup(fileName, fileType)
     integer(kind=intType) :: i, j, k, ii, jj, iii, jjj, ierr, iStart, iEnd
     integer(kind=intType) :: isize, ind, icell, idim, BCToSet, il, jl, iEdge, iBCToSet
     logical :: found
+    logical :: bcTopoError
+    logical :: bcError
     character(5) :: faceStr
     integer(kind=intType), dimension(:), pointer :: lPtr1, lPtr2
     real(kind=realType), dimension(:, :), pointer :: xPtr, xPtrRowInward
@@ -591,6 +593,11 @@ subroutine setup(fileName, fileType)
         end do patchLoop0
 
         nAverage = 0
+
+        ! error flag for issues with BCs or topology
+        bcError = .False.
+        bcTopoError = .False.
+
         patchLoop: do ii = 1, nPatch
             il = patches(ii)%il
             jl = patches(ii)%jl
@@ -631,10 +638,11 @@ subroutine setup(fileName, fileType)
                         ! it means someone explictly specifid it which is an
                         ! error since this isn't *actually* a boundary condition
                         if (BCs(iEdge, ii) /= BCDefault) then
+                            bcError = .True.
+
 101                         format(a, a, a, I3, a)
                             print 101, 'ERROR: A boundary condition was specifed for ', &
                                 trim(faceStr), ' patch on Block', ii, ' but it is not a physical boundary.'
-                            stop
                         end if
 
                     else if (fullTopoType(iNode) == topoEdge) then
@@ -689,7 +697,7 @@ subroutine setup(fileName, fileType)
                         ! Do a sanity check: This should only occur if i==1 or i==iSize
                         if (i /= 1 .and. i /= iSize) then
                             print *, 'ERROR: Unknown corner topology error detected.', i, isize
-                            stop
+                            bcTopoError = .True.
                         end if
 
                         ! By definition , corner topology nodes must have 2 neighbours
@@ -799,6 +807,13 @@ subroutine setup(fileName, fileType)
             end do
         end do patchLoop
 
+        ! if there was an error in the BC setup stop
+        if (bcError) then
+            print *, 'ERROR: pyHyp exited due to one or more issues with mesh boundary conditions. &
+            &See above error printouts.'
+            stop
+        end if
+
         do i = 1, nUnique
             ! Special loop for the LCorners
             if (fullTopoType(i) == topoLCorner) then
@@ -895,8 +910,8 @@ subroutine setup(fileName, fileType)
         ! fullnPtr populated.
         do i = 1, nUnique
             if (fullNPtr(1, i) == 0) then
-                print *, 'There was a general error with topology computation for node:', uniquePts(:, i)
-                stop
+                print *, 'ERROR: There was a general error with topology computation for node:', uniquePts(:, i)
+                bcTopoError = .True.
             end if
         end do
 
@@ -905,16 +920,20 @@ subroutine setup(fileName, fileType)
         ! their fullnPtr populated.
         do i = 1, nUnique
             if (fullTopoType(i) == topoEdge .and. fullBCType(1, i) == BCDefault) then
-                print *, 'There was a missing boundary condition for edge node:', uniquePts(:, i)
-                stop
-
+                print *, 'ERROR: There was a missing boundary condition for edge node:', uniquePts(:, i)
+                bcTopoError = .True.
             else if (fullTopoType(i) == topoCorner .and. (fullBCType(1, i) == BCDefault .or. &
                                                           fullBCType(2, i) == BCDefault)) then
-                print *, 'There was a missing boundary condition for corner node:', uniquePts(:, i)
-                stop
+                print *, 'ERROR: There was a missing boundary condition for corner node:', uniquePts(:, i)
+                bcTopoError = .True.
             end if
-
         end do
+
+        ! if we ran into topology or BC errors, stop
+        if (bcTopoError) then
+            print *, 'ERROR: pyHyp exited due to one or more issues with mesh topology. See above error printouts.'
+            stop
+        end if
 
         ! Free up some more memory
         deallocate (nte, ntePtr, directedNodeConn, nodeConn, nEdge, nDirectedEdge)

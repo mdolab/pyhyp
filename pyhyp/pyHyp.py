@@ -212,10 +212,12 @@ class pyHypMulti(object):
             elif type(options) is dict:
                 # Only the root processor will print
                 if myid == 0:
-                    print("")
-                    print("")
-                    print("Running case %d : %s" % (index, options["inputFile"]))
-                    print("")
+                    # change the printout based on which option is actually present
+                    if "inputFile" in options.keys():
+                        caseName = options["inputFile"]
+                    else:
+                        caseName = options["outputFile"]
+                    print("\n\nRunning case %d : %s\n" % (index, caseName))
 
                 # Create pyHyp object using the corresponding options
                 hypGrid = pyHyp(comm, options, debug)
