@@ -16,6 +16,7 @@ History
 -------
     v. 1.0 - Initial Class Creation (GKK, 2013)
 """
+
 # =============================================================================
 # Imports
 # =============================================================================
@@ -34,7 +35,6 @@ from cgnsutilities.cgnsutilities import readGrid, combineGrids
 # pyHypMulti class
 # =============================================================================
 class pyHypMulti(object):
-
     """
     This is class can be used to run multiple pyHyp cases at once.
     """

@@ -4,6 +4,7 @@ This mesh has a blunt trailing edge.
 
 This script is the same as 'naca0012_rans.py' except for manual 'growth ratios'.
 """
+
 import os
 import numpy
 from pyhyp import pyHyp

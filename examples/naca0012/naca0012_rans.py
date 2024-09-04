@@ -2,6 +2,7 @@
 This script uses the NACA 0012 airfoil equation to generate a 2D RANS mesh.
 This mesh has a blunt trailing edge.
 """
+
 import os
 import numpy
 from pyhyp import pyHyp

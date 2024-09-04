@@ -2,6 +2,7 @@
 This example shows how to set up dictionaries to run multiple extrusions with pyHypMulti.
 We use pyHypMulti to extrude a 90 deg corner twice with different smoothing settings.
 """
+
 import os
 from pyhyp import pyHypMulti
 

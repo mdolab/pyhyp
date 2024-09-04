@@ -371,7 +371,7 @@ subroutine computeScheduledVariables(curIter)
         call interpolateScheduledVariable(theta)
     end if
 
-    contains
+contains
 
     subroutine interpolateScheduledVariable(interpolatedValue)
         use hypInput
@@ -382,7 +382,6 @@ subroutine computeScheduledVariables(curIter)
 
         integer(kind=intType) :: i
         real(kind=realType) :: low, high, frac2
-
 
         ! Just do a linear search for the bin:
         do i = 1, size(scheduledVariable, 1) - 1
@@ -395,9 +394,7 @@ subroutine computeScheduledVariables(curIter)
             end if
         end do
 
-
-end subroutine interpolateScheduledVariable
-
+    end subroutine interpolateScheduledVariable
 
 end subroutine computeScheduledVariables
 

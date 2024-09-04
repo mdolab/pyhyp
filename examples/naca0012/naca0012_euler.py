@@ -2,6 +2,7 @@
 This script uses the NACA 0012 airfoil equation to generate 2D Euler mesh.
 This mesh has a sharp trailing edge.
 """
+
 import os
 import numpy
 from pyhyp import pyHyp

@@ -5,6 +5,7 @@ This mesh has a blunt trailing edge.
 This script is the same as 'naca0012_rans.py' except for some 'schedule'
 parameters that were changed.
 """
+
 import os
 import numpy
 from pyhyp import pyHyp
@@ -74,9 +75,9 @@ options = {
     # ---------------------------
     #   Smoothing parameters
     # ---------------------------
-    "epsESchedule": [[0.0,1.0], [1.0, 5.0]],
+    "epsESchedule": [[0.0, 1.0], [1.0, 5.0]],
     "epsISchedule": [[0.0, 2.0], [1.0, 10.0]],
-    "thetaSchedule": [[0.0, 3.0],[1.0, 0.0]],
+    "thetaSchedule": [[0.0, 3.0], [1.0, 0.0]],
     "volCoef": 0.25,
     "volBlendSchedule": [[0.0, 0.0001, 1.0, 0.1]],
     "volSmoothSchedule": [[0.0, 100], [1.0, 500]],
