@@ -1,6 +1,6 @@
 """
 This script uses the NACA 0012 airfoil equation to generate a 2D RANS mesh.
-This mesh has a blunt trailing edge. 
+This mesh has a blunt trailing edge.
 
 This script is the same as 'naca0012_rans.py' except for some 'schedule'
 parameters that were changed.
