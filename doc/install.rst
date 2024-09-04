@@ -6,22 +6,31 @@ Installation
 Prerequisites
 ------------- 
 
-pyHyp depends heavily on other packages to do much of the underlying
-"heavy lifting". The following external components are required for
-pyHyp:
+The following external packages are required for pyHyp:
 
 - CGNS Libarary
 - PETSc
 
-See the MDO Lab installation guide `here <https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/installInstructions/install3rdPartyPackages.html#installthirdpartypackages>`_ for the supported versions and installation instructions.
+See the MDO Lab installation guide `here <https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/installInstructions/install3rdPartyPackages.html#installthirdpartypackages>`__ for the supported versions and installation instructions.
 
-.. NOTE:: A working MPI is not strictly required. However, in most
-   cases PETSc should be configured with MPI.
+.. NOTE:: A working MPI is not strictly required. 
+   However, in most cases, PETSc should be configured with MPI.
+   Note that ``mpi4py`` should be installed also.
+
+In addition, the following MDO Lab packages are required:
+
+- `baseclasses <https://github.com/mdolab/baseclasses>`_ 
+- `cgnsutilities <https://github.com/mdolab/cgnsutilities>`_ 
+
+Please refer to the package documentation for installation instructions.
+For a general MDO Lab installation guide, see `here <https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/installInstructions/installFromScratch.html#mdo-lab-packages>`__.
+
 
 Compilation 
 ------------ 
 pyHyp follows the standard MDO Lab build procedure.
-To start, first clone the repo. For stability we recommend checking out a tagged release.
+To start, first clone the repo.
+For stability we recommend checking out a tagged release.
 
 Next, find a configuration file close to your current setup in ``config/defaults`` and copy it to ``config/config.mk``.
 For example:
@@ -32,7 +41,8 @@ For example:
 
 If you are a beginner user installing the packages on a Linux desktop,
 you should use the ``config.LINUX_GFORTRAN.mk`` versions of the configuration
-files. The ``config.LINUX_INTEL.mk`` versions are usually used on clusters.
+files.
+The ``config.LINUX_INTEL.mk`` versions are usually used on clusters.
 
 Once you have copied the config file, compile pyHyp by running:
 
