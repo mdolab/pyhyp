@@ -532,7 +532,6 @@ subroutine initialGuess(Xnew)
 
         ! Update the deltaS. We always multiply by but never let it go
         ! higher than desired deltas
-        ! TODO change this calc so that the pGridRatio is also using whatever's provided by the user
         deltaS = deltaS * pGridRatio
         deltaS = min(deltaS, desiredDeltaS)
 

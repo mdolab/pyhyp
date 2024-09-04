@@ -88,7 +88,8 @@ subroutine calcGridRatio(N, nStart, nEnd, s0, S, ratio)
             fullDeltaS(j + 1) = curSize
         end do
 
-        ratio = 1.05
+        ! pick the minimum provided ratio. This might be used to initialize pGridRatio if not specified by the user.
+        ratio = minval(growthRatios)
 
     else ! compute fullDeltaS based on input parameters
 
