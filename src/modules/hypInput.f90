@@ -17,12 +17,12 @@ module hypInput
     integer(kind=intType) :: N, nConstantStart, nConstantEnd, nTruncate
     integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
     integer(kind=intType) :: coarsen
-    real(kind=realType), dimension(:, :), allocatable :: volSmoothSchedule
-    real(kind=realType), dimension(:, :), allocatable :: volBlendSchedule
-    real(kind=realType), dimension(:, :), allocatable :: splaySchedule
-    real(kind=realType), dimension(:, :), allocatable :: epsESchedule
-    real(kind=realType), dimension(:, :), allocatable :: epsISchedule
-    real(kind=realType), dimension(:, :), allocatable :: thetaSchedule
+    real(kind=realType), dimension(:, :), allocatable, target :: volSmoothSchedule
+    real(kind=realType), dimension(:, :), allocatable, target :: volBlendSchedule
+    real(kind=realType), dimension(:, :), allocatable, target :: splaySchedule
+    real(kind=realType), dimension(:, :), allocatable, target :: epsESchedule
+    real(kind=realType), dimension(:, :), allocatable, target :: epsISchedule
+    real(kind=realType), dimension(:, :), allocatable, target :: thetaSchedule
     real(kind=realType), dimension(:), allocatable :: growthRatios
 
     logical :: nonLinear, writeMetrics, unattachedEdgesAreSymmetry

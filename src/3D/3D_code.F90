@@ -335,102 +335,69 @@ subroutine computeScheduledVariables(curIter)
 
     integer(kind=intType), intent(in) :: curIter
 
-    integer(kind=intType) :: i
-    real(kind=realType) :: frac, low, high, frac2
+    real(kind=realType) :: frac, tmp
+    real(kind=realType), dimension(:, :), pointer :: scheduledVariable
 
-    ! TODO convert the duplicated code to a pointer based select case
+    frac = (curIter - one) / (N - 1)
 
     if (allocated(volSmoothSchedule)) then
-        ! We need to determine how many smoothing iterations to do by
-        ! interpolating the volumeSmoothing Schedule
-        frac = (curIter - one) / (N - 1)
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(volSmoothSchedule, 1) - 1
-            if (frac >= volSmoothSchedule(i, 1) .and. frac <= volSmoothSchedule(i + 1, 1)) then
-                frac2 = (frac - volSmoothSchedule(i, 1)) / &
-                        (volSmoothSchedule(i + 1, 1) - volSmoothSchedule(i, 1))
-                low = volSmoothSchedule(i, 2)
-                high = volSmoothSchedule(i + 1, 2)
-                volSmoothIter = int(low + frac2 * (high - low))
-            end if
-        end do
+        scheduledVariable => volSmoothSchedule
+        call interpolateScheduledVariable(tmp)
+        volSmoothIter = int(tmp)
     end if
 
     if (allocated(volBlendSchedule)) then
-        frac = (curIter - one) / (N - 1)
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(volBlendSchedule, 1) - 1
-            if (frac >= volBlendSchedule(i, 1) .and. frac <= volBlendSchedule(i + 1, 1)) then
-                frac2 = (frac - volBlendSchedule(i, 1)) / &
-                        (volBlendSchedule(i + 1, 1) - volBlendSchedule(i, 1))
-                low = volBlendSchedule(i, 2)
-                high = volBlendSchedule(i + 1, 2)
-                volBlend = low + frac2 * (high - low)
-            end if
-        end do
+        scheduledVariable => volBlendSchedule
+        call interpolateScheduledVariable(volBlend)
     end if
 
     if (allocated(splaySchedule)) then
-        frac = (curIter - one) / (N - 1)
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(splaySchedule, 1) - 1
-            if (frac >= splaySchedule(i, 1) .and. frac <= splaySchedule(i + 1, 1)) then
-                frac2 = (frac - splaySchedule(i, 1)) / &
-                        (splaySchedule(i + 1, 1) - splaySchedule(i, 1))
-                low = splaySchedule(i, 2)
-                high = splaySchedule(i + 1, 2)
-                splay = low + frac2 * (high - low)
-            end if
-        end do
+        scheduledVariable => splaySchedule
+        call interpolateScheduledVariable(splay)
     end if
 
     if (allocated(epsESchedule)) then
-        frac = (curIter - one) / (N - 1)
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(epsESchedule, 1) - 1
-            if (frac >= epsESchedule(i, 1) .and. frac <= epsESchedule(i + 1, 1)) then
-                frac2 = (frac - epsESchedule(i, 1)) / &
-                        (epsESchedule(i + 1, 1) - epsESchedule(i, 1))
-                low = epsESchedule(i, 2)
-                high = epsESchedule(i + 1, 2)
-                epsE = low + frac2 * (high - low)
-            end if
-        end do
+        scheduledVariable => epsESchedule
+        call interpolateScheduledVariable(epsE)
     end if
 
     if (allocated(epsISchedule)) then
-        frac = (curIter - one) / (N - 1)
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(epsISchedule, 1) - 1
-            if (frac >= epsISchedule(i, 1) .and. frac <= epsISchedule(i + 1, 1)) then
-                frac2 = (frac - epsISchedule(i, 1)) / &
-                        (epsISchedule(i + 1, 1) - epsISchedule(i, 1))
-                low = epsISchedule(i, 2)
-                high = epsISchedule(i + 1, 2)
-                epsI = low + frac2 * (high - low)
-            end if
-        end do
+        scheduledVariable => epsISchedule
+        call interpolateScheduledVariable(epsI)
     end if
 
     if (allocated(thetaSchedule)) then
-        frac = (curIter - one) / (N - 1)
+        scheduledVariable => thetaSchedule
+        call interpolateScheduledVariable(theta)
+    end if
+
+    contains
+
+    subroutine interpolateScheduledVariable(interpolatedValue)
+        use hypInput
+        implicit none
+
+        ! real(kind=realType), dimension(:, :), pointer, intent(in) :: scheduledVariable
+        real(kind=realType), intent(out) :: interpolatedValue
+
+        integer(kind=intType) :: i
+        real(kind=realType) :: low, high, frac2
+
 
         ! Just do a linear search for the bin:
-        do i = 1, size(thetaSchedule, 1) - 1
-            if (frac >= thetaSchedule(i, 1) .and. frac <= thetaSchedule(i + 1, 1)) then
-                frac2 = (frac - thetaSchedule(i, 1)) / &
-                        (thetaSchedule(i + 1, 1) - thetaSchedule(i, 1))
-                low = thetaSchedule(i, 2)
-                high = thetaSchedule(i + 1, 2)
-                theta = low + frac2 * (high - low)
+        do i = 1, size(scheduledVariable, 1) - 1
+            if (frac >= scheduledVariable(i, 1) .and. frac <= scheduledVariable(i + 1, 1)) then
+                frac2 = (frac - scheduledVariable(i, 1)) / &
+                        (scheduledVariable(i + 1, 1) - scheduledVariable(i, 1))
+                low = scheduledVariable(i, 2)
+                high = scheduledVariable(i + 1, 2)
+                interpolatedValue = low + frac2 * (high - low)
             end if
         end do
-    end if
+
+
+end subroutine interpolateScheduledVariable
+
 
 end subroutine computeScheduledVariables
 
