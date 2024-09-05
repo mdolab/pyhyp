@@ -1,6 +1,7 @@
 import os
 import sys
 import unittest
+import numpy as np
 from mpi4py import MPI
 
 baseDir = os.path.dirname(os.path.abspath(__file__))
@@ -58,19 +59,55 @@ class TestExamples(unittest.TestCase):
         self.common_test(volumeFile, marchDist)
 
     def test_2D_rans(self):
-        from examples.naca0012.naca0012_rans import volumeFile, hyp
+        from examples.naca0012.naca0012_rans import (volumeFile, surfaceFile,
+                                                     options,
+                                                     generate_surface_file,
+                                                     extrude_volume_mesh)
+
+        generate_surface_file(surfaceFile)
+        hyp = extrude_volume_mesh(options, volumeFile)
 
         marchDist = hyp.getOption("marchDist")
         self.common_test(volumeFile, marchDist)
 
-    def test_2D_schedule(self):
-        from examples.naca0012.naca0012_schedule import volumeFile, hyp
+    def test_2D_rans_schedule(self):
+        from examples.naca0012.naca0012_rans import (baseDir,
+                                                     options,
+                                                     generate_surface_file,
+                                                     extrude_volume_mesh)
+
+        options.update({
+            "epsESchedule": [[0.0, 1.0], [1.0, 5.0]],
+            "epsISchedule": [[0.0, 2.0], [1.0, 10.0]],
+            "thetaSchedule": [[0.0, 3.0], [1.0, 0.0]],
+            "volBlendSchedule": [[0.0, 0.0001, 1.0, 0.1]],
+            "volSmoothSchedule": [[0.0, 100], [1.0, 500]],
+            })
+
+        surfaceFile = os.path.join(baseDir, "naca0012_rans_schedule.fmt")
+        volumeFile = os.path.join(baseDir, "naca0012_rans_schedule.cgns")
+ 
+        generate_surface_file(surfaceFile)
+        hyp = extrude_volume_mesh(options, volumeFile)
 
         marchDist = hyp.getOption("marchDist")
         self.common_test(volumeFile, marchDist)
 
-    def test_2D_growth_ratios(self):
-        from examples.naca0012.naca0012_growth_ratios import volumeFile, hyp
+    def test_2D_rans_growth_ratios(self):
+        from examples.naca0012.naca0012_rans import (baseDir,
+                                                     options,
+                                                     generate_surface_file,
+                                                     extrude_volume_mesh)
+
+        options.update({
+            "growthRatios": np.linspace(1.05, 1.3, 128).tolist(),
+            })
+
+        surfaceFile = os.path.join(baseDir, "naca0012_rans_growth_ratios.fmt")
+        volumeFile = os.path.join(baseDir, "naca0012_rans_growth_ratios.cgns")
+ 
+        generate_surface_file(surfaceFile)
+        hyp = extrude_volume_mesh(options, volumeFile)
 
         marchDist = hyp.getOption("marchDist")
         self.common_test(volumeFile, marchDist)
