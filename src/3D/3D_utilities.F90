@@ -65,7 +65,8 @@ subroutine calcGridRatio(N, nStart, nEnd, s0, S, ratio)
 
     ! Input Parameters
     integer(kind=intType), intent(in) :: N, nStart, nEnd
-    real(kind=realType), intent(in) :: s0, S
+    real(kind=realType), intent(in) :: s0
+    real(kind=realType), intent(inout) :: S
 
     ! Output Parameters
     real(kind=realType), intent(out) :: ratio
@@ -90,6 +91,9 @@ subroutine calcGridRatio(N, nStart, nEnd, s0, S, ratio)
 
         ! pick the minimum provided ratio. This might be used to initialize pGridRatio if not specified by the user.
         ratio = minval(growthRatios)
+
+        ! compute the marchdistance
+        S = sum(fullDeltaS)
 
     else ! compute fullDeltaS based on input parameters
 
