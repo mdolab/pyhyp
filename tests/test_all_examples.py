@@ -78,11 +78,11 @@ class TestExamples(unittest.TestCase):
 
         options.update(
             {
-                "epsESchedule": [[0.0, 1.0], [1.0, 5.0]],
-                "epsISchedule": [[0.0, 2.0], [1.0, 10.0]],
-                "thetaSchedule": [[0.0, 3.0], [1.0, 0.0]],
-                "volBlendSchedule": [[0.0, 0.0001, 1.0, 0.1]],
-                "volSmoothSchedule": [[0.0, 100], [1.0, 500]],
+                "epsE": [[0.0, 1.0], [1.0, 5.0]],
+                "epsI": [[0.0, 2.0], [1.0, 10.0]],
+                "theta": [[0.0, 3.0], [1.0, 0.0]],
+                "volBlend": [[0.0, 0.0001], [1.0, 0.1]],
+                "volSmoothIter": [[0.0, 100], [1.0, 500]],
             }
         )
 

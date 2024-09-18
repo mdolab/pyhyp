@@ -580,8 +580,7 @@ class pyHyp(BaseSolver):
             "nTruncate": [int, -1],
             "marchDist": [float, 50.0],
             "nodeTol": [float, 1e-8],
-            "splay": [float, 0.25],
-            "splaySchedule": [(list, type(None)), None],
+            "splay": [(list, float), 0.25],
             "splayEdgeOrthogonality": [float, 0.1],
             "splayCornerOrthogonality": [float, 0.2],
             "cornerAngle": [float, 60.0],
@@ -606,17 +605,12 @@ class pyHyp(BaseSolver):
             # ----------------------------------------
             #   Smoothing parameters (Hyperbolic only)
             # ----------------------------------------
-            "epsE": [float, 1.0],
-            "epsI": [float, 2.0],
-            "theta": [float, 3.0],
-            "epsESchedule": [(list, type(None)), None],
-            "epsISchedule": [(list, type(None)), None],
-            "thetaSchedule": [(list, type(None)), None],
+            "epsE": [(list, float), 1.0],
+            "epsI": [(list, float), 2.0],
+            "theta": [(list, float), 3.0],
             "volCoef": [float, 0.25],
-            "volBlend": [float, 0.0001],
-            "volSmoothIter": [int, 100],
-            "volSmoothSchedule": [(list, type(None)), None],
-            "volBlendSchedule": [(list, type(None)), None],
+            "volBlend": [(list, float), 0.0001],
+            "volSmoothIter": [(list, int), 100],
             # -------------------------------
             #   Solution Parameters (Common)
             # -------------------------------
@@ -731,14 +725,8 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.ps0 = self.getOption("ps0")
         self.hyp.hypinput.pgridratio = self.getOption("pGridRatio")
         self.hyp.hypinput.slexp = self.getOption("slExp")
-        self.hyp.hypinput.epse = self.getOption("epsE")
-        self.hyp.hypinput.epsi = self.getOption("epsI")
-        self.hyp.hypinput.theta = self.getOption("theta")
         self.hyp.hypinput.volcoef = self.getOption("volCoef")
-        self.hyp.hypinput.volblend = self.getOption("volBlend")
         self.hyp.hypinput.cmax = self.getOption("cMax")
-        self.hyp.hypinput.volsmoothiter = self.getOption("volSmoothIter")
-        self.hyp.hypinput.splay = self.getOption("splay")
         self.hyp.hypinput.splayedgeorthogonality = self.getOption("splayEdgeOrthogonality")
         self.hyp.hypinput.splaycornerorthogonality = self.getOption("splayCornerOrthogonality")
         self.hyp.hypinput.cornerangle = self.getOption("cornerangle") * numpy.pi / 180
@@ -765,29 +753,46 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.sourcestrengthfile = self._expandString(f)
 
         # initialize the schedule parameters
-        scheduleVarList = ["volSmooth", "volBlend", "epsE", "epsI", "theta", "splay"]
+        schedule_vars = ["volSmoothIter", "volBlend", "epsE", "epsI", "theta", "splay"]
 
-        for scheduleVar in scheduleVarList:
-            scheduleInput = self.getOption(f"{scheduleVar}Schedule")
+        for var_name in schedule_vars:
+            input = self.getOption(var_name)
 
-            if scheduleInput is not None:
-                scheduleInput = numpy.array(scheduleInput, "d")
-                # Make sure its normalized
-                low = scheduleInput[0, 0]
-                high = scheduleInput[-1, 0]
-                scheduleInput[:, 0] = (scheduleInput[:, 0] - low) / (high - low)
-                if scheduleVar == "volSmooth":
-                    self.hyp.hypinput.volsmoothschedule = scheduleInput
-                elif scheduleVar == "volBlend":
-                    self.hyp.hypinput.volblendschedule = scheduleInput
-                elif scheduleVar == "epsE":
-                    self.hyp.hypinput.epseschedule = scheduleInput
-                elif scheduleVar == "epsI":
-                    self.hyp.hypinput.epsischedule = scheduleInput
-                elif scheduleVar == "theta":
-                    self.hyp.hypinput.thetaschedule = scheduleInput
-                elif scheduleVar == "splay":
-                    self.hyp.hypinput.splayschedule = scheduleInput
+            # set the scalar value in the fortran layer
+            if not isinstance(input, list):
+                if var_name == "volSmoothIter":
+                    self.hyp.hypinput.volsmoothiter = input
+                elif var_name == "volBlend":
+                    self.hyp.hypinput.volblend = input
+                elif var_name == "epsE":
+                    self.hyp.hypinput.epse = input
+                elif var_name == "epsI":
+                    self.hyp.hypinput.epsi = input
+                elif var_name == "theta":
+                    self.hyp.hypinput.theta = input
+                elif var_name == "splay":
+                    self.hyp.hypinput.splay = input
+                continue
+
+            # not a scalar, make sure it is normalized
+            input = numpy.array(input, "d")
+            low = input[0, 0]
+            high = input[-1, 0]
+            input[:, 0] = (input[:, 0] - low) / (high - low)
+
+            # set the schedule variable in the fortran layer
+            if var_name == "volSmoothIter":
+                self.hyp.hypinput.volsmoothschedule = input
+            elif var_name == "volBlend":
+                self.hyp.hypinput.volblendschedule = input
+            elif var_name == "epsE":
+                self.hyp.hypinput.epseschedule = input
+            elif var_name == "epsI":
+                self.hyp.hypinput.epsischedule = input
+            elif var_name == "theta":
+                self.hyp.hypinput.thetaschedule = input
+            elif var_name == "splay":
+                self.hyp.hypinput.splayschedule = input
 
         # set the growth ratios if a full array is prescribed
         growthRatioInput = self.getOption("growthRatios")

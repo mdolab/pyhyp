@@ -48,7 +48,7 @@ commonOptions = {
 # Now set up specific options
 options1 = {"outputFile": "corner1_hyp.cgns"}
 options2 = {"epsE": 4.0, "epsI": 8.0, "outputFile": "corner2_hyp.cgns"}
-options3 = {"splaySchedule": [[0.0, 0.5], [0.5, 0.0], [1.0, 0.5]], "outputFile": "corner3_hyp.cgns"}
+options3 = {"splay": [[0.0, 0.5], [0.5, 0.0], [1.0, 0.5]], "outputFile": "corner3_hyp.cgns"}
 
 # Gather options in a list
 options = [options1, options2, options3]
