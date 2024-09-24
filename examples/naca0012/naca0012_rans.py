@@ -6,10 +6,11 @@ This mesh has a blunt trailing edge.
 import os
 import numpy
 from pyhyp import pyHyp
+import numpy as np
+import argparse
 
 baseDir = os.path.dirname(os.path.abspath(__file__))
 surfaceFile = os.path.join(baseDir, "naca0012_rans.fmt")
-volumeFile = os.path.join(baseDir, "naca0012_rans.cgns")
 
 options = {
     # ---------------------------
@@ -43,6 +44,48 @@ options = {
     "volBlend": 0.0001,
     "volSmoothIter": 100,
 }
+
+
+def extrude_base_case():
+    volumeFile = os.path.join(baseDir, "naca0012_rans.cgns")
+
+    generate_surface_file(surfaceFile)
+    hyp = extrude_volume_mesh(options, volumeFile)
+
+    return hyp, volumeFile
+
+
+def extrude_schedule_case():
+    volumeFile = os.path.join(baseDir, "naca0012_rans_schedule.cgns")
+
+    options.update(
+        {
+            "epsE": [[0.0, 1.0], [1.0, 5.0]],
+            "epsI": [[0.0, 2.0], [1.0, 10.0]],
+            "theta": [[0.0, 3.0], [1.0, 0.0]],
+            "volBlend": [[0.0, 0.0001], [1.0, 0.1]],
+            "volSmoothIter": [[0.0, 100], [1.0, 500]],
+        }
+    )
+
+    generate_surface_file(surfaceFile)
+    hyp = extrude_volume_mesh(options, volumeFile)
+
+    return hyp, volumeFile
+
+
+def extrude_growth_ratios_case():
+    options.update(
+        {
+            "growthRatios": np.linspace(1.05, 1.3, 128).tolist(),
+        }
+    )
+
+    volumeFile = os.path.join(baseDir, "naca0012_rans_growth_ratios.cgns")
+
+    generate_surface_file(surfaceFile)
+    hyp = extrude_volume_mesh(options, volumeFile)
+    return hyp, volumeFile
 
 
 def generate_surface_file(surface_file):
@@ -92,5 +135,14 @@ def extrude_volume_mesh(options, volumeFile):
 
 
 if __name__ == "__main__":
-    generate_surface_file(surfaceFile)
-    extrude_volume_mesh(options, volumeFile)
+    parser = argparse.ArgumentParser(description="Process some integers.")
+    choices = ["base", "schedule", "growth_ratios"]
+    parser.add_argument("--case", choices=choices, default=choices[0])
+    args = parser.parse_args()
+
+    if args.case == "base":
+        extrude_base_case()
+    elif args.case == "schedule":
+        extrude_schedule_case()
+    else:
+        extrude_growth_ratios_case()
