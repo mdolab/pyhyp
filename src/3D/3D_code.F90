@@ -15,9 +15,6 @@ subroutine runHyperbolic
     integer(kind=intType) :: i, ierr, idim, l, reason
     real(kind=realType) :: tmp
 
-    ! initialize the scheduled inputs
-    call computeScheduledVariables(1)
-
     call calcGridRatio(N, nConstantStart, nConstantEnd, s0, marchDist, gridRatio)
 
     ! Defaults/Error checking
@@ -82,9 +79,6 @@ subroutine runHyperbolic
 
         ! Compute the how far this layer should go:
         call computeStretch(L)
-
-        ! compute the scheduled parameters
-        call computeScheduledVariables(L)
 
         ! Run the "initial guess" function. If the user is running in
         ! 'linear' mode this is all that is done. This function computes
@@ -282,7 +276,7 @@ subroutine volumeSmooth
 
     call VecGetArrayF90(VolumeLocal, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
-    do iter = 1, volSmoothIter
+    do iter = 1, volSmoothIter(marchIter)
 
         ! Copy vptr to vtmp
         do i = 1, isize
@@ -317,7 +311,7 @@ subroutine volumeSmooth
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Now we do a global volume smooth
-    factor = half * (one + (one - volBlend)**(marchIter - 2))
+    factor = half * (one + (one - volBlend(marchIter))**(marchIter - 2))
 
     call VecGetArrayF90(Volume, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
@@ -328,70 +322,6 @@ subroutine volumeSmooth
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine volumeSmooth
-
-subroutine computeScheduledVariables(curIter)
-    use precision
-    use hypInput, only: volSmoothSchedule, volSmoothIter, volBlendSchedule, volBlend, splaySchedule, splay
-    use hypInput, only: epsESchedule, epsE, epsISchedule, epsI, thetaSchedule, theta, N
-
-    implicit none
-
-    integer(kind=intType), intent(in) :: curIter
-
-    real(kind=realType) :: frac, tmp
-
-    frac = (curIter - one) / (N - 1)
-
-    if (allocated(volSmoothSchedule)) then
-        call interpolateScheduledVariable(volSmoothSchedule, tmp)
-        volSmoothIter = int(tmp)
-    end if
-
-    if (allocated(volBlendSchedule)) then
-        call interpolateScheduledVariable(volBlendSchedule, volBlend)
-    end if
-
-    if (allocated(splaySchedule)) then
-        call interpolateScheduledVariable(splaySchedule, splay)
-    end if
-
-    if (allocated(epsESchedule)) then
-        call interpolateScheduledVariable(epsESchedule, epsE)
-    end if
-
-    if (allocated(epsISchedule)) then
-        call interpolateScheduledVariable(epsISchedule, epsI)
-    end if
-
-    if (allocated(thetaSchedule)) then
-        call interpolateScheduledVariable(thetaSchedule, theta)
-    end if
-
-contains
-
-    subroutine interpolateScheduledVariable(scheduledVariable, interpolatedValue)
-        implicit none
-
-        real(kind=realType), dimension(:, :), intent(in) :: scheduledVariable
-        real(kind=realType), intent(out) :: interpolatedValue
-
-        integer(kind=intType) :: i
-        real(kind=realType) :: low, high, frac2
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(scheduledVariable, 1) - 1
-            if (frac >= scheduledVariable(i, 1) .and. frac <= scheduledVariable(i + 1, 1)) then
-                frac2 = (frac - scheduledVariable(i, 1)) / &
-                        (scheduledVariable(i + 1, 1) - scheduledVariable(i, 1))
-                low = scheduledVariable(i, 2)
-                high = scheduledVariable(i + 1, 2)
-                interpolatedValue = low + frac2 * (high - low)
-            end if
-        end do
-
-    end subroutine interpolateScheduledVariable
-
-end subroutine computeScheduledVariables
 
 subroutine initialGuess(Xnew)
     !***DESCRIPTION
@@ -897,7 +827,7 @@ subroutine calcResidual
         ! ------------------------------------
         ! Final explict dissipation (Equation 6.1 and 6.2)
         ! ------------------------------------
-        De = epsE * (Rksi * N_ksi * r_ksi_ksi + Reta * N_eta * r_eta_eta)
+        De = epsE(marchIter) * (Rksi * N_ksi * r_ksi_ksi + Reta * N_eta * r_eta_eta)
 
         if (marchIter == 2) then
             De = zero
@@ -911,32 +841,32 @@ subroutine calcResidual
             do m = 0, MM - 1
                 thetam = 2 * pi * m / MM
                 ! For the 'fm' point in ksi
-                call addBlock(ii, gnPtr(2 + m, i), (one + theta) * PinvQ1 * (two / MM) * cos(thetam))
+                call addBlock(ii, gnPtr(2 + m, i), (one + theta(marchIter)) * PinvQ1 * (two / MM) * cos(thetam))
 
                 ! For the 'f0' point in ksi
-                call addBlock(ii, ii, -(one + theta) * PInvQ1 * (two / MM) * cos(thetam))
+                call addBlock(ii, ii, -(one + theta(marchIter)) * PInvQ1 * (two / MM) * cos(thetam))
 
                 ! For the 'fm' point in eta
-                call addBlock(ii, gnPtr(2 + m, i), (one + theta) * PinvQ2 * (two / MM) * sin(thetam))
+                call addBlock(ii, gnPtr(2 + m, i), (one + theta(marchIter)) * PinvQ2 * (two / MM) * sin(thetam))
 
                 ! For the 'f0' point in ksi
-                call addBlock(ii, ii, -(one + theta) * PInvQ2 * (two / MM) * sin(thetam))
+                call addBlock(ii, ii, -(one + theta(marchIter)) * PInvQ2 * (two / MM) * sin(thetam))
 
                 ! Now we have the second derivative values to do in ksi-ksi
 
                 ! For the 'fm' point in ksi-ksi
                 coef = (two / MM) * (four * cos(thetam)**2 - one)
-                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI * coef)
+                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI(marchIter) * coef)
 
                 ! For the 'f0' point in ksi-ksi
-                call addBlock(ii, ii, eye * epsI * coef)
+                call addBlock(ii, ii, eye * epsI(marchIter) * coef)
 
                 ! For the 'fm' point in eta-eta
                 coef = (two / MM) * (four * sin(thetam)**2 - one)
-                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI * coef)
+                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI(marchIter) * coef)
 
                 ! For the 'f0' point in eta-eta
-                call addBlock(ii, ii, eye * epsI * coef)
+                call addBlock(ii, ii, eye * epsI(marchIter) * coef)
             end do
 
             ! Finally we need an eye on the diagonal
@@ -950,11 +880,11 @@ subroutine calcResidual
 
             if (.not. averageNode) then
                 ! First generate the 5 blocks that we will eventually have to set:
-                blk0 = (eye + four * epsI * eye) ! Center
-                blk1 = ((one + theta) * half * PinvQ1 - epsI * eye)  ! Right (jp1)
-                blk2 = ((one + theta) * half * PinvQ2 - epsI * eye)  ! Top (kp1)
-                blk3 = (-(one + theta) * half * PinvQ1 - epsI * eye) ! Left (jm1)
-                blk4 = (-(one + theta) * half * PinvQ2 - epsI * eye) ! Bottom (km1)
+                blk0 = (eye + four * epsI(marchIter) * eye) ! Center
+                blk1 = ((one + theta(marchIter)) * half * PinvQ1 - epsI(marchIter) * eye)  ! Right (jp1)
+                blk2 = ((one + theta(marchIter)) * half * PinvQ2 - epsI(marchIter) * eye)  ! Top (kp1)
+                blk3 = (-(one + theta(marchIter)) * half * PinvQ1 - epsI(marchIter) * eye) ! Left (jm1)
+                blk4 = (-(one + theta(marchIter)) * half * PinvQ2 - epsI(marchIter) * eye) ! Bottom (km1)
             else
                 blk0 = eye
                 blk1 = -fourth * eye

@@ -10,20 +10,21 @@ module hypInput
 
     real(kind=realType) :: s0, ps0, pgridratio
     real(kind=realType) :: slexp
-    real(kind=realType) :: epsE, volCoef, volBlend, epsI, theta
+    real(kind=realType) :: volCoef
     real(kind=realType) :: kspRelTol, cmax, marchDist
     real(kind=realType) :: nodeTol, symTol, cornerAngle
-    real(kind=realType) :: splay, splayEdgeOrthogonality, splayCornerOrthogonality
+    real(kind=realType) :: splayEdgeOrthogonality, splayCornerOrthogonality
     integer(kind=intType) :: N, nConstantStart, nConstantEnd, nTruncate
-    integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
+    integer(kind=intType) :: kspMaxIts, preConLag, kspSubspaceSize
     integer(kind=intType) :: coarsen
-    real(kind=realType), dimension(:, :), allocatable, target :: volSmoothSchedule
-    real(kind=realType), dimension(:, :), allocatable, target :: volBlendSchedule
-    real(kind=realType), dimension(:, :), allocatable, target :: splaySchedule
-    real(kind=realType), dimension(:, :), allocatable, target :: epsESchedule
-    real(kind=realType), dimension(:, :), allocatable, target :: epsISchedule
-    real(kind=realType), dimension(:, :), allocatable, target :: thetaSchedule
     real(kind=realType), dimension(:), allocatable :: growthRatios
+
+    integer(kind=intType), dimension(:), allocatable, target :: volSmoothIter
+    real(kind=realType), dimension(:), allocatable, target :: volBlend
+    real(kind=realType), dimension(:), allocatable, target :: epsE
+    real(kind=realType), dimension(:), allocatable, target :: epsI
+    real(kind=realType), dimension(:), allocatable, target :: theta
+    real(kind=realType), dimension(:), allocatable, target :: splay
 
     logical :: nonLinear, writeMetrics, unattachedEdgesAreSymmetry
     logical :: noPointReduce

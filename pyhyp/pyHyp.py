@@ -752,47 +752,13 @@ class pyHyp(BaseSolver):
         f = self.getOption("sourceStrengthFile")
         self.hyp.hypinput.sourcestrengthfile = self._expandString(f)
 
-        # initialize the schedule parameters
-        schedule_vars = ["volSmoothIter", "volBlend", "epsE", "epsI", "theta", "splay"]
-
-        for var_name in schedule_vars:
-            input = self.getOption(var_name)
-
-            # set the scalar value in the fortran layer
-            if not isinstance(input, list):
-                if var_name == "volSmoothIter":
-                    self.hyp.hypinput.volsmoothiter = input
-                elif var_name == "volBlend":
-                    self.hyp.hypinput.volblend = input
-                elif var_name == "epsE":
-                    self.hyp.hypinput.epse = input
-                elif var_name == "epsI":
-                    self.hyp.hypinput.epsi = input
-                elif var_name == "theta":
-                    self.hyp.hypinput.theta = input
-                elif var_name == "splay":
-                    self.hyp.hypinput.splay = input
-                continue
-
-            # not a scalar, make sure it is normalized
-            input = numpy.array(input, "d")
-            low = input[0, 0]
-            high = input[-1, 0]
-            input[:, 0] = (input[:, 0] - low) / (high - low)
-
-            # set the schedule variable in the fortran layer
-            if var_name == "volSmoothIter":
-                self.hyp.hypinput.volsmoothschedule = input
-            elif var_name == "volBlend":
-                self.hyp.hypinput.volblendschedule = input
-            elif var_name == "epsE":
-                self.hyp.hypinput.epseschedule = input
-            elif var_name == "epsI":
-                self.hyp.hypinput.epsischedule = input
-            elif var_name == "theta":
-                self.hyp.hypinput.thetaschedule = input
-            elif var_name == "splay":
-                self.hyp.hypinput.splayschedule = input
+        # options that might be unique per layer
+        self.hyp.hypinput.volsmoothiter = self._expand_per_layer_option("volSmoothIter", dtype=numpy.int32)
+        self.hyp.hypinput.volblend = self._expand_per_layer_option("volBlend")
+        self.hyp.hypinput.epse = self._expand_per_layer_option('epsE')
+        self.hyp.hypinput.epsi = self._expand_per_layer_option('epsI')
+        self.hyp.hypinput.theta = self._expand_per_layer_option('theta')
+        self.hyp.hypinput.splay = self._expand_per_layer_option('splay')
 
         # set the growth ratios if a full array is prescribed
         growthRatioInput = self.getOption("growthRatios")
@@ -801,6 +767,45 @@ class pyHyp(BaseSolver):
             if len(growthRatioInput) != self.getOption("N") - 1:
                 raise Error("The `growthRatios` option must have length `N` - 1")
             self.hyp.hypinput.growthratios = growthRatioInput
+
+    def _expand_per_layer_option(self, name, dtype=numpy.float64):
+        inp = self.getOption(name)
+        out = numpy.zeros(self.getOption("N"), dtype=dtype)
+        N = self.getOption("N")
+
+        # if it is a scalar, just repeat it
+        if numpy.isscalar(inp):
+            out[:] = inp
+            return out
+
+        # convert to numpy array as it is easier to work with
+        inp = numpy.array(inp)
+
+        # if it is a 1d list, use it as is
+        if inp.ndim == 1:
+            # check the length, which should be N - 1
+            if len(inp) != N - 1:
+                raise Error(f"If the `{name}` option is given as a 1D list, its length must be `N` - 1.")
+
+            # not setting the first value because this is the first layer,
+            # which is given by the surface mesh
+            out[1:] = inp 
+
+            return out
+
+        # if it is a 2d list, linearly interpolate it
+        # first make sure it is normalized
+        low = inp[0, 0]
+        high = inp[-1, 0]
+        inp[:, 0] = (inp[:, 0] - low) / (high - low)
+
+        # then interpolate
+        x = numpy.arange(1, N)
+        xp = inp[:, 0] * (N - 2) + 1
+        fp = inp[:, 1]
+        out[1:] = numpy.interp(x, xp, fp)
+
+        return out
 
     def _expandString(self, s):
         """Expand a supplied string 's' to be of the constants.maxstring
