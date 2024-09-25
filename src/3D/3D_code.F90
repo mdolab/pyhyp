@@ -330,54 +330,49 @@ subroutine volumeSmooth
 end subroutine volumeSmooth
 
 subroutine computeScheduledVariables(curIter)
-    use hypInput
+    use precision
+    use hypInput, only: volSmoothSchedule, volSmoothIter, volBlendSchedule, volBlend, splaySchedule, splay
+    use hypInput, only: epsESchedule, epsE, epsISchedule, epsI, thetaSchedule, theta, N
+
     implicit none
 
     integer(kind=intType), intent(in) :: curIter
 
     real(kind=realType) :: frac, tmp
-    real(kind=realType), dimension(:, :), pointer :: scheduledVariable
 
     frac = (curIter - one) / (N - 1)
 
     if (allocated(volSmoothSchedule)) then
-        scheduledVariable => volSmoothSchedule
-        call interpolateScheduledVariable(tmp)
+        call interpolateScheduledVariable(volSmoothSchedule, tmp)
         volSmoothIter = int(tmp)
     end if
 
     if (allocated(volBlendSchedule)) then
-        scheduledVariable => volBlendSchedule
-        call interpolateScheduledVariable(volBlend)
+        call interpolateScheduledVariable(volBlendSchedule, volBlend)
     end if
 
     if (allocated(splaySchedule)) then
-        scheduledVariable => splaySchedule
-        call interpolateScheduledVariable(splay)
+        call interpolateScheduledVariable(splaySchedule, splay)
     end if
 
     if (allocated(epsESchedule)) then
-        scheduledVariable => epsESchedule
-        call interpolateScheduledVariable(epsE)
+        call interpolateScheduledVariable(epsESchedule, epsE)
     end if
 
     if (allocated(epsISchedule)) then
-        scheduledVariable => epsISchedule
-        call interpolateScheduledVariable(epsI)
+        call interpolateScheduledVariable(epsISchedule, epsI)
     end if
 
     if (allocated(thetaSchedule)) then
-        scheduledVariable => thetaSchedule
-        call interpolateScheduledVariable(theta)
+        call interpolateScheduledVariable(thetaSchedule, theta)
     end if
 
 contains
 
-    subroutine interpolateScheduledVariable(interpolatedValue)
-        use hypInput
+    subroutine interpolateScheduledVariable(scheduledVariable, interpolatedValue)
         implicit none
 
-        ! real(kind=realType), dimension(:, :), pointer, intent(in) :: scheduledVariable
+        real(kind=realType), dimension(:, :), intent(in) :: scheduledVariable
         real(kind=realType), intent(out) :: interpolatedValue
 
         integer(kind=intType) :: i
