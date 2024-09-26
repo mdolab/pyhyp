@@ -92,7 +92,7 @@ def extrude_explicit_case():
     """
 
     def ls(start, stop, dtype=np.float64):
-        return np.linspace(start, stop, 128, dtype=dtype).tolist()
+        return np.linspace(start, stop, options["N"] - 1, dtype=dtype).tolist()
 
     options.update(
         {
