@@ -118,6 +118,15 @@ class TestExamples(unittest.TestCase):
         self.common_test(volumeFile, marchDist)
 
     def test_simpleOCart(self):
-        from examples.simpleOCart.runSimpleOCart import outFile, hExtra
+        from examples.simpleOCart.runSimpleOCart import extrude_base_case
+
+        outFile, hExtra = extrude_base_case()
+
+        self.common_test(outFile, hExtra)
+
+    def test_simpleOCart_no_surface_mesh(self):
+        from examples.simpleOCart.runSimpleOCart import extrude_no_surface_mesh_case
+
+        outFile, hExtra = extrude_no_surface_mesh_case()
 
         self.common_test(outFile, hExtra)
