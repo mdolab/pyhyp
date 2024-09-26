@@ -32,7 +32,6 @@ module hypInput
     logical :: nonLinear, writeMetrics, unattachedEdgesAreSymmetry
     logical :: noPointReduce
 
-
     ! Input boundary condition information
     integer(kind=intType), dimension(:, :), allocatable :: BCs
 

@@ -767,10 +767,10 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.volsmoothiter = self._expand_per_layer_option("volSmoothIter", dtype=numpy.int32)
         self.hyp.hypinput.volblend = self._expand_per_layer_option("volBlend")
         self.hyp.hypinput.volcoef = self._expand_per_layer_option("volCoef")
-        self.hyp.hypinput.epse = self._expand_per_layer_option('epsE')
-        self.hyp.hypinput.epsi = self._expand_per_layer_option('epsI')
-        self.hyp.hypinput.theta = self._expand_per_layer_option('theta')
-        self.hyp.hypinput.splay = self._expand_per_layer_option('splay')
+        self.hyp.hypinput.epse = self._expand_per_layer_option("epsE")
+        self.hyp.hypinput.epsi = self._expand_per_layer_option("epsI")
+        self.hyp.hypinput.theta = self._expand_per_layer_option("theta")
+        self.hyp.hypinput.splay = self._expand_per_layer_option("splay")
         self.hyp.hypinput.splayedgeorthogonality = self._expand_per_layer_option("splayEdgeOrthogonality")
         self.hyp.hypinput.splaycornerorthogonality = self._expand_per_layer_option("splayCornerOrthogonality")
         self.hyp.hypinput.cornerangle = self._expand_per_layer_option("cornerangle") * numpy.pi / 180
@@ -789,10 +789,10 @@ class pyHyp(BaseSolver):
         # if the user specified an explicit growth-ratio, use this
         options_growth_ratios = self.getOption("growthRatios")
         if options_growth_ratios is not None:
-            growth_ratios = self._expand_per_layer_option('growthRatios')
+            growth_ratios = self._expand_per_layer_option("growthRatios")
 
             if self.comm.Get_rank() == 0:
-                pyHypWarning(f"The option `growthRatios` has been specified. This takes precedence over `marchDist`.")
+                pyHypWarning("The option `growthRatios` has been specified. This takes precedence over `marchDist`.")
         else:
             # no growth ratio was provided -> compute it
             growth_ratios = self._compute_growth_ratio()
@@ -804,19 +804,19 @@ class pyHyp(BaseSolver):
         if options_growth_ratios is not None:
             marchDist = numpy.sum(fullDeltaS)
         else:
-            marchDist = self.getOption('marchDist')
+            marchDist = self.getOption("marchDist")
 
         # let the user know what growth-ratio is used
         n_decimals = 3
         min_growth_ratio = numpy.round(numpy.min(growth_ratios[growth_ratios > 1]), n_decimals)
         max_growth_ratio = numpy.round(numpy.max(growth_ratios[growth_ratios > 1]), n_decimals)
         if self.comm.Get_rank() == 0:
-            print('#--------------------#')
+            print("#--------------------#")
             if max_growth_ratio - min_growth_ratio <= 0:
-                print(f'Grid Ratio:  {min_growth_ratio}')
+                print(f"Grid Ratio:  {min_growth_ratio}")
             else:
-                print(f'Grid Ratio:  {min_growth_ratio} - {max_growth_ratio}')
-            print('#--------------------#')
+                print(f"Grid Ratio:  {min_growth_ratio} - {max_growth_ratio}")
+            print("#--------------------#")
 
         return fullDeltaS, marchDist, growth_ratios
 
@@ -841,7 +841,6 @@ class pyHyp(BaseSolver):
 
         return pGridRatio, ps0
 
-
     def _compute_delta_S(self, growth_ratios):
         N = self.getOption("N")
         s0 = self.getOption("s0")
@@ -850,10 +849,9 @@ class pyHyp(BaseSolver):
         # compute the delta S
         fullDeltaS[1] = s0
         for n in range(2, N):
-            fullDeltaS[n] = fullDeltaS[n-1] * growth_ratios[n]
+            fullDeltaS[n] = fullDeltaS[n - 1] * growth_ratios[n]
 
         return fullDeltaS
-
 
     def _compute_growth_ratio(self):
         # initial ratio and r is the grid ratio.
@@ -871,7 +869,7 @@ class pyHyp(BaseSolver):
             curSize = s0
 
             # Next we will have M = N - nStart - nEnd layers of exponential growth.
-            for j in range(N - 1 - n_start - n_end):
+            for _j in range(N - 1 - n_start - n_end):
                 curSize = curSize * r
                 func = func + curSize
 
@@ -888,29 +886,28 @@ class pyHyp(BaseSolver):
 
         # Do a bisection search
         # Max and min bounds...root must be in here...
-        a = 1. + 1e-8
-        b = 4.
+        a = 1.0 + 1e-8
+        b = 4.0
         ratio = -1
 
         fa = func(a)
-        for i in range(100):
-            c = (a + b)/2
+        for _i in range(100):
+            c = (a + b) / 2
             f = func(c)
-            if (abs(f) < 1e-10): # Converged
+            if abs(f) < 1e-10:  # Converged
                 ratio = c
                 break
 
-            if (f * fa > 0):
+            if f * fa > 0:
                 a = c
             else:
                 b = c
 
         # we need to return an array of growth-ratios
         growth_ratios = numpy.ones(N)
-        growth_ratios[n_start:N-(n_end - 1)] = ratio
+        growth_ratios[n_start : N - (n_end - 1)] = ratio
 
         return growth_ratios
-
 
     def _expand_per_layer_option(self, name, dtype=numpy.float64):
         inp = self.getOption(name)
@@ -933,7 +930,7 @@ class pyHyp(BaseSolver):
 
             # not setting the first value because this is the first layer,
             # which is given by the surface mesh
-            out[1:] = inp 
+            out[1:] = inp
 
             return out
 
@@ -966,7 +963,7 @@ class pyHyp(BaseSolver):
         if self.gridGenerated:
             return self.hyp.hypinput.marchdist
         else:
-            raise Error('Can not returning used marching distance before extruding the grid')
+            raise Error("Can not returning used marching distance before extruding the grid")
 
     def writeLayer(self, fileName, layer=1, meshType="plot3d", partitions=True):
         """

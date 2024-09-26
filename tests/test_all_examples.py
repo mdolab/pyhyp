@@ -1,10 +1,7 @@
 import os
 import sys
 import unittest
-import numpy as np
 from mpi4py import MPI
-
-from examples.naca0012.naca0012_rans import extrude_schedule_case
 
 baseDir = os.path.dirname(os.path.abspath(__file__))
 refDir = os.path.join(baseDir, "ref")

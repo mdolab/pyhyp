@@ -20,7 +20,7 @@ subroutine runHyperbolic
 
     ! Write header (defined in 3D_utilities.f90)
     if (myid == 0) then
-            call writeHeader
+        call writeHeader
     end if
 
     ! Zero out the cumulative distance counter
