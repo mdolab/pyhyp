@@ -3,13 +3,12 @@ python module hyp ! in
     interface  ! in :hyp
         module hypinput ! in :hyp:hypInput.f90
             use precision
+            real(kind=realtype), dimension(:), allocatable :: fulldeltas
             real(kind=realtype), dimension(:), allocatable :: epse
             real(kind=realtype), dimension(:), allocatable :: epsi
             real(Kind=realtype), dimension(:), allocatable :: theta
-            real(kind=realtype) :: s0
             real(kind=realtype) :: ps0
             real(kind=realtype) :: pgridratio
-            real(kind=realtype), dimension(:), allocatable :: growthratios
             integer(kind=inttype) :: n
             integer(kind=inttype) :: nconstantstart
             integer(kind=inttype) :: nconstantend
@@ -17,11 +16,12 @@ python module hyp ! in
             integer(kind=inttype), dimension(:), allocatable :: volsmoothiter
             integer(kind=inttype) :: coarsen
             real(kind=realtype) :: slexp
-            real(kind=realtype) :: volcoef
+            real(kind=realtype), dimension(:), allocatable :: volcoef
             real(kind=realtype), dimension(:), allocatable :: volblend
             real(kind=realtype), dimension(:), allocatable :: splay
-            real(kind=realtype) :: splayedgeorthogonality
-            real(kind=realtype) :: splaycornerorthogonality
+            real(kind=realtype), dimension(:), allocatable :: splayedgeorthogonality
+            real(kind=realtype), dimension(:), allocatable :: splaycornerorthogonality
+            real(kind=realtype), dimension(:), allocatable :: cornerangle
             real(kind=realtype) :: kspreltol
             logical :: nonlinear
             logical :: unattachededgesaresymmetry
@@ -32,7 +32,6 @@ python module hyp ! in
             real(kind=realtype) :: cmax
             real(kind=realtype) :: nodetol
             real(kind=realtype) :: symtol
-            real(kind=realtype) :: cornerangle
             integer(kind=inttype), parameter :: bcdefault = -1
             integer(kind=inttype), parameter :: bcsplay = 0
             integer(kind=inttype), parameter :: bcxsymm = 1

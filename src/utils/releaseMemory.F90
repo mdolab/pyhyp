@@ -81,8 +81,16 @@ subroutine releaseMemory
         deallocate (volblend)
     end if
 
-    if (allocated(growthRatios)) then
-        deallocate (growthRatios)
+    if (allocated(volCoef)) then
+        deallocate (volCoef)
+    end if
+
+    if (allocated(splayEdgeOrthogonality)) then
+        deallocate (splayEdgeOrthogonality)
+    end if
+
+    if (allocated(splayCornerOrthogonality)) then
+        deallocate (splayCornerOrthogonality)
     end if
 
     if (varsAllocated) then

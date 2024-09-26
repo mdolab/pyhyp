@@ -15,53 +15,12 @@ subroutine runHyperbolic
     integer(kind=intType) :: i, ierr, idim, l, reason
     real(kind=realType) :: tmp
 
-    call calcGridRatio(N, nConstantStart, nConstantEnd, s0, marchDist, gridRatio)
-
-    ! Defaults/Error checking
-    if (pGridRatio <= 0) then
-        pGridRatio = gridRatio
-    end if
-
-    if (pGridRatio > gridRatio) then
-        if (myid == 0) then
-            print *, 'Error: The supplied pseudo grid ratio is too large. It must be less than', gridRatio
-        end if
-        call mpi_barrier(hyp_comm_world, ierr)
-        stop
-    end if
-
     ! Set initial pseudo and real spacings
-    if (ps0 <= zero) then
-        deltaS = s0 / two
-    else
-        deltaS = ps0
-    end if
-
-    if (deltaS > s0) then
-        if (myid == 0) then
-            print *, 'Error: The supplied pseudo grid s0 is too large. It must be less than', s0
-        end if
-        call mpi_barrier(hyp_comm_world, ierr)
-        stop
-    end if
+    deltaS = ps0
 
     ! Write header (defined in 3D_utilities.f90)
     if (myid == 0) then
-        write (*, "(a)", advance="no") '#--------------------#'
-        print "(1x)"
-        write (*, "(a)", advance="no") " Grid Ratio:"
-        if (allocated(growthRatios)) then
-            write (*, "(f8.4,1x)", advance="no") minval(growthRatios)
-            write (*, "(a)", advance="no") "-"
-            write (*, "(f8.4,1x)", advance="no") maxval(growthRatios)
-        else
-            write (*, "(f8.4,1x)", advance="no") gridRatio
-        end if
-        print "(1x)"
-        write (*, "(a)", advance="no") '#--------------------#'
-        print "(1x)"
-
-        call writeHeader
+            call writeHeader
     end if
 
     ! Zero out the cumulative distance counter
@@ -293,7 +252,7 @@ subroutine volumeSmooth
                 vSum = vSum + Vtmp(lnPtr(1 + ii, i))
             end do
 
-            vptr(i) = (one - volCoef) * Vtmp(i) + volCoef / nNeighbors * vSum
+            vptr(i) = (one - volCoef(marchIter)) * Vtmp(i) + volCoef(marchIter) / nNeighbors * vSum
 
         end do
 
@@ -606,9 +565,9 @@ subroutine calcResidual
                 xjm1_m1 = xxm1(3 * jm1 - 2:3 * jm1)
 
                 ! Get the 4th point based on the BC Type:
-                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality, &
+                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality(marchIter), &
                            xx0, xjp1, xkp1, xjm1, xkm1)
-                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality, &
+                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality(marchIter), &
                            xx0_m1, xjp1_m1, xkp1_m1, xjm1_m1, xkm1_m1)
 
             else if (topoType(i) == topoCorner) then
@@ -616,16 +575,16 @@ subroutine calcResidual
                 ! Get the 3rd and 4th points based on the BCTypes.
 
                 call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                           splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
+                           splayCornerOrthogonality(marchIter), xx0, xkp1, xjp1, xkm1, xjm1)
 
                 call getBC(BCType(2, i), bcVal(2, :, i), .False., &
-                           splayCornerOrthogonality, xx0, xjp1, xkp1, xjm1, xkm1)
+                           splayCornerOrthogonality(marchIter), xx0, xjp1, xkp1, xjm1, xkm1)
 
                 call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                           splayCornerOrthogonality, xx0_m1, xkp1_m1, xjp1_m1, xkm1_m1, xjm1_m1)
+                           splayCornerOrthogonality(marchIter), xx0_m1, xkp1_m1, xjp1_m1, xkm1_m1, xjm1_m1)
 
                 call getBC(BCType(2, i), bcVal(2, :, i), .False., &
-                           splayCornerOrthogonality, xx0_m1, xjp1_m1, xkp1_m1, xjm1_m1, xkm1_m1)
+                           splayCornerOrthogonality(marchIter), xx0_m1, xjp1_m1, xkp1_m1, xjm1_m1, xkm1_m1)
             end if
 
             ! Compute centered difference with respect to ksi and eta. This is the
@@ -746,7 +705,7 @@ subroutine calcResidual
             maxAlpha = max(maxAlpha, alpha)
 
             ! Check maximum corner angle
-            if (maxAlpha > pi - cornerAngle) then
+            if (maxAlpha > pi - cornerAngle(marchIter)) then
                 ! Flag this node as having to be averaged:
                 averageNode = .True.
                 !print *,xx0
@@ -1050,7 +1009,7 @@ subroutine updateBCs
             xjm1 = xx(3 * jm1 - 2:3 * jm1)
 
             ! Get the 4th point based on the BC Type:
-            call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality, &
+            call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality(marchIter), &
                        xx0, xjp1, xkp1, xjm1, xkm1)
             xx(3 * i - 2:3 * i) = xx0
 
@@ -1065,10 +1024,10 @@ subroutine updateBCs
 
             ! Get the 3rd and 4th points based on the BCTypes
             call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                       splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
+                       splayCornerOrthogonality(marchIter), xx0, xkp1, xjp1, xkm1, xjm1)
 
             call getBC(BCType(2, i), bcVal(2, :, i), .False., &
-                       splayCornerOrthogonality, xx0, xjp1, xkp1, xjm1, xkm1)
+                       splayCornerOrthogonality(marchIter), xx0, xjp1, xkp1, xjm1, xkm1)
 
             ! BC may update our node
             xx(3 * i - 2:3 * i) = xx0
@@ -1080,7 +1039,7 @@ subroutine updateBCs
 
             ! Other nodes are not significant.
             call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                       splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
+                       splayCornerOrthogonality(marchIter), xx0, xkp1, xjp1, xkm1, xjm1)
 
             ! BC may update our node
             xx(3 * i - 2:3 * i) = xx0
