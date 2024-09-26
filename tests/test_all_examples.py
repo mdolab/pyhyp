@@ -73,10 +73,10 @@ class TestExamples(unittest.TestCase):
         marchDist = hyp.get_used_march_distance()
         self.common_test(volumeFile, marchDist)
 
-    def test_2D_rans_growth_ratios(self):
-        from examples.naca0012.naca0012_rans import extrude_growth_ratios_case
+    def test_2D_rans_explicit(self):
+        from examples.naca0012.naca0012_rans import extrude_explicit_case
 
-        hyp, volumeFile = extrude_growth_ratios_case()
+        hyp, volumeFile = extrude_explicit_case()
 
         marchDist = hyp.get_used_march_distance()
         self.common_test(volumeFile, marchDist)

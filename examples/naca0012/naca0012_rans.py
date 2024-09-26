@@ -47,6 +47,10 @@ options = {
 
 
 def extrude_base_case():
+    """
+    This is the default where most values are scalars
+    """
+
     volumeFile = os.path.join(baseDir, "naca0012_rans.cgns")
 
     generate_surface_file(surfaceFile)
@@ -56,15 +60,22 @@ def extrude_base_case():
 
 
 def extrude_schedule_case():
+    """
+    Some variables are 'scheduled' which means their value changes depending on
+    the extrusion layer. The values are specified on intervals which are
+    linearly interpolated by pyHyp.
+    """
     volumeFile = os.path.join(baseDir, "naca0012_rans_schedule.cgns")
 
     options.update(
         {
-            "epsE": [[0.0, 1.0], [1.0, 5.0]],
-            "epsI": [[0.0, 2.0], [1.0, 10.0]],
-            "theta": [[0.0, 3.0], [1.0, 0.0]],
+            "epsE": [[0.0, 1.0], [0.2, 2.0], [1.0, 5.0]],
+            "epsI": [[0.0, 2.0], [0.2, 2.0], [1.0, 10.0]],
+            "theta": [[0.0, 3.0], [0.2, 2.5], [1.0, 0.0]],
             "volBlend": [[0.0, 0.0001], [1.0, 0.1]],
             "volSmoothIter": [[0.0, 100], [1.0, 500]],
+            "volCoef": [[0.0, 0.25], [1.0, 0.5]],
+            "growthRatios": [[0.0, 1.05], [1.0, 1.1]],
         }
     )
 
@@ -74,14 +85,28 @@ def extrude_schedule_case():
     return hyp, volumeFile
 
 
-def extrude_growth_ratios_case():
+def extrude_explicit_case():
+    """
+    Some variables are set 'explicitly'. This means, a list of values that
+    correspond to each layer is provided.
+    """
+
+    def ls(start, stop, dtype=np.float64):
+        return np.linspace(start, stop, 128, dtype=dtype).tolist()
+
     options.update(
         {
-            "growthRatios": np.linspace(1.05, 1.3, 128).tolist(),
+            "epsE": ls(1.0, 5.0),
+            "epsI": ls(2.0, 10.0),
+            "theta": ls(3.0, 0.0),
+            "volBlend": ls(0.0001, 0.1),
+            "volSmoothIter": ls(100, 500, dtype=np.int32),
+            "volCoef": ls(0.25, 0.5),
+            "growthRatios": ls(1.05, 1.3),
         }
     )
 
-    volumeFile = os.path.join(baseDir, "naca0012_rans_growth_ratios.cgns")
+    volumeFile = os.path.join(baseDir, "naca0012_rans_explicit.cgns")
 
     generate_surface_file(surfaceFile)
     hyp = extrude_volume_mesh(options, volumeFile)
@@ -145,4 +170,4 @@ if __name__ == "__main__":
     elif args.case == "schedule":
         extrude_schedule_case()
     else:
-        extrude_growth_ratios_case()
+        extrude_explicit_case()
