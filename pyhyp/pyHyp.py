@@ -905,7 +905,7 @@ class pyHyp(BaseSolver):
 
         # we need to return an array of growth-ratios
         growth_ratios = numpy.ones(N)
-        growth_ratios[n_start : N - (n_end - 1)] = ratio
+        growth_ratios[n_start + 1 : N - (n_end - 1)] = ratio
 
         return growth_ratios
 

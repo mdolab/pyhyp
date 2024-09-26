@@ -65,6 +65,14 @@ class TestExamples(unittest.TestCase):
         marchDist = hyp.get_used_march_distance()
         self.common_test(volumeFile, marchDist)
 
+    def test_2D_rans_constant_layers(self):
+        from examples.naca0012.naca0012_rans import extrude_constant_layers_case
+
+        hyp, volumeFile = extrude_constant_layers_case()
+
+        marchDist = hyp.get_used_march_distance()
+        self.common_test(volumeFile, marchDist)
+
     def test_2D_rans_schedule(self):
         from examples.naca0012.naca0012_rans import extrude_schedule_case
 

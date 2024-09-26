@@ -59,6 +59,26 @@ def extrude_base_case():
     return hyp, volumeFile
 
 
+def extrude_constant_layers_case():
+    """
+    Here, the first and last layers are kept konstant (growth-ratio == 1.0)
+    """
+
+    volumeFile = os.path.join(baseDir, "naca0012_rans_constant_layers.cgns")
+
+    options.update(
+        {
+            "nConstantStart": 5,
+            "nConstantEnd": 5,
+        }
+    )
+
+    generate_surface_file(surfaceFile)
+    hyp = extrude_volume_mesh(options, volumeFile)
+
+    return hyp, volumeFile
+
+
 def extrude_schedule_case():
     """
     Some variables are 'scheduled' which means their value changes depending on
@@ -76,7 +96,7 @@ def extrude_schedule_case():
             "volSmoothIter": [[0.0, 100], [1.0, 500]],
             "volCoef": [[0.0, 0.25], [1.0, 0.5]],
             "growthRatios": [[0.0, 1.05], [1.0, 1.1]],
-            "cornerAngle": [[0.0, 110.], [1.0, 120.0]],
+            "cornerAngle": [[0.0, 110.0], [1.0, 120.0]],
         }
     )
 
@@ -104,7 +124,7 @@ def extrude_explicit_case():
             "volSmoothIter": ls(100, 500, dtype=np.int32),
             "volCoef": ls(0.25, 0.5),
             "growthRatios": ls(1.05, 1.3),
-            "cornerAngle": ls(110., 120.0),
+            "cornerAngle": ls(110.0, 120.0),
         }
     )
 
