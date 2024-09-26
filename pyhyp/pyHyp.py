@@ -428,8 +428,8 @@ class pyHyp(BaseSolver):
         super().__init__(name, category, defaultOptions=defOpts, options=options, comm=comm, informs=informs)
 
         # Import and set the hyp module
-        curDir = os.path.dirname(os.path.realpath(__file__))
-        self.hyp = MExt.MExt("hyp", [curDir], debug=debug)._module
+        curDir = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
+        self.hyp = MExt.MExt("hyp", curDir, debug=debug)._module
 
         # Initialize PETSc and MPI if not already done so:
         self.hyp.initpetsc(self.comm.py2f())
