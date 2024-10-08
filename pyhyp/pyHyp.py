@@ -424,8 +424,19 @@ class pyHyp(BaseSolver):
         if options is None:
             raise Error("The options = keyword argument is *NOT* optional. " "It must always be provided")
 
+        # Deprecated options
+        deprecated_options = self._getDeprecatedOptions()
+
         # Initialize the inherited BaseSolver
-        super().__init__(name, category, defaultOptions=defOpts, options=options, comm=comm, informs=informs)
+        super().__init__(
+            name,
+            category,
+            defaultOptions=defOpts,
+            options=options,
+            deprecatedOptions=deprecated_options,
+            comm=comm,
+            informs=informs,
+        )
 
         # Import and set the hyp module
         curDir = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -645,6 +656,14 @@ class pyHyp(BaseSolver):
         }
         return defOpts
 
+    @staticmethod
+    def _getDeprecatedOptions():
+        deprecated_options = {
+            "volSmoothSchedule": "Please use 'volSmoothIter' for the same functionality",
+        }
+
+        return deprecated_options
+
     def run(self):
         """
         Run given using the options given
@@ -806,17 +825,18 @@ class pyHyp(BaseSolver):
         else:
             marchDist = self.getOption("marchDist")
 
-        # let the user know what growth-ratio is used
+        # let the user know what growth-ratio march dist is used
         n_decimals = 3
         min_growth_ratio = numpy.round(numpy.min(growth_ratios[growth_ratios > 1]), n_decimals)
         max_growth_ratio = numpy.round(numpy.max(growth_ratios[growth_ratios > 1]), n_decimals)
         if self.comm.Get_rank() == 0:
             print("#--------------------#")
             if max_growth_ratio - min_growth_ratio <= 0:
-                print(f"Grid Ratio:  {min_growth_ratio}")
+                growth_ratio_string = f"{min_growth_ratio}"
             else:
-                print(f"Grid Ratio:  {min_growth_ratio} - {max_growth_ratio}")
-            print("#--------------------#")
+                growth_ratio_string = f"{min_growth_ratio} - {max_growth_ratio}"
+            print(f"Grid Ratio:  {growth_ratio_string}")
+            print(f"March Dist:  {numpy.round(marchDist, n_decimals)}")
 
         return fullDeltaS, marchDist, growth_ratios
 
