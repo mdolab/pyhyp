@@ -26,6 +26,7 @@ from mpi4py import MPI
 from . import MExt
 from collections import OrderedDict
 from copy import deepcopy
+from tabulate import tabulate
 from baseclasses import BaseSolver
 from baseclasses.utils import Error
 from cgnsutilities.cgnsutilities import readGrid, combineGrids
@@ -177,7 +178,7 @@ class pyHypMulti(object):
         self.results = {
             "name": list(optionsDict.keys()),
             "outputFile": [0] * self.numGrids,
-            "gridRatio": [0] * self.numGrids,
+            "gridRatio": [""] * self.numGrids,
             "minQualityOverall": [0] * self.numGrids,
             "minVolumeOverall": [0] * self.numGrids,
         }
@@ -248,11 +249,17 @@ class pyHypMulti(object):
                 hypGrid.writeOutput()
 
                 # Save results
+                n_decimals = 4
+
                 self.results["name"][index] = optionName
                 self.results["outputFile"][index] = hypGrid.options["outputfile"]
-                self.results["gridRatio"][index] = float(hypGrid.hyp.hypdata.gridratio)
-                self.results["minQualityOverall"][index] = float(hypGrid.hyp.hypdata.minqualityoverall)
-                self.results["minVolumeOverall"][index] = float(hypGrid.hyp.hypdata.minvolumeoverall)
+                self.results["minQualityOverall"][index] = round_sig(
+                    float(hypGrid.hyp.hypdata.minqualityoverall), n_decimals
+                )
+                self.results["minVolumeOverall"][index] = round_sig(
+                    float(hypGrid.hyp.hypdata.minvolumeoverall), n_decimals
+                )
+                self.results["gridRatio"][index] = hypGrid.get_growth_ratio_string(n_decimals=n_decimals)
 
                 # Delete object to free memory
                 del hypGrid
@@ -281,54 +288,7 @@ class pyHypMulti(object):
             print("=" * 40)
 
             print("")
-            print("+----+-----------------------+-----------+-------------------+------------------+")
-            print("| ID |       grid name       | gridRatio | minQualityOverall | minVolumeOverall |")
-            print("+----+-----------------------+-----------+-------------------+------------------+")
-
-            for index in range(self.numGrids):
-                # Crop filename
-                try:
-                    filename = self.results["name"][index][:21]
-                except Exception:  # noqa: E722
-                    filename = self.results["name"][index]
-
-                # Get remaining data
-                gridRatio = self.results["gridRatio"][index]
-                minQualityOverall = self.results["minQualityOverall"][index]
-                minVolumeOverall = self.results["minVolumeOverall"][index]
-
-                # Format string that will be printed
-                log_string1 = "| %02d " % index + "|" + " {0: <21} ".format(filename) + "|"
-                if type(gridRatio) is str:
-                    log_string2 = (
-                        " {0: <9} ".format(gridRatio)
-                        + "|"
-                        + " " * 4
-                        + "{0: <10}".format(minQualityOverall)
-                        + " " * 5
-                        + "|"
-                        + " " * 4
-                        + "{0: <10}".format(minVolumeOverall)
-                        + " " * 4
-                        + "|"
-                    )
-                else:
-                    log_string2 = (
-                        " {:9.7f} ".format(gridRatio)
-                        + "|"
-                        + " " * 4
-                        + "{:9.8f}".format(minQualityOverall)
-                        + " " * 5
-                        + "|"
-                        + " " * 4
-                        + "{:8.4e}".format(minVolumeOverall)
-                        + " " * 4
-                        + "|"
-                    )
-
-                print(log_string1 + log_string2)
-
-            print("+----+-----------------------+-----------+-------------------+------------------+")
+            print(tabulate(self.results, headers="keys"))
             print("")
             print("")
 
@@ -798,6 +758,7 @@ class pyHyp(BaseSolver):
         full_delta_S, march_dist, growth_ratios = self._determine_marching_parameters()
         self.hyp.hypinput.fulldeltas = full_delta_S
         self.hyp.hypinput.marchdist = march_dist
+        self.growth_ratios = growth_ratios
 
         # figure out pseudo grid ratio parameters
         pgridratio, ps0 = self._configure_pseudo_grid_parameters(growth_ratios)
@@ -826,19 +787,29 @@ class pyHyp(BaseSolver):
             marchDist = self.getOption("marchDist")
 
         # let the user know what growth-ratio march dist is used
-        n_decimals = 3
-        min_growth_ratio = numpy.round(numpy.min(growth_ratios[growth_ratios > 1]), n_decimals)
-        max_growth_ratio = numpy.round(numpy.max(growth_ratios[growth_ratios > 1]), n_decimals)
         if self.comm.Get_rank() == 0:
+            n_decimals = 3
+            growth_ratio_string = self.get_growth_ratio_string(growth_ratios, n_decimals)
+
             print("#--------------------#")
-            if max_growth_ratio - min_growth_ratio <= 0:
-                growth_ratio_string = f"{min_growth_ratio}"
-            else:
-                growth_ratio_string = f"{min_growth_ratio} - {max_growth_ratio}"
             print(f"Grid Ratio:  {growth_ratio_string}")
-            print(f"March Dist:  {numpy.round(marchDist, n_decimals)}")
+            print(f"March Dist:  {round_sig(marchDist, n_decimals)}")
 
         return fullDeltaS, marchDist, growth_ratios
+
+    def get_growth_ratio_string(self, growth_ratios=None, n_decimals=3):
+        if growth_ratios is None:
+            growth_ratios = self.growth_ratios
+
+        min_growth_ratio = round_sig(numpy.min(growth_ratios[growth_ratios > 1]), n_decimals)
+        max_growth_ratio = round_sig(numpy.max(growth_ratios[growth_ratios > 1]), n_decimals)
+
+        if max_growth_ratio - min_growth_ratio <= 0:
+            growth_ratio_string = f"{min_growth_ratio}"
+        else:
+            growth_ratio_string = f"{min_growth_ratio} - {max_growth_ratio}"
+
+        return growth_ratio_string
 
     def _configure_pseudo_grid_parameters(self, growth_ratios):
         pGridRatio = self.getOption("pGridRatio")
@@ -1094,3 +1065,24 @@ def generateOutputName(inputFile, outputType):
 
     # Return the generated name
     return outputFile
+
+
+def round_sig(x, p):
+    """
+    Rounds the number to the significant figures requested.
+    This has been taken from here: https://stackoverflow.com/a/59888924
+
+    Parameters
+    ----------
+
+    x : number
+        The number to be rounded. Also works with arrays
+
+    p : int
+        The amount of significant figures to round to.
+
+    """
+    x = numpy.asarray(x)
+    x_positive = numpy.where(numpy.isfinite(x) & (x != 0), numpy.abs(x), 10 ** (p - 1))
+    mags = 10 ** (p - 1 - numpy.floor(numpy.log10(x_positive)))
+    return numpy.round(x * mags) / mags

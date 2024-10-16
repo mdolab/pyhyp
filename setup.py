@@ -35,6 +35,7 @@ setup(
         "mpi4py>=3.0",
         "mdolab-baseclasses>=1.3",
         "cgnsutilities>=2.5",
+        "tabulate",
     ],
     extras_require={
         "docs": docs_require,
