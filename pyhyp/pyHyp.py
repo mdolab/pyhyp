@@ -772,7 +772,9 @@ class pyHyp(BaseSolver):
             growth_ratios = self._expand_per_layer_option("growthRatios")
 
             if self.comm.Get_rank() == 0:
-                pyHypWarning("The option `growthRatios` has been specified. This takes precedence over `marchDist`.")
+                pyHypWarning(
+                    "The option `growthRatios` has been specified. This takes precedence over `marchDist`, `nConstantStart` and `nConstantEnd`."
+                )
         else:
             # no growth ratio was provided -> compute it
             growth_ratios = self._compute_growth_ratio()
