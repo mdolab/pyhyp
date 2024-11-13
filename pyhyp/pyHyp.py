@@ -955,7 +955,7 @@ class pyHyp(BaseSolver):
 
     def getUsedMarchDistance(self):
         if not self.gridGenerated:
-            raise Error("Can not returning used marching distance before extruding the grid")
+            raise Error("Cannot return the used marching distance before extruding the grid.")
 
         return self.hyp.hypinput.marchdist
 
