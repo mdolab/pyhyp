@@ -805,7 +805,7 @@ class pyHyp(BaseSolver):
 
     def _printMarchingParameters(self):
         """
-        Print the marching parameters used. 
+        Print the marching parameters used.
         """
         if not self.comm.Get_rank() == 0:
             return
@@ -816,8 +816,6 @@ class pyHyp(BaseSolver):
         print("#--------------------#")
         print(f"Grid Ratio:  {growthRatioString}")
         print(f"March Dist:  {roundSig(self.marchDistance, nDecimals)}")
-
-
 
     def getGrowthRatioString(self, nDecimals=3):
         """
@@ -853,7 +851,7 @@ class pyHyp(BaseSolver):
 
         Returns
         -------
-         pGridRatio: float
+        pGridRatio: float
             Growth ratio for the pseudo grid.
         ps0 : float
             First layer height for the pseudo grid.
@@ -972,25 +970,25 @@ class pyHyp(BaseSolver):
     def _expandPerLayerOption(self, name, dtype=numpy.float64):
         """
         Expands the option in question into an array that has a unique value
-        per layer. 
+        per layer.
 
-        The option may come in different formats: 
+        The option may come in different formats:
         (1) If it is a scalar, the same value is used throughout all of the grid.
         (2) If it is a 1D list, it must have a length of N - 1. Each entry is
-            used for the corresponding extrusion layer. E.g. [0.2, 0.3, 0.4] would
-            result in a grid with 3 extrusions where the first layer uses 0.2, the
-            second layer uses 0.3 and the last one uses 0.4.
+        used for the corresponding extrusion layer. E.g. [0.2, 0.3, 0.4] would
+        result in a grid with 3 extrusions where the first layer uses 0.2, the
+        second layer uses 0.3 and the last one uses 0.4.
         (3) If it is a 2D list, the values are interpolated linearly. E.g.
-            [[0.0, 0.2], [0.5, 0.4], [1.0, 0.0]] would result in a linear increase
-            from 0.2 to 0.4 at half of the total N. Then it would linearly decrease
-            until it reaches 0.0 in the last extrusion. 
+        [[0.0, 0.2], [0.5, 0.4], [1.0, 0.0]] would result in a linear increase
+        from 0.2 to 0.4 at half of the total N. Then it would linearly decrease
+        until it reaches 0.0 in the last extrusion.
 
         Parameters
         ----------
         name : str
             Name of the option in question
         dtype : numpy.dtype
-            The datatype of the option in question. 
+            The datatype of the option in question.
 
         Returns
         -------
@@ -1057,7 +1055,7 @@ class pyHyp(BaseSolver):
         """
         if not self.gridGenerated:
             raise Error("Cannot return the used marching distance before extruding the grid.")
-        
+
         marchDist = self.hyp.hypinput.marchdist
 
         return marchDist

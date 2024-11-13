@@ -191,8 +191,7 @@ if __name__ == "__main__":
         extrudeConstantLayersCase()
     elif args.case == "schedule":
         extrudeScheduleCase()
-    elif args.case == 'explicit':
+    elif args.case == "explicit":
         extrudeExplicitCase()
     else:
         extrudeDefaultCase()
-
