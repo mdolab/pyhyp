@@ -54,7 +54,7 @@ class TestExamples(unittest.TestCase):
     def test_2D_euler(self):
         from examples.naca0012.naca0012_euler import volumeFile, hyp
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_2D_rans(self):
@@ -62,7 +62,7 @@ class TestExamples(unittest.TestCase):
 
         hyp, volumeFile = extrude_default_case()
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_2D_rans_constant_layers(self):
@@ -70,7 +70,7 @@ class TestExamples(unittest.TestCase):
 
         hyp, volumeFile = extrude_constant_layers_case()
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_2D_rans_schedule(self):
@@ -78,7 +78,7 @@ class TestExamples(unittest.TestCase):
 
         hyp, volumeFile = extrude_schedule_case()
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_2D_rans_explicit(self):
@@ -86,19 +86,19 @@ class TestExamples(unittest.TestCase):
 
         hyp, volumeFile = extrude_explicit_case()
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_717(self):
         from examples.wing_717.run717 import volumeFile, hyp
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_BWB(self):
         from examples.BWB.runBWB import volumeFile, hyp
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_corner(self):
@@ -110,13 +110,13 @@ class TestExamples(unittest.TestCase):
     def test_M6(self):
         from examples.m6.runM6 import volumeFile, hyp
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_plate(self):
         from examples.plate.runPlate import volumeFile, hyp
 
-        marchDist = hyp.get_used_march_distance()
+        marchDist = hyp.getUsedMarchDistance()
         self.common_test(volumeFile, marchDist)
 
     def test_sphere(self):

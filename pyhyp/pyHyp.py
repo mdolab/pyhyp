@@ -249,17 +249,17 @@ class pyHypMulti(object):
                 hypGrid.writeOutput()
 
                 # Save results
-                n_decimals = 4
+                nDecimals = 4
 
                 self.results["name"][index] = optionName
                 self.results["outputFile"][index] = hypGrid.options["outputfile"]
-                self.results["minQualityOverall"][index] = round_sig(
-                    float(hypGrid.hyp.hypdata.minqualityoverall), n_decimals
+                self.results["minQualityOverall"][index] = roundSig(
+                    float(hypGrid.hyp.hypdata.minqualityoverall), nDecimals
                 )
-                self.results["minVolumeOverall"][index] = round_sig(
-                    float(hypGrid.hyp.hypdata.minvolumeoverall), n_decimals
+                self.results["minVolumeOverall"][index] = roundSig(
+                    float(hypGrid.hyp.hypdata.minvolumeoverall), nDecimals
                 )
-                self.results["gridRatio"][index] = hypGrid.get_growth_ratio_string(n_decimals=n_decimals)
+                self.results["gridRatio"][index] = hypGrid.getGrowthRatioString(nDecimals=nDecimals)
 
                 # Delete object to free memory
                 del hypGrid
@@ -743,33 +743,33 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.sourcestrengthfile = self._expandString(f)
 
         # options that might be unique per layer
-        self.hyp.hypinput.volsmoothiter = self._expand_per_layer_option("volSmoothIter", dtype=numpy.int32)
-        self.hyp.hypinput.volblend = self._expand_per_layer_option("volBlend")
-        self.hyp.hypinput.volcoef = self._expand_per_layer_option("volCoef")
-        self.hyp.hypinput.epse = self._expand_per_layer_option("epsE")
-        self.hyp.hypinput.epsi = self._expand_per_layer_option("epsI")
-        self.hyp.hypinput.theta = self._expand_per_layer_option("theta")
-        self.hyp.hypinput.splay = self._expand_per_layer_option("splay")
-        self.hyp.hypinput.splayedgeorthogonality = self._expand_per_layer_option("splayEdgeOrthogonality")
-        self.hyp.hypinput.splaycornerorthogonality = self._expand_per_layer_option("splayCornerOrthogonality")
-        self.hyp.hypinput.cornerangle = self._expand_per_layer_option("cornerangle") * numpy.pi / 180
+        self.hyp.hypinput.volsmoothiter = self._expandPerLayerOption("volSmoothIter", dtype=numpy.int32)
+        self.hyp.hypinput.volblend = self._expandPerLayerOption("volBlend")
+        self.hyp.hypinput.volcoef = self._expandPerLayerOption("volCoef")
+        self.hyp.hypinput.epse = self._expandPerLayerOption("epsE")
+        self.hyp.hypinput.epsi = self._expandPerLayerOption("epsI")
+        self.hyp.hypinput.theta = self._expandPerLayerOption("theta")
+        self.hyp.hypinput.splay = self._expandPerLayerOption("splay")
+        self.hyp.hypinput.splayedgeorthogonality = self._expandPerLayerOption("splayEdgeOrthogonality")
+        self.hyp.hypinput.splaycornerorthogonality = self._expandPerLayerOption("splayCornerOrthogonality")
+        self.hyp.hypinput.cornerangle = self._expandPerLayerOption("cornerangle") * numpy.pi / 180
 
         # determine marching parameters
-        full_delta_S, self.march_dist, self.growth_ratios = self._determine_marching_parameters()
-        self.hyp.hypinput.fulldeltas = full_delta_S
-        self.hyp.hypinput.marchdist = self.march_dist
+        fullDeltaS, self.marchDistance, self.growthRatios = self._determineMarchingParamegers()
+        self.hyp.hypinput.fulldeltas = fullDeltaS
+        self.hyp.hypinput.marchdist = self.marchDistance
         self._printMarchingParameters()
 
         # figure out pseudo grid ratio parameters
-        pgridratio, ps0 = self._configure_pseudo_grid_parameters()
+        pgridratio, ps0 = self._configurePseudoGridParameters()
         self.hyp.hypinput.pgridratio = pgridratio
         self.hyp.hypinput.ps0 = ps0
 
-    def _determine_marching_parameters(self):
+    def _determineMarchingParamegers(self):
         # if the user specified an explicit growth-ratio, use this
-        options_growth_ratios = self.getOption("growthRatios")
-        if options_growth_ratios is not None:
-            growth_ratios = self._expand_per_layer_option("growthRatios")
+        optionsGrowthRatios = self.getOption("growthRatios")
+        if optionsGrowthRatios is not None:
+            growthRatios = self._expandPerLayerOption("growthRatios")
 
             if self.comm.Get_rank() == 0:
                 pyHypWarning(
@@ -777,54 +777,54 @@ class pyHyp(BaseSolver):
                 )
         else:
             # no growth ratio was provided -> compute it
-            growth_ratios = self._compute_growth_ratio()
+            growthRatios = self._computeGrowthRatio()
 
         # finally compute each layers deltaS and set it in fortran
-        fullDeltaS = self._compute_delta_S(growth_ratios)
+        fullDeltaS = self._computeDeltaS(growthRatios)
 
         # figure out what marching distance to use
-        if options_growth_ratios is not None:
+        if optionsGrowthRatios is not None:
             marchDist = numpy.sum(fullDeltaS)
         else:
             marchDist = self.getOption("marchDist")
 
-        return fullDeltaS, marchDist, growth_ratios
+        return fullDeltaS, marchDist, growthRatios
 
     def _printMarchingParameters(self):
         if not self.comm.Get_rank() == 0:
             return
 
-        n_decimals = 3
-        growth_ratio_string = self.get_growth_ratio_string(n_decimals)
+        nDecimals = 3
+        growthRatioString = self.getGrowthRatioString(nDecimals)
 
         print("#--------------------#")
-        print(f"Grid Ratio:  {growth_ratio_string}")
-        print(f"March Dist:  {round_sig(self.march_dist, n_decimals)}")
+        print(f"Grid Ratio:  {growthRatioString}")
+        print(f"March Dist:  {roundSig(self.marchDistance, nDecimals)}")
 
 
 
-    def get_growth_ratio_string(self, n_decimals=3):
-        min_growth_ratio = round_sig(numpy.min(self.growth_ratios[self.growth_ratios > 1]), n_decimals)
-        max_growth_ratio = round_sig(numpy.max(self.growth_ratios[self.growth_ratios > 1]), n_decimals)
+    def getGrowthRatioString(self, nDecimals=3):
+        minGrowthRatio = roundSig(numpy.min(self.growthRatios[self.growthRatios > 1]), nDecimals)
+        maxGrowthRatio = roundSig(numpy.max(self.growthRatios[self.growthRatios > 1]), nDecimals)
 
-        if max_growth_ratio - min_growth_ratio <= 0:
-            growth_ratio_string = f"{min_growth_ratio}"
+        if maxGrowthRatio - minGrowthRatio <= 0:
+            growthRatioString = f"{minGrowthRatio}"
         else:
-            growth_ratio_string = f"{min_growth_ratio} - {max_growth_ratio}"
+            growthRatioString = f"{minGrowthRatio} - {maxGrowthRatio}"
 
-        return growth_ratio_string
+        return growthRatioString
 
-    def _configure_pseudo_grid_parameters(self):
+    def _configurePseudoGridParameters(self):
         pGridRatio = self.getOption("pGridRatio")
         ps0 = self.getOption("ps0")
         s0 = self.getOption("s0")
 
-        min_growth_ratio = numpy.min(self.growth_ratios[self.growth_ratios > 1])
+        minGrowthRatio = numpy.min(self.growthRatios[self.growthRatios > 1])
         if pGridRatio == -1:
-            pGridRatio = min_growth_ratio
+            pGridRatio = minGrowthRatio
         else:
-            if pGridRatio > min_growth_ratio:
-                raise Error(f"The `pGridRatio` option has to be lower than the lowest grid ratio ({min_growth_ratio})")
+            if pGridRatio > minGrowthRatio:
+                raise Error(f"The `pGridRatio` option has to be lower than the lowest grid ratio ({minGrowthRatio})")
 
         # figure out initial pseudo grid initial offwall spacing
         if ps0 <= 0:
@@ -835,7 +835,7 @@ class pyHyp(BaseSolver):
 
         return pGridRatio, ps0
 
-    def _compute_delta_S(self, growth_ratios):
+    def _computeDeltaS(self, growthRatios):
         N = self.getOption("N")
         s0 = self.getOption("s0")
         fullDeltaS = numpy.zeros(N)
@@ -843,27 +843,27 @@ class pyHyp(BaseSolver):
         # compute the delta S
         fullDeltaS[1] = s0
         for n in range(2, N):
-            fullDeltaS[n] = fullDeltaS[n - 1] * growth_ratios[n]
+            fullDeltaS[n] = fullDeltaS[n - 1] * growthRatios[n]
 
         return fullDeltaS
 
-    def _compute_growth_ratio(self):
+    def _computeGrowthRatio(self):
         # initial ratio and r is the grid ratio.
         # function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
 
-        n_start = self.getOption("nConstantStart")
-        n_end = self.getOption("nConstantEnd")
+        nStart = self.getOption("nConstantStart")
+        nEnd = self.getOption("nConstantEnd")
         S = self.getOption("marchDist")
         N = self.getOption("N")
         s0 = self.getOption("s0")
 
         def func(r):
-            func = n_start * s0
+            func = nStart * s0
 
             curSize = s0
 
             # Next we will have M = N - nStart - nEnd layers of exponential growth.
-            for _j in range(N - 1 - n_start - n_end):
+            for _j in range(N - 1 - nStart - nEnd):
                 curSize = curSize * r
                 func = func + curSize
 
@@ -871,7 +871,7 @@ class pyHyp(BaseSolver):
             curSize = curSize * r
 
             # Now add the last nEnd layers of constant size
-            func = func + n_end * curSize
+            func = func + nEnd * curSize
 
             # Finally the actual function is S - func
             func = S - func
@@ -898,12 +898,12 @@ class pyHyp(BaseSolver):
                 b = c
 
         # we need to return an array of growth-ratios
-        growth_ratios = numpy.ones(N)
-        growth_ratios[n_start + 1 : N - (n_end - 1)] = ratio
+        growthRatios = numpy.ones(N)
+        growthRatios[nStart + 1 : N - (nEnd - 1)] = ratio
 
-        return growth_ratios
+        return growthRatios
 
-    def _expand_per_layer_option(self, name, dtype=numpy.float64):
+    def _expandPerLayerOption(self, name, dtype=numpy.float64):
         inp = self.getOption(name)
         N = self.getOption("N")
         out = numpy.zeros(N, dtype=dtype)
@@ -953,7 +953,7 @@ class pyHyp(BaseSolver):
         """
         self.hyp.releasememory()
 
-    def get_used_march_distance(self):
+    def getUsedMarchDistance(self):
         if not self.gridGenerated:
             raise Error("Can not returning used marching distance before extruding the grid")
 
@@ -1070,7 +1070,7 @@ def generateOutputName(inputFile, outputType):
     return outputFile
 
 
-def round_sig(x, p):
+def roundSig(x, p):
     """
     Rounds the number to the significant figures requested.
     This has been taken from here: https://stackoverflow.com/a/59888924
@@ -1086,6 +1086,6 @@ def round_sig(x, p):
 
     """
     x = numpy.asarray(x)
-    x_positive = numpy.where(numpy.isfinite(x) & (x != 0), numpy.abs(x), 10 ** (p - 1))
-    mags = 10 ** (p - 1 - numpy.floor(numpy.log10(x_positive)))
+    xPositive = numpy.where(numpy.isfinite(x) & (x != 0), numpy.abs(x), 10 ** (p - 1))
+    mags = 10 ** (p - 1 - numpy.floor(numpy.log10(xPositive)))
     return numpy.round(x * mags) / mags
