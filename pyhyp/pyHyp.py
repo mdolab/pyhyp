@@ -825,7 +825,7 @@ class pyHyp(BaseSolver):
             if pGridRatio > min_growth_ratio:
                 raise Error(f"The `pGridRatio` option has to be lower than the lowest grid ratio ({min_growth_ratio})")
 
-        # figure out initial pseud grid initial offwall spacing
+        # figure out initial pseudo grid initial offwall spacing
         if ps0 <= 0:
             ps0 = s0 / 2
         else:

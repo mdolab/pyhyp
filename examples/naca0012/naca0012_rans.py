@@ -61,7 +61,7 @@ def extrude_base_case():
 
 def extrude_constant_layers_case():
     """
-    Here, the first and last layers are kept konstant (growth-ratio == 1.0)
+    Here, the first and last layers are kept constant (growth-ratio == 1.0)
     """
 
     volumeFile = os.path.join(baseDir, "naca0012_rans_constant_layers.cgns")
