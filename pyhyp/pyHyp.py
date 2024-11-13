@@ -755,9 +755,10 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.cornerangle = self._expand_per_layer_option("cornerangle") * numpy.pi / 180
 
         # determine marching parameters
-        full_delta_S, march_dist, self.growth_ratios = self._determine_marching_parameters()
+        full_delta_S, self.march_dist, self.growth_ratios = self._determine_marching_parameters()
         self.hyp.hypinput.fulldeltas = full_delta_S
-        self.hyp.hypinput.marchdist = march_dist
+        self.hyp.hypinput.marchdist = self.march_dist
+        self._printMarchingParameters()
 
         # figure out pseudo grid ratio parameters
         pgridratio, ps0 = self._configure_pseudo_grid_parameters()
@@ -787,23 +788,24 @@ class pyHyp(BaseSolver):
         else:
             marchDist = self.getOption("marchDist")
 
-        # let the user know what growth-ratio march dist is used
-        if self.comm.Get_rank() == 0:
-            n_decimals = 3
-            growth_ratio_string = self.get_growth_ratio_string(growth_ratios, n_decimals)
-
-            print("#--------------------#")
-            print(f"Grid Ratio:  {growth_ratio_string}")
-            print(f"March Dist:  {round_sig(marchDist, n_decimals)}")
-
         return fullDeltaS, marchDist, growth_ratios
 
-    def get_growth_ratio_string(self, growth_ratios=None, n_decimals=3):
-        if growth_ratios is None:
-            growth_ratios = self.growth_ratios
+    def _printMarchingParameters(self):
+        if not self.comm.Get_rank() == 0:
+            return
 
-        min_growth_ratio = round_sig(numpy.min(growth_ratios[growth_ratios > 1]), n_decimals)
-        max_growth_ratio = round_sig(numpy.max(growth_ratios[growth_ratios > 1]), n_decimals)
+        n_decimals = 3
+        growth_ratio_string = self.get_growth_ratio_string(n_decimals)
+
+        print("#--------------------#")
+        print(f"Grid Ratio:  {growth_ratio_string}")
+        print(f"March Dist:  {round_sig(self.march_dist, n_decimals)}")
+
+
+
+    def get_growth_ratio_string(self, n_decimals=3):
+        min_growth_ratio = round_sig(numpy.min(self.growth_ratios[self.growth_ratios > 1]), n_decimals)
+        max_growth_ratio = round_sig(numpy.max(self.growth_ratios[self.growth_ratios > 1]), n_decimals)
 
         if max_growth_ratio - min_growth_ratio <= 0:
             growth_ratio_string = f"{min_growth_ratio}"
