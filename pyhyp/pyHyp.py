@@ -755,7 +755,7 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.cornerangle = self._expandPerLayerOption("cornerangle") * numpy.pi / 180
 
         # determine marching parameters
-        fullDeltaS, self.marchDistance, self.growthRatios = self._determineMarchingParamegers()
+        fullDeltaS, self.marchDistance, self.growthRatios = self._determineMarchingParameters()
         self.hyp.hypinput.fulldeltas = fullDeltaS
         self.hyp.hypinput.marchdist = self.marchDistance
         self._printMarchingParameters()
@@ -765,7 +765,7 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.pgridratio = pGridRatio
         self.hyp.hypinput.ps0 = ps0
 
-    def _determineMarchingParamegers(self):
+    def _determineMarchingParameters(self):
         # if the user specified an explicit growth-ratio, use this
         optionsGrowthRatios = self.getOption("growthRatios")
         if optionsGrowthRatios is not None:

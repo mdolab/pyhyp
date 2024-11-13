@@ -126,9 +126,9 @@ class TestExamples(unittest.TestCase):
         self.commonTest(volumeFile, marchDist)
 
     def testSimpleOCart(self):
-        from examples.simpleOCart.runSimpleOCart import extrudeDefaultcase
+        from examples.simpleOCart.runSimpleOCart import extrudeDefaultCase
 
-        outFile, hExtra = extrudeDefaultcase()
+        outFile, hExtra = extrudeDefaultCase()
 
         self.commonTest(outFile, hExtra)
 

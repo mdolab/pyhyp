@@ -14,7 +14,7 @@ mgcycle = 3
 userOptions = {"cMax": 5.0}
 
 
-def extrudeDefaultcase():
+def extrudeDefaultCase():
     # Usually this would be a nearfield volume file
     # We use the corner surface file for convenience
     nearFile = os.path.join(baseDir, "../corner/corner.cgns")
@@ -47,4 +47,4 @@ if __name__ == "__main__":
     if args.case == "noSurfaceMesh":
         extrudeNoSurfaceMeshCase()
     else:
-        extrudeDefaultcase()
+        extrudeDefaultCase()
