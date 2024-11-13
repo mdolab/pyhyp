@@ -766,6 +766,19 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.ps0 = ps0
 
     def _determineMarchingParameters(self):
+        """
+        Figure out what marching parameters to use. This logic is needed
+        because there are multiple ways to define those parameters.
+
+        Returns
+        -------
+        fullDeltaS : list[float]
+            The ideal height for each layer.
+        marchDist : float
+            The marching distance used.
+        growthRatios : list[float]
+            The growth ratio for each layer.
+        """
         # if the user specified an explicit growth-ratio, use this
         optionsGrowthRatios = self.getOption("growthRatios")
         if optionsGrowthRatios is not None:
@@ -791,6 +804,9 @@ class pyHyp(BaseSolver):
         return fullDeltaS, marchDist, growthRatios
 
     def _printMarchingParameters(self):
+        """
+        Print the marching parameters used. 
+        """
         if not self.comm.Get_rank() == 0:
             return
 
@@ -804,6 +820,21 @@ class pyHyp(BaseSolver):
 
 
     def getGrowthRatioString(self, nDecimals=3):
+        """
+        Returns a rounded string with the current growth ratio. If the growth
+        ratio is constant, a single value is return. Otherwise a range is
+        returned.
+
+        Parameters
+        ----------
+        nDecimals : int
+            The number of significant figures to round to.
+
+        Returns
+        -------
+        growthRatioString : str
+            The string holding the rounded growth ratio.
+        """
         minGrowthRatio = roundSig(numpy.min(self.growthRatios[self.growthRatios > 1]), nDecimals)
         maxGrowthRatio = roundSig(numpy.max(self.growthRatios[self.growthRatios > 1]), nDecimals)
 
@@ -815,6 +846,19 @@ class pyHyp(BaseSolver):
         return growthRatioString
 
     def _configurePseudoGridParameters(self):
+        """
+        Figures out if the user set pseudo grid parameters. If this is the
+        case, error checking makes sure they are reasonable. If the user did not
+        set it, an automatic value is computed.
+
+        Returns
+        -------
+         pGridRatio: float
+            Growth ratio for the pseudo grid.
+        ps0 : float
+            First layer height for the pseudo grid.
+        """
+
         pGridRatio = self.getOption("pGridRatio")
         ps0 = self.getOption("ps0")
         s0 = self.getOption("s0")
@@ -836,6 +880,20 @@ class pyHyp(BaseSolver):
         return pGridRatio, ps0
 
     def _computeDeltaS(self, growthRatios):
+        """
+        Computes the ideal height for each layer. Due to smoothing, this exact
+        value will not be achieved in practice.
+
+        Parameters
+        ----------
+        growthRatios : list[float]
+            The growth ratio for each layer.
+
+        Returns
+        -------
+        fullDeltaS : list[float]
+            The ideal height for each layer.
+        """
         N = self.getOption("N")
         s0 = self.getOption("s0")
         fullDeltaS = numpy.zeros(N)
@@ -848,6 +906,14 @@ class pyHyp(BaseSolver):
         return fullDeltaS
 
     def _computeGrowthRatio(self):
+        """
+        Computes the growth ratio for each layer when no explicit value is given.
+
+        Returns
+        -------
+        growthRatios : list[float]
+            The growth ratio for each layer.
+        """
         # initial ratio and r is the grid ratio.
         # function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
 
@@ -904,6 +970,33 @@ class pyHyp(BaseSolver):
         return growthRatios
 
     def _expandPerLayerOption(self, name, dtype=numpy.float64):
+        """
+        Expands the option in question into an array that has a unique value
+        per layer. 
+
+        The option may come in different formats: 
+        (1) If it is a scalar, the same value is used throughout all of the grid.
+        (2) If it is a 1D list, it must have a length of N - 1. Each entry is
+            used for the corresponding extrusion layer. E.g. [0.2, 0.3, 0.4] would
+            result in a grid with 3 extrusions where the first layer uses 0.2, the
+            second layer uses 0.3 and the last one uses 0.4.
+        (3) If it is a 2D list, the values are interpolated linearly. E.g.
+            [[0.0, 0.2], [0.5, 0.4], [1.0, 0.0]] would result in a linear increase
+            from 0.2 to 0.4 at half of the total N. Then it would linearly decrease
+            until it reaches 0.0 in the last extrusion. 
+
+        Parameters
+        ----------
+        name : str
+            Name of the option in question
+        dtype : numpy.dtype
+            The datatype of the option in question. 
+
+        Returns
+        -------
+        out : list[float]
+            The value of the option in question for each layer.
+        """
         inp = self.getOption(name)
         N = self.getOption("N")
         out = numpy.zeros(N, dtype=dtype)
@@ -954,10 +1047,20 @@ class pyHyp(BaseSolver):
         self.hyp.releasememory()
 
     def getUsedMarchDistance(self):
+        """
+        Returns the marching distance used.
+
+        Returns
+        -------
+        marchDist : float
+            The marching distance used.
+        """
         if not self.gridGenerated:
             raise Error("Cannot return the used marching distance before extruding the grid.")
+        
+        marchDist = self.hyp.hypinput.marchdist
 
-        return self.hyp.hypinput.marchdist
+        return marchDist
 
     def writeLayer(self, fileName, layer=1, meshType="plot3d", partitions=True):
         """
@@ -1077,15 +1180,18 @@ def roundSig(x, p):
 
     Parameters
     ----------
-
     x : number
         The number to be rounded. Also works with arrays
-
     p : int
         The amount of significant figures to round to.
 
+    Returns
+    -------
+    rounded : number
+           A scalar or list rounded to the significant figures requested
     """
     x = numpy.asarray(x)
     xPositive = numpy.where(numpy.isfinite(x) & (x != 0), numpy.abs(x), 10 ** (p - 1))
     mags = 10 ** (p - 1 - numpy.floor(numpy.log10(xPositive)))
-    return numpy.round(x * mags) / mags
+    rounded = numpy.round(x * mags) / mags
+    return rounded
