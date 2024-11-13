@@ -954,10 +954,10 @@ class pyHyp(BaseSolver):
         self.hyp.releasememory()
 
     def get_used_march_distance(self):
-        if self.gridGenerated:
-            return self.hyp.hypinput.marchdist
-        else:
+        if not self.gridGenerated:
             raise Error("Can not returning used marching distance before extruding the grid")
+
+        return self.hyp.hypinput.marchdist
 
     def writeLayer(self, fileName, layer=1, meshType="plot3d", partitions=True):
         """
