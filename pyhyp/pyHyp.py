@@ -385,7 +385,7 @@ class pyHyp(BaseSolver):
             raise Error("The options = keyword argument is *NOT* optional. " "It must always be provided")
 
         # Deprecated options
-        deprecated_options = self._getDeprecatedOptions()
+        deprecatedOptions = self._getDeprecatedOptions()
 
         # Initialize the inherited BaseSolver
         super().__init__(
@@ -393,7 +393,7 @@ class pyHyp(BaseSolver):
             category,
             defaultOptions=defOpts,
             options=options,
-            deprecatedOptions=deprecated_options,
+            deprecatedOptions=deprecatedOptions,
             comm=comm,
             informs=informs,
         )
@@ -618,11 +618,11 @@ class pyHyp(BaseSolver):
 
     @staticmethod
     def _getDeprecatedOptions():
-        deprecated_options = {
+        deprecatedOptions = {
             "volSmoothSchedule": "Please use 'volSmoothIter' for the same functionality",
         }
 
-        return deprecated_options
+        return deprecatedOptions
 
     def run(self):
         """
@@ -761,8 +761,8 @@ class pyHyp(BaseSolver):
         self._printMarchingParameters()
 
         # figure out pseudo grid ratio parameters
-        pgridratio, ps0 = self._configurePseudoGridParameters()
-        self.hyp.hypinput.pgridratio = pgridratio
+        pGridRatio, ps0 = self._configurePseudoGridParameters()
+        self.hyp.hypinput.pgridratio = pGridRatio
         self.hyp.hypinput.ps0 = ps0
 
     def _determineMarchingParamegers(self):

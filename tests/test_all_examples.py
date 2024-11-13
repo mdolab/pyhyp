@@ -14,7 +14,7 @@ class TestExamples(unittest.TestCase):
         # Insert the repo root in path so that testflo can import examples
         sys.path.insert(0, os.path.join(baseDir, "../"))
 
-    def common_test(self, testFile, marchDist, relTol=1e-14):
+    def commonTest(self, testFile, marchDist, relTol=1e-14):
         volumeName = os.path.split(testFile)[1]
         refFile = os.path.join(refDir, volumeName)
 
@@ -51,90 +51,90 @@ class TestExamples(unittest.TestCase):
         except AssertionError:
             self.assertEqual(output, "/CGNSLibraryVersion <> /CGNSLibraryVersion : data values differ\n")
 
-    def test_2D_euler(self):
+    def test2DEuler(self):
         from examples.naca0012.naca0012_euler import volumeFile, hyp
 
         marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_2D_rans(self):
-        from examples.naca0012.naca0012_rans import extrude_default_case
+    def test2DRans(self):
+        from examples.naca0012.naca0012_rans import extrudeDefaultCase
 
-        hyp, volumeFile = extrude_default_case()
-
-        marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
-
-    def test_2D_rans_constant_layers(self):
-        from examples.naca0012.naca0012_rans import extrude_constant_layers_case
-
-        hyp, volumeFile = extrude_constant_layers_case()
+        hyp, volumeFile = extrudeDefaultCase()
 
         marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_2D_rans_schedule(self):
-        from examples.naca0012.naca0012_rans import extrude_schedule_case
+    def test2DRansConstantLayers(self):
+        from examples.naca0012.naca0012_rans import extrudeConstantLayersCase
 
-        hyp, volumeFile = extrude_schedule_case()
-
-        marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
-
-    def test_2D_rans_explicit(self):
-        from examples.naca0012.naca0012_rans import extrude_explicit_case
-
-        hyp, volumeFile = extrude_explicit_case()
+        hyp, volumeFile = extrudeConstantLayersCase()
 
         marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_717(self):
+    def test2DRansSchedule(self):
+        from examples.naca0012.naca0012_rans import extrudeScheduleCase
+
+        hyp, volumeFile = extrudeScheduleCase()
+
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
+
+    def test2DRansExplicit(self):
+        from examples.naca0012.naca0012_rans import extrudeExplicitCase
+
+        hyp, volumeFile = extrudeExplicitCase()
+
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
+
+    def test717(self):
         from examples.wing_717.run717 import volumeFile, hyp
 
         marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_BWB(self):
+    def testBWB(self):
         from examples.BWB.runBWB import volumeFile, hyp
 
         marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_corner(self):
+    def testCorner(self):
         from examples.corner.runCorner import volumeFile, commonOptions
 
         marchDist = commonOptions["marchDist"]
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_M6(self):
+    def testM6(self):
         from examples.m6.runM6 import volumeFile, hyp
 
         marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_plate(self):
+    def testPlate(self):
         from examples.plate.runPlate import volumeFile, hyp
 
         marchDist = hyp.getUsedMarchDistance()
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_sphere(self):
+    def testSphere(self):
         from examples.sphere.runSphere import volumeFile, commonOptions
 
         marchDist = commonOptions["marchDist"]
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_simpleOCart(self):
-        from examples.simpleOCart.runSimpleOCart import extrude_base_case
+    def testSimpleOCart(self):
+        from examples.simpleOCart.runSimpleOCart import extrudeDefaultcase
 
-        outFile, hExtra = extrude_base_case()
+        outFile, hExtra = extrudeDefaultcase()
 
-        self.common_test(outFile, hExtra)
+        self.commonTest(outFile, hExtra)
 
-    def test_simpleOCart_no_surface_mesh(self):
-        from examples.simpleOCart.runSimpleOCart import extrude_no_surface_mesh_case
+    def testSimpleOCartNoSurfaceMesh(self):
+        from examples.simpleOCart.runSimpleOCart import extrudeNoSurfaceMeshCase
 
-        outFile, hExtra = extrude_no_surface_mesh_case()
+        outFile, hExtra = extrudeNoSurfaceMeshCase()
 
-        self.common_test(outFile, hExtra)
+        self.commonTest(outFile, hExtra)

@@ -46,20 +46,20 @@ options = {
 }
 
 
-def extrude_default_case():
+def extrudeDefaultCase():
     """
     This is the default where most values are scalars
     """
 
     volumeFile = os.path.join(baseDir, "naca0012_rans.cgns")
 
-    generate_surface_file(surfaceFile)
-    hyp = extrude_volume_mesh(options, volumeFile)
+    generateSurfaceFile(surfaceFile)
+    hyp = extrudeVolumeMesh(options, volumeFile)
 
     return hyp, volumeFile
 
 
-def extrude_constant_layers_case():
+def extrudeConstantLayersCase():
     """
     Here, the first and last layers are kept constant (growth-ratio == 1.0)
     """
@@ -73,13 +73,13 @@ def extrude_constant_layers_case():
         }
     )
 
-    generate_surface_file(surfaceFile)
-    hyp = extrude_volume_mesh(options, volumeFile)
+    generateSurfaceFile(surfaceFile)
+    hyp = extrudeVolumeMesh(options, volumeFile)
 
     return hyp, volumeFile
 
 
-def extrude_schedule_case():
+def extrudeScheduleCase():
     """
     Some variables are 'scheduled' which means their value changes depending on
     the extrusion layer. The values are specified on intervals which are
@@ -100,13 +100,13 @@ def extrude_schedule_case():
         }
     )
 
-    generate_surface_file(surfaceFile)
-    hyp = extrude_volume_mesh(options, volumeFile)
+    generateSurfaceFile(surfaceFile)
+    hyp = extrudeVolumeMesh(options, volumeFile)
 
     return hyp, volumeFile
 
 
-def extrude_explicit_case():
+def extrudeExplicitCase():
     """
     Some variables are set 'explicitly'. This means, a list of values that
     correspond to each layer is provided.
@@ -130,12 +130,12 @@ def extrude_explicit_case():
 
     volumeFile = os.path.join(baseDir, "naca0012_rans_explicit.cgns")
 
-    generate_surface_file(surfaceFile)
-    hyp = extrude_volume_mesh(options, volumeFile)
+    generateSurfaceFile(surfaceFile)
+    hyp = extrudeVolumeMesh(options, volumeFile)
     return hyp, volumeFile
 
 
-def generate_surface_file(surface_file):
+def generateSurfaceFile(surface_file):
     alpha = numpy.linspace(0, 2 * numpy.pi, 273)
     x = numpy.cos(alpha) * 0.5 + 0.5
     y = numpy.zeros_like(x)
@@ -151,11 +151,11 @@ def generate_surface_file(surface_file):
             )
 
     # Since the TE is open we need to close it. Close it multiple linear segments.
-    delta_y = numpy.linspace(y[-1], y[0], 32, endpoint=True)
-    delta_y = delta_y[1:]
+    deltaY = numpy.linspace(y[-1], y[0], 32, endpoint=True)
+    deltaY = deltaY[1:]
 
-    x = numpy.append(x, numpy.ones_like(delta_y))
-    y = numpy.append(y, delta_y)
+    x = numpy.append(x, numpy.ones_like(deltaY))
+    y = numpy.append(y, deltaY)
 
     # Write the plot3d input file:
     f = open(surface_file, "w")
@@ -173,7 +173,7 @@ def generate_surface_file(surface_file):
     f.close()
 
 
-def extrude_volume_mesh(options, volumeFile):
+def extrudeVolumeMesh(options, volumeFile):
     hyp = pyHyp(options=options)
     hyp.run()
     hyp.writeCGNS(volumeFile)
@@ -183,13 +183,16 @@ def extrude_volume_mesh(options, volumeFile):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process some integers.")
-    choices = ["default", "schedule", "growth_ratios"]
+    choices = ["default", "constant", "schedule", "explicit"]
     parser.add_argument("--case", choices=choices, default=choices[0])
     args = parser.parse_args()
 
-    if args.case == "default":
-        extrude_default_case()
+    if args.case == "constant":
+        extrudeConstantLayersCase()
     elif args.case == "schedule":
-        extrude_schedule_case()
+        extrudeScheduleCase()
+    elif args.case == 'explicit':
+        extrudeExplicitCase()
     else:
-        extrude_explicit_case()
+        extrudeDefaultCase()
+
