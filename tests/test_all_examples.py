@@ -58,9 +58,9 @@ class TestExamples(unittest.TestCase):
         self.common_test(volumeFile, marchDist)
 
     def test_2D_rans(self):
-        from examples.naca0012.naca0012_rans import extrude_base_case
+        from examples.naca0012.naca0012_rans import extrude_default_case
 
-        hyp, volumeFile = extrude_base_case()
+        hyp, volumeFile = extrude_default_case()
 
         marchDist = hyp.get_used_march_distance()
         self.common_test(volumeFile, marchDist)

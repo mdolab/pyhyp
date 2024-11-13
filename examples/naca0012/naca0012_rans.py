@@ -46,7 +46,7 @@ options = {
 }
 
 
-def extrude_base_case():
+def extrude_default_case():
     """
     This is the default where most values are scalars
     """
@@ -183,12 +183,12 @@ def extrude_volume_mesh(options, volumeFile):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process some integers.")
-    choices = ["base", "schedule", "growth_ratios"]
+    choices = ["default", "schedule", "growth_ratios"]
     parser.add_argument("--case", choices=choices, default=choices[0])
     args = parser.parse_args()
 
-    if args.case == "base":
-        extrude_base_case()
+    if args.case == "default":
+        extrude_default_case()
     elif args.case == "schedule":
         extrude_schedule_case()
     else:
