@@ -755,13 +755,12 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.cornerangle = self._expand_per_layer_option("cornerangle") * numpy.pi / 180
 
         # determine marching parameters
-        full_delta_S, march_dist, growth_ratios = self._determine_marching_parameters()
+        full_delta_S, march_dist, self.growth_ratios = self._determine_marching_parameters()
         self.hyp.hypinput.fulldeltas = full_delta_S
         self.hyp.hypinput.marchdist = march_dist
-        self.growth_ratios = growth_ratios
 
         # figure out pseudo grid ratio parameters
-        pgridratio, ps0 = self._configure_pseudo_grid_parameters(growth_ratios)
+        pgridratio, ps0 = self._configure_pseudo_grid_parameters()
         self.hyp.hypinput.pgridratio = pgridratio
         self.hyp.hypinput.ps0 = ps0
 
@@ -813,12 +812,12 @@ class pyHyp(BaseSolver):
 
         return growth_ratio_string
 
-    def _configure_pseudo_grid_parameters(self, growth_ratios):
+    def _configure_pseudo_grid_parameters(self):
         pGridRatio = self.getOption("pGridRatio")
         ps0 = self.getOption("ps0")
         s0 = self.getOption("s0")
 
-        min_growth_ratio = numpy.min(growth_ratios[growth_ratios > 1])
+        min_growth_ratio = numpy.min(self.growth_ratios[self.growth_ratios > 1])
         if pGridRatio == -1:
             pGridRatio = min_growth_ratio
         else:
