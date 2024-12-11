@@ -81,6 +81,10 @@ subroutine releaseMemory
         deallocate (volblend)
     end if
 
+    if (allocated(cornerAngle)) then
+        deallocate (cornerAngle)
+    end if
+
     if (allocated(volCoef)) then
         deallocate (volCoef)
     end if
