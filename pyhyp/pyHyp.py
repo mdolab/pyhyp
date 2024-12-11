@@ -820,7 +820,7 @@ class pyHyp(BaseSolver):
     def getGrowthRatioString(self, nDecimals=3):
         """
         Returns a rounded string with the current growth ratio. If the growth
-        ratio is constant, a single value is return. Otherwise a range is
+        ratio is constant, a single value is returned. Otherwise a range is
         returned.
 
         Parameters
