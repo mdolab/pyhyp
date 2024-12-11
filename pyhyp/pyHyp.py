@@ -912,8 +912,8 @@ class pyHyp(BaseSolver):
         growthRatios : list[float]
             The growth ratio for each layer.
         """
-        # initial ratio and r is the grid ratio.
         # function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
+        # initial ratio and r is the grid ratio.
 
         nStart = self.getOption("nConstantStart")
         nEnd = self.getOption("nConstantEnd")
