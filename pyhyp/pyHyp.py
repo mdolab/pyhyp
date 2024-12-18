@@ -22,6 +22,7 @@ History
 # =============================================================================
 import os
 import numpy
+import copy
 from mpi4py import MPI
 from . import MExt
 from collections import OrderedDict
@@ -249,17 +250,11 @@ class pyHypMulti(object):
                 hypGrid.writeOutput()
 
                 # Save results
-                nDecimals = 4
-
                 self.results["name"][index] = optionName
                 self.results["outputFile"][index] = hypGrid.options["outputfile"]
-                self.results["minQualityOverall"][index] = roundSig(
-                    float(hypGrid.hyp.hypdata.minqualityoverall), nDecimals
-                )
-                self.results["minVolumeOverall"][index] = roundSig(
-                    float(hypGrid.hyp.hypdata.minvolumeoverall), nDecimals
-                )
-                self.results["gridRatio"][index] = hypGrid.getGrowthRatioString(nDecimals=nDecimals)
+                self.results["minQualityOverall"][index] = float(hypGrid.hyp.hypdata.minqualityoverall)
+                self.results["minVolumeOverall"][index] = float(hypGrid.hyp.hypdata.minvolumeoverall)
+                self.results["gridRatio"][index] = hypGrid.growthRatios
 
                 # Delete object to free memory
                 del hypGrid
@@ -275,6 +270,24 @@ class pyHypMulti(object):
         This will print a log with important information regarding all grids
         """
 
+        # round results
+        nDecimals = 4
+
+        # round scalar values
+        results = copy.deepcopy(self.results)
+        for key in ["minQualityOverall", "minVolumeOverall"]:
+            for n in range(len(results[key])):
+                if not isinstance(results[key][n], float):
+                    continue
+                results[key][n] = roundSig(results[key][n], nDecimals)
+
+        # round gridRatios
+        key = "gridRatio"
+        for n in range(len(results[key])):
+            if not isinstance(results[key][n], numpy.ndarray):
+                continue
+            results[key][n] = getGrowthRatioString(results[key][n], nDecimals)
+
         # Get processor ID
         myid = self.comm.Get_rank()
 
@@ -288,7 +301,7 @@ class pyHypMulti(object):
             print("=" * 40)
 
             print("")
-            print(tabulate(self.results, headers="keys"))
+            print(tabulate(results, headers="keys"))
             print("")
             print("")
 
@@ -811,37 +824,11 @@ class pyHyp(BaseSolver):
             return
 
         nDecimals = 3
-        growthRatioString = self.getGrowthRatioString(nDecimals)
+        growthRatioString = getGrowthRatioString(self.growthRatios, nDecimals)
 
         print("#--------------------#")
         print(f"Grid Ratio:  {growthRatioString}")
         print(f"March Dist:  {roundSig(self.marchDistance, nDecimals)}")
-
-    def getGrowthRatioString(self, nDecimals=3):
-        """
-        Returns a rounded string with the current growth ratio. If the growth
-        ratio is constant, a single value is returned. Otherwise a range is
-        returned.
-
-        Parameters
-        ----------
-        nDecimals : int
-            The number of significant figures to round to.
-
-        Returns
-        -------
-        growthRatioString : str
-            The string holding the rounded growth ratio.
-        """
-        minGrowthRatio = roundSig(numpy.min(self.growthRatios[self.growthRatios > 1]), nDecimals)
-        maxGrowthRatio = roundSig(numpy.max(self.growthRatios[self.growthRatios > 1]), nDecimals)
-
-        if maxGrowthRatio - minGrowthRatio <= 0:
-            growthRatioString = f"{minGrowthRatio}"
-        else:
-            growthRatioString = f"{minGrowthRatio} - {maxGrowthRatio}"
-
-        return growthRatioString
 
     def _configurePseudoGridParameters(self):
         """
@@ -1193,3 +1180,33 @@ def roundSig(x, p):
     mags = 10 ** (p - 1 - numpy.floor(numpy.log10(xPositive)))
     rounded = numpy.round(x * mags) / mags
     return rounded
+
+
+def getGrowthRatioString(growthRatios, nDecimals=3):
+    """
+    Returns a rounded string with the current growth ratio. If the growth
+    ratio is constant, a single value is returned. Otherwise a range is
+    returned.
+
+    Parameters
+    ----------
+    growthRatios : list(float)
+        List holding the growth ratio for each layer
+
+    nDecimals : int
+        The number of significant figures to round to.
+
+    Returns
+    -------
+    growthRatioString : str
+        The string holding the rounded growth ratio.
+    """
+    minGrowthRatio = roundSig(numpy.min(growthRatios[growthRatios > 1]), nDecimals)
+    maxGrowthRatio = roundSig(numpy.max(growthRatios[growthRatios > 1]), nDecimals)
+
+    if maxGrowthRatio - minGrowthRatio <= 0:
+        growthRatioString = f"{minGrowthRatio}"
+    else:
+        growthRatioString = f"{minGrowthRatio} - {maxGrowthRatio}"
+
+    return growthRatioString
