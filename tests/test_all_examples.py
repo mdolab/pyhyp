@@ -105,7 +105,11 @@ class TestExamples(unittest.TestCase):
         from examples.corner.runCorner import volumeFile, commonOptions
 
         marchDist = commonOptions["marchDist"]
-        self.commonTest(volumeFile, marchDist)
+        # The relative tolerance is lowered because the absolute tolerance
+        # depends on the march distance (absTol = relTol * marchDist). Since
+        # the marchDist is very low here (2.5), the absolute tolerance is so
+        # low that this test fails on some docker images.
+        self.commonTest(volumeFile, marchDist, relTol=1e-10)
 
     def testM6(self):
         from examples.m6.runM6 import volumeFile, hyp
