@@ -270,23 +270,13 @@ class pyHypMulti(object):
         This will print a log with important information regarding all grids
         """
 
-        # round results
-        nDecimals = 4
-
-        # round scalar values
-        results = copy.deepcopy(self.results)
-        for key in ["minQualityOverall", "minVolumeOverall"]:
-            for n in range(len(results[key])):
-                if not isinstance(results[key][n], float):
-                    continue
-                results[key][n] = roundSig(results[key][n], nDecimals)
-
         # round gridRatios
+        results = copy.deepcopy(self.results)
         key = "gridRatio"
         for n in range(len(results[key])):
             if not isinstance(results[key][n], numpy.ndarray):
                 continue
-            results[key][n] = getGrowthRatioString(results[key][n], nDecimals)
+            results[key][n] = getGrowthRatioString(results[key][n])
 
         # Get processor ID
         myid = self.comm.Get_rank()
@@ -301,7 +291,7 @@ class pyHypMulti(object):
             print("=" * 40)
 
             print("")
-            print(tabulate(results, headers="keys"))
+            print(tabulate(results, headers="keys", floatfmt=".4e"))
             print("")
             print("")
 
@@ -823,12 +813,11 @@ class pyHyp(BaseSolver):
         if not self.comm.Get_rank() == 0:
             return
 
-        nDecimals = 3
-        growthRatioString = getGrowthRatioString(self.growthRatios, nDecimals)
+        growthRatioString = getGrowthRatioString(self.growthRatios)
 
         print("#--------------------#")
         print(f"Grid Ratio:  {growthRatioString}")
-        print(f"March Dist:  {roundSig(self.marchDistance, nDecimals)}")
+        print(f"March Dist:  {self.marchDistance:.3e}")
 
     def _configurePseudoGridParameters(self):
         """
@@ -1158,31 +1147,7 @@ def generateOutputName(inputFile, outputType):
     return outputFile
 
 
-def roundSig(x, p):
-    """
-    Rounds the number to the significant figures requested.
-    This has been taken from here: https://stackoverflow.com/a/59888924
-
-    Parameters
-    ----------
-    x : number
-        The number to be rounded. Also works with arrays
-    p : int
-        The amount of significant figures to round to.
-
-    Returns
-    -------
-    rounded : number
-           A scalar or list rounded to the significant figures requested
-    """
-    x = numpy.asarray(x)
-    xPositive = numpy.where(numpy.isfinite(x) & (x != 0), numpy.abs(x), 10 ** (p - 1))
-    mags = 10 ** (p - 1 - numpy.floor(numpy.log10(xPositive)))
-    rounded = numpy.round(x * mags) / mags
-    return rounded
-
-
-def getGrowthRatioString(growthRatios, nDecimals=3):
+def getGrowthRatioString(growthRatios):
     """
     Returns a rounded string with the current growth ratio. If the growth
     ratio is constant, a single value is returned. Otherwise a range is
@@ -1201,12 +1166,12 @@ def getGrowthRatioString(growthRatios, nDecimals=3):
     growthRatioString : str
         The string holding the rounded growth ratio.
     """
-    minGrowthRatio = roundSig(numpy.min(growthRatios[growthRatios > 1]), nDecimals)
-    maxGrowthRatio = roundSig(numpy.max(growthRatios[growthRatios > 1]), nDecimals)
+    minGrowthRatio = numpy.min(growthRatios[growthRatios > 1])
+    maxGrowthRatio = numpy.max(growthRatios[growthRatios > 1])
 
     if maxGrowthRatio - minGrowthRatio <= 0:
-        growthRatioString = f"{minGrowthRatio}"
+        growthRatioString = f"{minGrowthRatio:.3e}"
     else:
-        growthRatioString = f"{minGrowthRatio} - {maxGrowthRatio}"
+        growthRatioString = f"{minGrowthRatio:.3e} - {maxGrowthRatio:.3e}"
 
     return growthRatioString
