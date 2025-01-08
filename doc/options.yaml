@@ -94,20 +94,28 @@ splay:
   desc: >
     Splay BC spreading factor.
     This controls how far the floating edges splay outwards and can be useful for increasing the volume overlap in overset meshes.
+    This variable may come in different formats: 
+    (1) If it is a ``scalar``, the same value is used throughout all of the grid.
+    (2) If it is a ``1D list``, it must have a length of :py:data:`N` - 1. Each entry is used for the corresponding extrusion layer. E.g. ``splay: [0.2, 0.3, 0.4]`` would result in a grid with 3 extrusions where the first layer uses ``0.2``, the second layer uses ``0.3`` and the last one uses ``0.4``.
+    (3) If it is a ``2D list``, the values are interpolated linearly. E.g. ``splay: [[0.0, 0.2], [0.5, 0.4], [1.0, 0.0]]`` would result in a linear increase from ``0.2`` to ``0.4`` at half of the total :py:data:`N`. Then it would linearly decrease until it reaches ``0.0`` in the last extrusion.
+
 
 splayEdgeOrthogonality:
   desc: >
     How hard to try to force orthogonality at splay edges.
     Should be between 0 and 0.5.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 splayCornerOrthogonality:
   desc: >
     How hard to try to force orthogonality at splay corners.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 cornerAngle:
   desc: >
     Maximum convex corner angle in degrees necessary to trigger the implicit node averaging scheme.
     See Section 8 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 coarsen:
   desc: >
@@ -190,6 +198,7 @@ epsE:
     If the geometry has very sharp corners, too much explicit smoothing will cause the solver to rapidly "soften" the corner and the grid will fold back on itself.
     In concave corners, additional smoothing will prevent lines from crossing (avoiding negative cells).
     See Section 3 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 epsI:
   desc: >
@@ -198,6 +207,7 @@ epsI:
     Generally increasing the implicit coefficient results in a more stable solution procedure.
     Usually this value should be twice the explicit smoothing parameter.
     See Section 3 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 theta:
   desc: >
@@ -206,6 +216,7 @@ theta:
     A single theta value is used for both in-plane directions.
     Typical values are ~2.0 to ~4.0.
     See Section 3 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 volCoef:
   desc: >
@@ -214,26 +225,25 @@ volCoef:
     Larger values will result in a more uniform cell volume distribution.
     Alternatively, use more :py:data:`volSmoothIter` for stronger local smoothing.
     See Section 5 of :ref:`Chan and Steger<pyhyp_theory>` for more information.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 volBlend:
   desc: >
     The global volume blending coefficient.
     This value will typically be very small, especially if you have widely varying cell sizes.
     Typical values are from ~0 to 0.001.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 volSmoothIter:
   desc: >
     The number of point-Jacobi local volume smoothing iterations to perform at each level.
     More iterations will result in a more uniform cell volume distribution.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
-volSmoothSchedule:
+growthRatios:
   desc: >
-    Define a piecewise linear schedule for volume smoothing iterations.
-    If provided, this supersedes :py:data:`volSmoothIter`.
-    This option is usually used to limit the number of smoothing iterations early in the extrusion to maintain orthogonality near the wall and ramp up the number of smoothing iterations later in the extrusion to achieve a more uniform cell volume distribution in the farfield.
-    An example of a smoothing schedule is ``"volSmoothSchedule": [[0, 10], [0.4, 50], [1.0, 100]]``.
-    In this example, the number of smoothing iterations increases linearly from 10 to 50 over the first 40% of grid levels.
-    For the remaining levels, the number of smoothing iterations increases linearly from 50 to 100.
+    Manually specify the growth ratio(s). If not ``None``, this superseeds :py:data:`marchDist`.
+    Please look at :py:data:`splay` for explanations and examples on the format.
 
 KSPRelTol:
   desc: >

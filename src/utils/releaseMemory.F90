@@ -57,8 +57,44 @@ subroutine releaseMemory
         deallocate (conn)
     end if
 
-    if (allocated(volSmoothSchedule)) then
-        deallocate (volSmoothSchedule)
+    if (allocated(epse)) then
+        deallocate (epse)
+    end if
+
+    if (allocated(epsi)) then
+        deallocate (epsi)
+    end if
+
+    if (allocated(theta)) then
+        deallocate (theta)
+    end if
+
+    if (allocated(splay)) then
+        deallocate (splay)
+    end if
+
+    if (allocated(volSmoothIter)) then
+        deallocate (volSmoothIter)
+    end if
+
+    if (allocated(volblend)) then
+        deallocate (volblend)
+    end if
+
+    if (allocated(cornerAngle)) then
+        deallocate (cornerAngle)
+    end if
+
+    if (allocated(volCoef)) then
+        deallocate (volCoef)
+    end if
+
+    if (allocated(splayEdgeOrthogonality)) then
+        deallocate (splayEdgeOrthogonality)
+    end if
+
+    if (allocated(splayCornerOrthogonality)) then
+        deallocate (splayCornerOrthogonality)
     end if
 
     if (varsAllocated) then

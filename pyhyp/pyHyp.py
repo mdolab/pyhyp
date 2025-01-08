@@ -16,25 +16,46 @@ History
 -------
     v. 1.0 - Initial Class Creation (GKK, 2013)
 """
+
 # =============================================================================
 # Imports
 # =============================================================================
 import os
 import numpy
+import copy
 from mpi4py import MPI
 from . import MExt
 from collections import OrderedDict
 from copy import deepcopy
+from tabulate import tabulate
 from baseclasses import BaseSolver
 from baseclasses.utils import Error
 from cgnsutilities.cgnsutilities import readGrid, combineGrids
+
+
+class pyHypWarning(object):
+    """
+    Format a warning message
+    """
+
+    def __init__(self, message):
+        msg = "\n+" + "-" * 78 + "+" + "\n" + "| pyHyp Warning: "
+        i = 19
+        for word in message.split():
+            if len(word) + i + 1 > 78:  # Finish line and start new one
+                msg += " " * (78 - i) + "|\n| " + word + " "
+                i = 1 + len(word) + 1
+            else:
+                msg += word + " "
+                i += len(word) + 1
+        msg += " " * (78 - i) + "|\n" + "+" + "-" * 78 + "+" + "\n"
+        print(msg)
 
 
 # =============================================================================
 # pyHypMulti class
 # =============================================================================
 class pyHypMulti(object):
-
     """
     This is class can be used to run multiple pyHyp cases at once.
     """
@@ -158,7 +179,7 @@ class pyHypMulti(object):
         self.results = {
             "name": list(optionsDict.keys()),
             "outputFile": [0] * self.numGrids,
-            "gridRatio": [0] * self.numGrids,
+            "gridRatio": [""] * self.numGrids,
             "minQualityOverall": [0] * self.numGrids,
             "minVolumeOverall": [0] * self.numGrids,
         }
@@ -231,9 +252,9 @@ class pyHypMulti(object):
                 # Save results
                 self.results["name"][index] = optionName
                 self.results["outputFile"][index] = hypGrid.options["outputfile"]
-                self.results["gridRatio"][index] = float(hypGrid.hyp.hypdata.gridratio)
                 self.results["minQualityOverall"][index] = float(hypGrid.hyp.hypdata.minqualityoverall)
                 self.results["minVolumeOverall"][index] = float(hypGrid.hyp.hypdata.minvolumeoverall)
+                self.results["gridRatio"][index] = hypGrid.growthRatios
 
                 # Delete object to free memory
                 del hypGrid
@@ -249,6 +270,14 @@ class pyHypMulti(object):
         This will print a log with important information regarding all grids
         """
 
+        # round gridRatios
+        results = copy.deepcopy(self.results)
+        key = "gridRatio"
+        for n in range(len(results[key])):
+            if not isinstance(results[key][n], numpy.ndarray):
+                continue
+            results[key][n] = getGrowthRatioString(results[key][n])
+
         # Get processor ID
         myid = self.comm.Get_rank()
 
@@ -262,54 +291,7 @@ class pyHypMulti(object):
             print("=" * 40)
 
             print("")
-            print("+----+-----------------------+-----------+-------------------+------------------+")
-            print("| ID |       grid name       | gridRatio | minQualityOverall | minVolumeOverall |")
-            print("+----+-----------------------+-----------+-------------------+------------------+")
-
-            for index in range(self.numGrids):
-                # Crop filename
-                try:
-                    filename = self.results["name"][index][:21]
-                except Exception:  # noqa: E722
-                    filename = self.results["name"][index]
-
-                # Get remaining data
-                gridRatio = self.results["gridRatio"][index]
-                minQualityOverall = self.results["minQualityOverall"][index]
-                minVolumeOverall = self.results["minVolumeOverall"][index]
-
-                # Format string that will be printed
-                log_string1 = "| %02d " % index + "|" + " {0: <21} ".format(filename) + "|"
-                if type(gridRatio) is str:
-                    log_string2 = (
-                        " {0: <9} ".format(gridRatio)
-                        + "|"
-                        + " " * 4
-                        + "{0: <10}".format(minQualityOverall)
-                        + " " * 5
-                        + "|"
-                        + " " * 4
-                        + "{0: <10}".format(minVolumeOverall)
-                        + " " * 4
-                        + "|"
-                    )
-                else:
-                    log_string2 = (
-                        " {:9.7f} ".format(gridRatio)
-                        + "|"
-                        + " " * 4
-                        + "{:9.8f}".format(minQualityOverall)
-                        + " " * 5
-                        + "|"
-                        + " " * 4
-                        + "{:8.4e}".format(minVolumeOverall)
-                        + " " * 4
-                        + "|"
-                    )
-
-                print(log_string1 + log_string2)
-
-            print("+----+-----------------------+-----------+-------------------+------------------+")
+            print(tabulate(results, headers="keys", floatfmt=".4e"))
             print("")
             print("")
 
@@ -405,8 +387,19 @@ class pyHyp(BaseSolver):
         if options is None:
             raise Error("The options = keyword argument is *NOT* optional. " "It must always be provided")
 
+        # Deprecated options
+        deprecatedOptions = self._getDeprecatedOptions()
+
         # Initialize the inherited BaseSolver
-        super().__init__(name, category, defaultOptions=defOpts, options=options, comm=comm, informs=informs)
+        super().__init__(
+            name,
+            category,
+            defaultOptions=defOpts,
+            options=options,
+            deprecatedOptions=deprecatedOptions,
+            comm=comm,
+            informs=informs,
+        )
 
         # Import and set the hyp module
         curDir = os.path.basename(os.path.dirname(os.path.realpath(__file__)))
@@ -580,10 +573,10 @@ class pyHyp(BaseSolver):
             "nTruncate": [int, -1],
             "marchDist": [float, 50.0],
             "nodeTol": [float, 1e-8],
-            "splay": [float, 0.25],
-            "splayEdgeOrthogonality": [float, 0.1],
-            "splayCornerOrthogonality": [float, 0.2],
-            "cornerAngle": [float, 60.0],
+            "splay": [(list, float), 0.25],
+            "splayEdgeOrthogonality": [(list, float), 0.1],
+            "splayCornerOrthogonality": [(list, float), 0.2],
+            "cornerAngle": [(list, float), 60.0],
             "coarsen": [int, 1],
             # ---------------------------
             #   Elliptic Parameters
@@ -601,16 +594,16 @@ class pyHyp(BaseSolver):
             "slExp": [float, 0.15],
             "ps0": [float, -1.0],
             "pGridRatio": [float, -1.0],
+            "growthRatios": [(list, type(None)), None],
             # ----------------------------------------
             #   Smoothing parameters (Hyperbolic only)
             # ----------------------------------------
-            "epsE": [float, 1.0],
-            "epsI": [float, 2.0],
-            "theta": [float, 3.0],
-            "volCoef": [float, 0.25],
-            "volBlend": [float, 0.0001],
-            "volSmoothIter": [int, 100],
-            "volSmoothSchedule": [(list, type(None)), None],
+            "epsE": [(list, float), 1.0],
+            "epsI": [(list, float), 2.0],
+            "theta": [(list, float), 3.0],
+            "volCoef": [(list, float), 0.25],
+            "volBlend": [(list, float), 0.0001],
+            "volSmoothIter": [(list, int), 100],
             # -------------------------------
             #   Solution Parameters (Common)
             # -------------------------------
@@ -625,6 +618,14 @@ class pyHyp(BaseSolver):
             "outputFile": [(str, type(None)), None],
         }
         return defOpts
+
+    @staticmethod
+    def _getDeprecatedOptions():
+        deprecatedOptions = {
+            "volSmoothSchedule": "Please use 'volSmoothIter' for the same functionality",
+        }
+
+        return deprecatedOptions
 
     def run(self):
         """
@@ -720,22 +721,8 @@ class pyHyp(BaseSolver):
         self.hyp.hypinput.nconstantend = self.getOption("nConstantEnd")
         self.hyp.hypinput.ntruncate = self.getOption("nTruncate")
         self.hyp.hypinput.nopointreduce = self.getOption("noPointReduce")
-        self.hyp.hypinput.s0 = self.getOption("s0")
-        self.hyp.hypinput.marchdist = self.getOption("marchdist")
-        self.hyp.hypinput.ps0 = self.getOption("ps0")
-        self.hyp.hypinput.pgridratio = self.getOption("pGridRatio")
         self.hyp.hypinput.slexp = self.getOption("slExp")
-        self.hyp.hypinput.epse = self.getOption("epsE")
-        self.hyp.hypinput.epsi = self.getOption("epsI")
-        self.hyp.hypinput.theta = self.getOption("theta")
-        self.hyp.hypinput.volcoef = self.getOption("volCoef")
-        self.hyp.hypinput.volblend = self.getOption("volBlend")
         self.hyp.hypinput.cmax = self.getOption("cMax")
-        self.hyp.hypinput.volsmoothiter = self.getOption("volSmoothIter")
-        self.hyp.hypinput.splay = self.getOption("splay")
-        self.hyp.hypinput.splayedgeorthogonality = self.getOption("splayEdgeOrthogonality")
-        self.hyp.hypinput.splaycornerorthogonality = self.getOption("splayCornerOrthogonality")
-        self.hyp.hypinput.cornerangle = self.getOption("cornerangle") * numpy.pi / 180
         self.hyp.hypinput.coarsen = self.getOption("coarsen")
         self.hyp.hypinput.kspreltol = self.getOption("kspRelTol")
         self.hyp.hypinput.kspmaxits = self.getOption("kspMaxIts")
@@ -758,14 +745,269 @@ class pyHyp(BaseSolver):
         f = self.getOption("sourceStrengthFile")
         self.hyp.hypinput.sourcestrengthfile = self._expandString(f)
 
-        sch = self.getOption("volSmoothSchedule")
-        if sch is not None:
-            sch = numpy.array(sch, "d")
-            # Make sure its normalized
-            low = sch[0, 0]
-            high = sch[-1, 0]
-            sch[:, 0] = (sch[:, 0] - low) / (high - low)
-            self.hyp.hypinput.volsmoothschedule = sch
+        # options that might be unique per layer
+        self.hyp.hypinput.volsmoothiter = self._expandPerLayerOption("volSmoothIter", dtype=numpy.int32)
+        self.hyp.hypinput.volblend = self._expandPerLayerOption("volBlend")
+        self.hyp.hypinput.volcoef = self._expandPerLayerOption("volCoef")
+        self.hyp.hypinput.epse = self._expandPerLayerOption("epsE")
+        self.hyp.hypinput.epsi = self._expandPerLayerOption("epsI")
+        self.hyp.hypinput.theta = self._expandPerLayerOption("theta")
+        self.hyp.hypinput.splay = self._expandPerLayerOption("splay")
+        self.hyp.hypinput.splayedgeorthogonality = self._expandPerLayerOption("splayEdgeOrthogonality")
+        self.hyp.hypinput.splaycornerorthogonality = self._expandPerLayerOption("splayCornerOrthogonality")
+        self.hyp.hypinput.cornerangle = self._expandPerLayerOption("cornerangle") * numpy.pi / 180
+
+        # determine marching parameters
+        fullDeltaS, self.marchDistance, self.growthRatios = self._determineMarchingParameters()
+        self.hyp.hypinput.fulldeltas = fullDeltaS
+        self.hyp.hypinput.marchdist = self.marchDistance
+        self._printMarchingParameters()
+
+        # figure out pseudo grid ratio parameters
+        pGridRatio, ps0 = self._configurePseudoGridParameters()
+        self.hyp.hypinput.pgridratio = pGridRatio
+        self.hyp.hypinput.ps0 = ps0
+
+    def _determineMarchingParameters(self):
+        """
+        Figure out what marching parameters to use. This logic is needed
+        because there are multiple ways to define those parameters.
+
+        Returns
+        -------
+        fullDeltaS : list[float]
+            The ideal height for each layer.
+        marchDist : float
+            The marching distance used.
+        growthRatios : list[float]
+            The growth ratio for each layer.
+        """
+        # if the user specified an explicit growth-ratio, use this
+        optionsGrowthRatios = self.getOption("growthRatios")
+        if optionsGrowthRatios is not None:
+            growthRatios = self._expandPerLayerOption("growthRatios")
+
+            if self.comm.Get_rank() == 0:
+                pyHypWarning(
+                    "The option `growthRatios` has been specified. This takes precedence over `marchDist`, `nConstantStart` and `nConstantEnd`."
+                )
+        else:
+            # no growth ratio was provided -> compute it
+            growthRatios = self._computeGrowthRatio()
+
+        # finally compute each layers deltaS and set it in fortran
+        fullDeltaS = self._computeDeltaS(growthRatios)
+
+        # figure out what marching distance to use
+        if optionsGrowthRatios is not None:
+            marchDist = numpy.sum(fullDeltaS)
+        else:
+            marchDist = self.getOption("marchDist")
+
+        return fullDeltaS, marchDist, growthRatios
+
+    def _printMarchingParameters(self):
+        """
+        Print the marching parameters used.
+        """
+        if not self.comm.Get_rank() == 0:
+            return
+
+        growthRatioString = getGrowthRatioString(self.growthRatios)
+
+        print("#--------------------#")
+        print(f"Grid Ratio:  {growthRatioString}")
+        print(f"March Dist:  {self.marchDistance:.3e}")
+
+    def _configurePseudoGridParameters(self):
+        """
+        Figures out if the user set pseudo grid parameters. If this is the
+        case, error checking makes sure they are reasonable. If the user did not
+        set it, an automatic value is computed.
+
+        Returns
+        -------
+        pGridRatio: float
+            Growth ratio for the pseudo grid.
+        ps0 : float
+            First layer height for the pseudo grid.
+        """
+
+        pGridRatio = self.getOption("pGridRatio")
+        ps0 = self.getOption("ps0")
+        s0 = self.getOption("s0")
+
+        minGrowthRatio = numpy.min(self.growthRatios[self.growthRatios > 1])
+        if pGridRatio == -1:
+            pGridRatio = minGrowthRatio
+        else:
+            if pGridRatio > minGrowthRatio:
+                raise Error(f"The `pGridRatio` option has to be lower than the lowest grid ratio ({minGrowthRatio})")
+
+        # figure out initial pseudo grid initial offwall spacing
+        if ps0 <= 0:
+            ps0 = s0 / 2
+        else:
+            if ps0 > s0:
+                raise Error(f"The `ps0` option has to be lower than the off wall spacing s0: ({s0})")
+
+        return pGridRatio, ps0
+
+    def _computeDeltaS(self, growthRatios):
+        """
+        Computes the ideal height for each layer. Due to smoothing, this exact
+        value will not be achieved in practice.
+
+        Parameters
+        ----------
+        growthRatios : list[float]
+            The growth ratio for each layer.
+
+        Returns
+        -------
+        fullDeltaS : list[float]
+            The ideal height for each layer.
+        """
+        N = self.getOption("N")
+        s0 = self.getOption("s0")
+        fullDeltaS = numpy.zeros(N)
+
+        # compute the delta S
+        fullDeltaS[1] = s0
+        for n in range(2, N):
+            fullDeltaS[n] = fullDeltaS[n - 1] * growthRatios[n]
+
+        return fullDeltaS
+
+    def _computeGrowthRatio(self):
+        """
+        Computes the growth ratio for each layer when no explicit value is given.
+
+        Returns
+        -------
+        growthRatios : list[float]
+            The growth ratio for each layer.
+        """
+        # function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
+        # initial ratio and r is the grid ratio.
+
+        nStart = self.getOption("nConstantStart")
+        nEnd = self.getOption("nConstantEnd")
+        S = self.getOption("marchDist")
+        N = self.getOption("N")
+        s0 = self.getOption("s0")
+
+        def func(r):
+            func = nStart * s0
+
+            curSize = s0
+
+            # Next we will have M = N - nStart - nEnd layers of exponential growth.
+            for _j in range(N - 1 - nStart - nEnd):
+                curSize = curSize * r
+                func = func + curSize
+
+            # Last stretch
+            curSize = curSize * r
+
+            # Now add the last nEnd layers of constant size
+            func = func + nEnd * curSize
+
+            # Finally the actual function is S - func
+            func = S - func
+
+            return func
+
+        # Do a bisection search
+        # Max and min bounds...root must be in here...
+        a = 1.0 + 1e-8
+        b = 4.0
+        ratio = -1
+
+        fa = func(a)
+        for _i in range(100):
+            c = (a + b) / 2
+            f = func(c)
+            if abs(f) < 1e-10:  # Converged
+                ratio = c
+                break
+
+            if f * fa > 0:
+                a = c
+            else:
+                b = c
+
+        # we need to return an array of growth-ratios
+        growthRatios = numpy.ones(N)
+        growthRatios[nStart + 1 : N - (nEnd - 1)] = ratio
+
+        return growthRatios
+
+    def _expandPerLayerOption(self, name, dtype=numpy.float64):
+        """
+        Expands the option in question into an array that has a unique value
+        per layer.
+
+        The option may come in different formats:
+        (1) If it is a scalar, the same value is used throughout all of the grid.
+        (2) If it is a 1D list, it must have a length of N - 1. Each entry is
+        used for the corresponding extrusion layer. E.g. [0.2, 0.3, 0.4] would
+        result in a grid with 3 extrusions where the first layer uses 0.2, the
+        second layer uses 0.3 and the last one uses 0.4.
+        (3) If it is a 2D list, the values are interpolated linearly. E.g.
+        [[0.0, 0.2], [0.5, 0.4], [1.0, 0.0]] would result in a linear increase
+        from 0.2 to 0.4 at half of the total N. Then it would linearly decrease
+        until it reaches 0.0 in the last extrusion.
+
+        Parameters
+        ----------
+        name : str
+            Name of the option in question
+        dtype : numpy.dtype
+            The datatype of the option in question.
+
+        Returns
+        -------
+        out : list[float]
+            The value of the option in question for each layer.
+        """
+        inp = self.getOption(name)
+        N = self.getOption("N")
+        out = numpy.zeros(N, dtype=dtype)
+
+        # if it is a scalar, just repeat it
+        if numpy.isscalar(inp):
+            out[:] = inp
+            return out
+
+        # convert to numpy array as it is easier to work with
+        inp = numpy.array(inp)
+
+        # if it is a 1d list, use it as is
+        if inp.ndim == 1:
+            # check the length, which should be N - 1
+            if len(inp) != N - 1:
+                raise Error(f"If the `{name}` option is given as a 1D list, its length must be `N` - 1.")
+
+            # not setting the first value because this is the first layer,
+            # which is given by the surface mesh
+            out[1:] = inp
+
+            return out
+
+        # if it is a 2d list, linearly interpolate it
+        # first make sure it is normalized
+        low = inp[0, 0]
+        high = inp[-1, 0]
+        inp[:, 0] = (inp[:, 0] - low) / (high - low)
+
+        # then interpolate
+        x = numpy.arange(1, N)
+        xp = inp[:, 0] * (N - 2) + 1
+        fp = inp[:, 1]
+        out[1:] = numpy.interp(x, xp, fp)
+
+        return out
 
     def _expandString(self, s):
         """Expand a supplied string 's' to be of the constants.maxstring
@@ -777,6 +1019,22 @@ class pyHyp(BaseSolver):
         Clean up fortran allocated values if necessary
         """
         self.hyp.releasememory()
+
+    def getUsedMarchDistance(self):
+        """
+        Returns the marching distance used.
+
+        Returns
+        -------
+        marchDist : float
+            The marching distance used.
+        """
+        if not self.gridGenerated:
+            raise Error("Cannot return the used marching distance before extruding the grid.")
+
+        marchDist = self.hyp.hypinput.marchdist
+
+        return marchDist
 
     def writeLayer(self, fileName, layer=1, meshType="plot3d", partitions=True):
         """
@@ -887,3 +1145,30 @@ def generateOutputName(inputFile, outputType):
 
     # Return the generated name
     return outputFile
+
+
+def getGrowthRatioString(growthRatios):
+    """
+    Returns a rounded string with the current growth ratio. If the growth
+    ratio is constant, a single value is returned. Otherwise a range is
+    returned.
+
+    Parameters
+    ----------
+    growthRatios : list(float)
+        List holding the growth ratio for each layer
+
+    Returns
+    -------
+    growthRatioString : str
+        The string holding the rounded growth ratio.
+    """
+    minGrowthRatio = numpy.min(growthRatios[growthRatios > 1])
+    maxGrowthRatio = numpy.max(growthRatios[growthRatios > 1])
+
+    if maxGrowthRatio - minGrowthRatio <= 0:
+        growthRatioString = f"{minGrowthRatio:.3e}"
+    else:
+        growthRatioString = f"{minGrowthRatio:.3e} - {maxGrowthRatio:.3e}"
+
+    return growthRatioString

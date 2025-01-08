@@ -28,6 +28,7 @@ subroutine getBC(bcType, BCVal, isEdge, blend, p0, p1, p2, p3, p4)
     !
 
     use hypInput
+    use hypData, only: marchIter
     implicit none
 
     ! Input/Output
@@ -45,7 +46,7 @@ subroutine getBC(bcType, BCVal, isEdge, blend, p0, p1, p2, p3, p4)
     case (BCSplay)
 
         ! Regular extrapolation without orthogonality
-        p4_extrap = (2 + splay) * p0 - (1 + splay) * p2
+        p4_extrap = (2 + splay(marchIter)) * p0 - (1 + splay(marchIter)) * p2
 
         ! Distance between p2 and p0
         dist = norm2(p2 - p0)
@@ -68,7 +69,7 @@ subroutine getBC(bcType, BCVal, isEdge, blend, p0, p1, p2, p3, p4)
         call cross_prod(v1, normal, edgeNormal)
         edgeNormal = edgeNormal / norm2(edgeNormal)
 
-        p4_splay = p0 + edgeNormal * (1 + splay) * dist
+        p4_splay = p0 + edgeNormal * (1 + splay(marchIter)) * dist
 
         p4 = (one - blend) * p4_extrap + blend * p4_splay
 
@@ -124,6 +125,7 @@ subroutine getBCBlocks(bcType, blk4, blk0, blk2)
 
     ! Accumulate the blk4 dependence into blk0 and blk2
     use hypInput
+    use hypData, only: marchIter
     implicit none
 
     ! Input
@@ -132,8 +134,8 @@ subroutine getBCBlocks(bcType, blk4, blk0, blk2)
 
     select case (bcType)
     case (BCSplay)
-        blk0 = blk0 + (one + splay) * blk4
-        blk2 = blk2 - splay * blk4
+        blk0 = blk0 + (one + splay(marchIter)) * blk4
+        blk2 = blk2 - splay(marchIter) * blk4
 
     case (BCXSymm)
         blk4(:, 1) = -blk4(:, 1)

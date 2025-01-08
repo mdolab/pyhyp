@@ -30,130 +30,6 @@ subroutine computeStretch(L)
 
 end subroutine computeStretch
 
-subroutine calcGridRatio(N, nStart, nEnd, s0, S, ratio)
-    !***DESCRIPTION
-    !
-    !     Written by Gaetan Kenway
-    !
-    !     Abstract: calcGridRatio() calculates the exponential
-    !     distribution Turns out we need to solve a transendental
-    !     equation here. We will do this with a bisection search
-    !
-    !     Parameters
-    !     ----------
-    !     N : integer
-    !         The number of nodes in sequence
-    !     nStart : integer
-    !         The number of intervals with constant spacing
-    !         's0' at the beginning
-    !     nEnd : integer
-    !         The number of constant sized intervals at the end.
-    !         The actual spacing will be determined.
-    !     s0 : real
-    !         The initial grid spacing
-    !     S : real
-    !         The total integrated length
-    !
-    !     Returns
-    !     -------
-    !     ratio : real
-    !         The computed grid ratio that satifies all the inputs.
-    use hypInput, only: fullDeltas
-    use precision
-
-    implicit none
-
-    ! Input Parameters
-    integer(kind=intType), intent(in) :: N, nStart, nEnd
-    real(kind=realType), intent(in) :: s0, S
-
-    ! Output Parameters
-    real(kind=realType), intent(out) :: ratio
-
-    ! Working Parameters
-    integer(kind=intType) :: i, j
-    real(kind=realType) :: r, a, b, c, f, fa, fb, curSize
-
-    ! function 'f' is S - s0*(1-r^n)/(1-r) where S is total length, s0 is
-    ! initial ratio and r is the grid ratio.
-
-    ! Do a bisection search
-    ! Max and min bounds...root must be in here...
-    a = one + 1e-8
-    b = four
-
-    fa = func(a)
-    fb = func(b)
-    do i = 1, 100
-        c = half * (a + b)
-        f = func(c)
-        if (abs(f) < 1e-10) then ! Converged
-            exit
-        end if
-
-        if (f * fa > 0) then
-            a = c
-        else
-            b = c
-        end if
-    end do
-
-    ! Finally set the ratio variable to r
-    ratio = c
-
-    ! And we precompute all stretches:
-    if (.not. allocated(fullDeltaS)) then
-        allocate (fullDeltaS(2:N))
-    end if
-
-    curSize = s0
-    do j = 1, nStart
-        fullDeltaS(j + 1) = curSize
-    end do
-
-    ! Next we have N - nStart - nEnd layers of exponential
-    do j = 1, N - 1 - nStart - nEnd
-        curSize = curSize * ratio
-        fullDeltaS(nStart + j + 1) = curSize
-    end do
-
-    ! Finally we have the last nEnd constant layers
-    curSize = curSize * ratio
-    do j = 1, nEnd
-        fullDeltaS(N - nEnd + j) = curSize
-    end do
-
-contains
-    function func(r)
-
-        ! Evaluate the function we want to solve for:
-        real(kind=realType) :: r, func, curSize
-        integer(kind=intType) :: j
-
-        ! We will have nStart layers at the beginning.
-        func = nStart * s0
-        curSize = s0
-
-        ! Next we will have M = N - nStart - nEnd layers of exponential
-        ! growth.
-        do j = 1, N - 1 - nStart - nEnd
-            curSize = curSize * r
-            func = func + curSize
-        end do
-
-        ! Last stretch
-        curSize = curSize * r
-
-        ! Now add the last nEnd layers of constant size
-        func = func + nEnd * curSize
-
-        ! Finally the actual functio is S - func
-        func = S - func
-
-    end function func
-
-end subroutine calcGridRatio
-
 subroutine three_by_three_inverse(Jac, Jinv)
     !***DESCRIPTION
     !
@@ -1026,7 +902,7 @@ end subroutine computeCornerAngle
 !   real(kind=realType), dimension(3) :: p4_extrap, p4_splay, p3_extrap, p3_splay
 !   real(kind=realType) :: blend, dist
 
-!   blend = splayCornerOrthogonality
+!   blend = splayCornerOrthogonality(marchIter)
 
 !   p0_new = p0
 

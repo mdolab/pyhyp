@@ -15,46 +15,11 @@ subroutine runHyperbolic
     integer(kind=intType) :: i, ierr, idim, l, reason
     real(kind=realType) :: tmp
 
-    call calcGridRatio(N, nConstantStart, nConstantEnd, s0, marchDist, gridRatio)
-
-    ! Defaults/Error checking
-    if (pGridRatio <= 0) then
-        pGridRatio = gridRatio
-    end if
-
-    if (pGridRatio > gridRatio) then
-        if (myid == 0) then
-            print *, 'Erorr: The supplied pseudo grid ratio is too large. It must be less than', gridRatio
-        end if
-        call mpi_barrier(hyp_comm_world, ierr)
-        stop
-    end if
-
     ! Set initial pseudo and real spacings
-    if (ps0 <= zero) then
-        deltaS = s0 / two
-    else
-        deltaS = ps0
-    end if
-
-    if (deltaS > s0) then
-        if (myid == 0) then
-            print *, 'Erorr: The supplied pseudo grid s0 is too large. It must be less than', s0
-        end if
-        call mpi_barrier(hyp_comm_world, ierr)
-        stop
-    end if
+    deltaS = ps0
 
     ! Write header (defined in 3D_utilities.f90)
     if (myid == 0) then
-        write (*, "(a)", advance="no") '#--------------------#'
-        print "(1x)"
-        write (*, "(a)", advance="no") "Grid Ratio:"
-        write (*, "(f8.4,1x)", advance="no") gridRatio
-        print "(1x)"
-        write (*, "(a)", advance="no") '#--------------------#'
-        print "(1x)"
-
         call writeHeader
     end if
 
@@ -257,28 +222,9 @@ subroutine volumeSmooth
 
     ! Working Parameters
     real(kind=realType) :: factor, nNeighbors, vSum, frac, low, high, frac2
-    integer(kind=intType) :: i, iSize, iter, ierr, ii, jj, nIter
+    integer(kind=intType) :: i, iSize, iter, ierr, ii, jj
     real(kind=realType), allocatable, dimension(:) :: Vtmp
     logical :: search
-
-    if (allocated(volSmoothSchedule)) then
-        ! We need to determine how many smoothing iterations to do by
-        ! interpolating the volumeSmoothing Schedule
-        frac = (marchIter - one) / (N - 1)
-
-        ! Just do a linear search for the bin:
-        do i = 1, size(volSmoothSchedule, 1) - 1
-            if (frac >= volSmoothSchedule(i, 1) .and. frac <= volSmoothSchedule(i + 1, 1)) then
-                frac2 = (frac - volSmoothSchedule(i, 1)) / &
-                        (volSmoothSchedule(i + 1, 1) - volSmoothSchedule(i, 1))
-                low = volSmoothSchedule(i, 2)
-                high = volSmoothSchedule(i + 1, 2)
-                nIter = int(low + frac2 * (high - low))
-            end if
-        end do
-    else
-        nIter = volSmoothIter
-    end if
 
     ! Do a Jacobi volume smooth
     call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
@@ -289,7 +235,7 @@ subroutine volumeSmooth
 
     call VecGetArrayF90(VolumeLocal, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
-    do iter = 1, nIter
+    do iter = 1, volSmoothIter(marchIter)
 
         ! Copy vptr to vtmp
         do i = 1, isize
@@ -306,7 +252,7 @@ subroutine volumeSmooth
                 vSum = vSum + Vtmp(lnPtr(1 + ii, i))
             end do
 
-            vptr(i) = (one - volCoef) * Vtmp(i) + volCoef / nNeighbors * vSum
+            vptr(i) = (one - volCoef(marchIter)) * Vtmp(i) + volCoef(marchIter) / nNeighbors * vSum
 
         end do
 
@@ -324,7 +270,7 @@ subroutine volumeSmooth
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Now we do a global volume smooth
-    factor = half * (one + (one - volBlend)**(marchIter - 2))
+    factor = half * (one + (one - volBlend(marchIter))**(marchIter - 2))
 
     call VecGetArrayF90(Volume, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
@@ -619,9 +565,9 @@ subroutine calcResidual
                 xjm1_m1 = xxm1(3 * jm1 - 2:3 * jm1)
 
                 ! Get the 4th point based on the BC Type:
-                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality, &
+                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality(marchIter), &
                            xx0, xjp1, xkp1, xjm1, xkm1)
-                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality, &
+                call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality(marchIter), &
                            xx0_m1, xjp1_m1, xkp1_m1, xjm1_m1, xkm1_m1)
 
             else if (topoType(i) == topoCorner) then
@@ -629,16 +575,16 @@ subroutine calcResidual
                 ! Get the 3rd and 4th points based on the BCTypes.
 
                 call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                           splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
+                           splayCornerOrthogonality(marchIter), xx0, xkp1, xjp1, xkm1, xjm1)
 
                 call getBC(BCType(2, i), bcVal(2, :, i), .False., &
-                           splayCornerOrthogonality, xx0, xjp1, xkp1, xjm1, xkm1)
+                           splayCornerOrthogonality(marchIter), xx0, xjp1, xkp1, xjm1, xkm1)
 
                 call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                           splayCornerOrthogonality, xx0_m1, xkp1_m1, xjp1_m1, xkm1_m1, xjm1_m1)
+                           splayCornerOrthogonality(marchIter), xx0_m1, xkp1_m1, xjp1_m1, xkm1_m1, xjm1_m1)
 
                 call getBC(BCType(2, i), bcVal(2, :, i), .False., &
-                           splayCornerOrthogonality, xx0_m1, xjp1_m1, xkp1_m1, xjm1_m1, xkm1_m1)
+                           splayCornerOrthogonality(marchIter), xx0_m1, xjp1_m1, xkp1_m1, xjm1_m1, xkm1_m1)
             end if
 
             ! Compute centered difference with respect to ksi and eta. This is the
@@ -759,7 +705,7 @@ subroutine calcResidual
             maxAlpha = max(maxAlpha, alpha)
 
             ! Check maximum corner angle
-            if (maxAlpha > pi - cornerAngle) then
+            if (maxAlpha > pi - cornerAngle(marchIter)) then
                 ! Flag this node as having to be averaged:
                 averageNode = .True.
                 !print *,xx0
@@ -840,7 +786,7 @@ subroutine calcResidual
         ! ------------------------------------
         ! Final explict dissipation (Equation 6.1 and 6.2)
         ! ------------------------------------
-        De = epsE * (Rksi * N_ksi * r_ksi_ksi + Reta * N_eta * r_eta_eta)
+        De = epsE(marchIter) * (Rksi * N_ksi * r_ksi_ksi + Reta * N_eta * r_eta_eta)
 
         if (marchIter == 2) then
             De = zero
@@ -854,32 +800,32 @@ subroutine calcResidual
             do m = 0, MM - 1
                 thetam = 2 * pi * m / MM
                 ! For the 'fm' point in ksi
-                call addBlock(ii, gnPtr(2 + m, i), (one + theta) * PinvQ1 * (two / MM) * cos(thetam))
+                call addBlock(ii, gnPtr(2 + m, i), (one + theta(marchIter)) * PinvQ1 * (two / MM) * cos(thetam))
 
                 ! For the 'f0' point in ksi
-                call addBlock(ii, ii, -(one + theta) * PInvQ1 * (two / MM) * cos(thetam))
+                call addBlock(ii, ii, -(one + theta(marchIter)) * PInvQ1 * (two / MM) * cos(thetam))
 
                 ! For the 'fm' point in eta
-                call addBlock(ii, gnPtr(2 + m, i), (one + theta) * PinvQ2 * (two / MM) * sin(thetam))
+                call addBlock(ii, gnPtr(2 + m, i), (one + theta(marchIter)) * PinvQ2 * (two / MM) * sin(thetam))
 
                 ! For the 'f0' point in ksi
-                call addBlock(ii, ii, -(one + theta) * PInvQ2 * (two / MM) * sin(thetam))
+                call addBlock(ii, ii, -(one + theta(marchIter)) * PInvQ2 * (two / MM) * sin(thetam))
 
                 ! Now we have the second derivative values to do in ksi-ksi
 
                 ! For the 'fm' point in ksi-ksi
                 coef = (two / MM) * (four * cos(thetam)**2 - one)
-                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI * coef)
+                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI(marchIter) * coef)
 
                 ! For the 'f0' point in ksi-ksi
-                call addBlock(ii, ii, eye * epsI * coef)
+                call addBlock(ii, ii, eye * epsI(marchIter) * coef)
 
                 ! For the 'fm' point in eta-eta
                 coef = (two / MM) * (four * sin(thetam)**2 - one)
-                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI * coef)
+                call addBlock(ii, gnPtr(2 + m, i), -eye * epsI(marchIter) * coef)
 
                 ! For the 'f0' point in eta-eta
-                call addBlock(ii, ii, eye * epsI * coef)
+                call addBlock(ii, ii, eye * epsI(marchIter) * coef)
             end do
 
             ! Finally we need an eye on the diagonal
@@ -893,11 +839,11 @@ subroutine calcResidual
 
             if (.not. averageNode) then
                 ! First generate the 5 blocks that we will eventually have to set:
-                blk0 = (eye + four * epsI * eye) ! Center
-                blk1 = ((one + theta) * half * PinvQ1 - epsI * eye)  ! Right (jp1)
-                blk2 = ((one + theta) * half * PinvQ2 - epsI * eye)  ! Top (kp1)
-                blk3 = (-(one + theta) * half * PinvQ1 - epsI * eye) ! Left (jm1)
-                blk4 = (-(one + theta) * half * PinvQ2 - epsI * eye) ! Bottom (km1)
+                blk0 = (eye + four * epsI(marchIter) * eye) ! Center
+                blk1 = ((one + theta(marchIter)) * half * PinvQ1 - epsI(marchIter) * eye)  ! Right (jp1)
+                blk2 = ((one + theta(marchIter)) * half * PinvQ2 - epsI(marchIter) * eye)  ! Top (kp1)
+                blk3 = (-(one + theta(marchIter)) * half * PinvQ1 - epsI(marchIter) * eye) ! Left (jm1)
+                blk4 = (-(one + theta(marchIter)) * half * PinvQ2 - epsI(marchIter) * eye) ! Bottom (km1)
             else
                 blk0 = eye
                 blk1 = -fourth * eye
@@ -1063,7 +1009,7 @@ subroutine updateBCs
             xjm1 = xx(3 * jm1 - 2:3 * jm1)
 
             ! Get the 4th point based on the BC Type:
-            call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality, &
+            call getBC(BCType(1, i), bcVal(1, :, i), .True., splayEdgeOrthogonality(marchIter), &
                        xx0, xjp1, xkp1, xjm1, xkm1)
             xx(3 * i - 2:3 * i) = xx0
 
@@ -1078,10 +1024,10 @@ subroutine updateBCs
 
             ! Get the 3rd and 4th points based on the BCTypes
             call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                       splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
+                       splayCornerOrthogonality(marchIter), xx0, xkp1, xjp1, xkm1, xjm1)
 
             call getBC(BCType(2, i), bcVal(2, :, i), .False., &
-                       splayCornerOrthogonality, xx0, xjp1, xkp1, xjm1, xkm1)
+                       splayCornerOrthogonality(marchIter), xx0, xjp1, xkp1, xjm1, xkm1)
 
             ! BC may update our node
             xx(3 * i - 2:3 * i) = xx0
@@ -1093,7 +1039,7 @@ subroutine updateBCs
 
             ! Other nodes are not significant.
             call getBC(BCType(1, i), bcVal(1, :, i), .False., &
-                       splayCornerOrthogonality, xx0, xkp1, xjp1, xkm1, xjm1)
+                       splayCornerOrthogonality(marchIter), xx0, xkp1, xjp1, xkm1, xjm1)
 
             ! BC may update our node
             xx(3 * i - 2:3 * i) = xx0

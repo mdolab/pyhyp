@@ -8,21 +8,29 @@ module hypInput
 
     ! Input parameters. See pyHyp.py for what each parameter means
 
-    real(kind=realType) :: s0, ps0, pgridratio
+    real(kind=realType) :: ps0, pgridratio
     real(kind=realType) :: slexp
-    real(kind=realType) :: epsE, volCoef, volBlend, epsI, theta
     real(kind=realType) :: kspRelTol, cmax, marchDist
-    real(kind=realType) :: nodeTol, symTol, cornerAngle
-    real(kind=realType) :: splay, splayEdgeOrthogonality, splayCornerOrthogonality
+    real(kind=realType) :: nodeTol, symTol
     integer(kind=intType) :: N, nConstantStart, nConstantEnd, nTruncate
-    integer(kind=intType) :: volSmoothIter, kspMaxIts, preConLag, kspSubspaceSize
+    integer(kind=intType) :: kspMaxIts, preConLag, kspSubspaceSize
     integer(kind=intType) :: coarsen
-    real(kind=realType), dimension(:, :), allocatable :: volSmoothSchedule
+
+    real(kind=realType), dimension(:), allocatable, target :: fullDeltaS
+
+    integer(kind=intType), dimension(:), allocatable, target :: volSmoothIter
+    real(kind=realType), dimension(:), allocatable, target :: volBlend
+    real(kind=realType), dimension(:), allocatable, target :: epsE
+    real(kind=realType), dimension(:), allocatable, target :: epsI
+    real(kind=realType), dimension(:), allocatable, target :: theta
+    real(kind=realType), dimension(:), allocatable, target :: splay
+    real(kind=realType), dimension(:), allocatable, target :: splayEdgeOrthogonality
+    real(kind=realType), dimension(:), allocatable, target :: splayCornerOrthogonality
+    real(kind=realType), dimension(:), allocatable, target :: cornerAngle
+    real(kind=realType), dimension(:), allocatable, target :: volCoef
 
     logical :: nonLinear, writeMetrics, unattachedEdgesAreSymmetry
     logical :: noPointReduce
-
-    real(kind=realType), dimension(:), allocatable :: fullDeltaS
 
     ! Input boundary condition information
     integer(kind=intType), dimension(:, :), allocatable :: BCs

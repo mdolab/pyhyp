@@ -14,7 +14,7 @@ class TestExamples(unittest.TestCase):
         # Insert the repo root in path so that testflo can import examples
         sys.path.insert(0, os.path.join(baseDir, "../"))
 
-    def common_test(self, testFile, marchDist, relTol=1e-14):
+    def commonTest(self, testFile, marchDist, relTol=1e-14):
         volumeName = os.path.split(testFile)[1]
         refFile = os.path.join(refDir, volumeName)
 
@@ -51,55 +51,94 @@ class TestExamples(unittest.TestCase):
         except AssertionError:
             self.assertEqual(output, "/CGNSLibraryVersion <> /CGNSLibraryVersion : data values differ\n")
 
-    def test_2D_euler(self):
+    def test2DEuler(self):
         from examples.naca0012.naca0012_euler import volumeFile, hyp
 
-        marchDist = hyp.getOption("marchDist")
-        self.common_test(volumeFile, marchDist)
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
 
-    def test_2D_rans(self):
-        from examples.naca0012.naca0012_rans import volumeFile, hyp
+    def test2DRans(self):
+        from examples.naca0012.naca0012_rans import extrudeDefaultCase
 
-        marchDist = hyp.getOption("marchDist")
-        self.common_test(volumeFile, marchDist)
+        hyp, volumeFile = extrudeDefaultCase()
 
-    def test_717(self):
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
+
+    def test2DRansConstantLayers(self):
+        from examples.naca0012.naca0012_rans import extrudeConstantLayersCase
+
+        hyp, volumeFile = extrudeConstantLayersCase()
+
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
+
+    def test2DRansSchedule(self):
+        from examples.naca0012.naca0012_rans import extrudeScheduleCase
+
+        hyp, volumeFile = extrudeScheduleCase()
+
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
+
+    def test2DRansExplicit(self):
+        from examples.naca0012.naca0012_rans import extrudeExplicitCase
+
+        hyp, volumeFile = extrudeExplicitCase()
+
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
+
+    def test717(self):
         from examples.wing_717.run717 import volumeFile, hyp
 
-        marchDist = hyp.getOption("marchDist")
-        self.common_test(volumeFile, marchDist)
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
 
-    def test_BWB(self):
+    def testBWB(self):
         from examples.BWB.runBWB import volumeFile, hyp
 
-        marchDist = hyp.getOption("marchDist")
-        self.common_test(volumeFile, marchDist)
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
 
-    def test_corner(self):
+    def testCorner(self):
         from examples.corner.runCorner import volumeFile, commonOptions
 
         marchDist = commonOptions["marchDist"]
-        self.common_test(volumeFile, marchDist)
+        # The relative tolerance is lowered because the absolute tolerance
+        # depends on the march distance (absTol = relTol * marchDist). Since
+        # the marchDist is very low here (2.5), the absolute tolerance is so
+        # low that this test fails on some docker images.
+        self.commonTest(volumeFile, marchDist, relTol=1e-9)
 
-    def test_M6(self):
+    def testM6(self):
         from examples.m6.runM6 import volumeFile, hyp
 
-        marchDist = hyp.getOption("marchDist")
-        self.common_test(volumeFile, marchDist)
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
 
-    def test_plate(self):
+    def testPlate(self):
         from examples.plate.runPlate import volumeFile, hyp
 
-        marchDist = hyp.getOption("marchDist")
-        self.common_test(volumeFile, marchDist)
+        marchDist = hyp.getUsedMarchDistance()
+        self.commonTest(volumeFile, marchDist)
 
-    def test_sphere(self):
+    def testSphere(self):
         from examples.sphere.runSphere import volumeFile, commonOptions
 
         marchDist = commonOptions["marchDist"]
-        self.common_test(volumeFile, marchDist)
+        self.commonTest(volumeFile, marchDist)
 
-    def test_simpleOCart(self):
-        from examples.simpleOCart.runSimpleOCart import outFile, hExtra
+    def testSimpleOCart(self):
+        from examples.simpleOCart.runSimpleOCart import extrudeDefaultCase
 
-        self.common_test(outFile, hExtra)
+        outFile, hExtra = extrudeDefaultCase()
+
+        self.commonTest(outFile, hExtra)
+
+    def testSimpleOCartNoSurfaceMesh(self):
+        from examples.simpleOCart.runSimpleOCart import extrudeNoSurfaceMeshCase
+
+        outFile, hExtra = extrudeNoSurfaceMeshCase()
+
+        self.commonTest(outFile, hExtra)
