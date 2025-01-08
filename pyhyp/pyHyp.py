@@ -1158,9 +1158,6 @@ def getGrowthRatioString(growthRatios):
     growthRatios : list(float)
         List holding the growth ratio for each layer
 
-    nDecimals : int
-        The number of significant figures to round to.
-
     Returns
     -------
     growthRatioString : str
