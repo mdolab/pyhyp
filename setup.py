@@ -31,8 +31,8 @@ setup(
     ),
     package_data={"pyhyp": ["*.so"]},
     install_requires=[
-        "numpy>=1.16,!=1.24,!=1.24.1,!=1.24.2",
-        "mpi4py>=3.0",
+        "numpy>=1.21,!=1.24,!=1.24.1,!=1.24.2",
+        "mpi4py>=3.1.5",
         "mdolab-baseclasses>=1.3",
         "cgnsutilities>=2.5",
         "tabulate",
