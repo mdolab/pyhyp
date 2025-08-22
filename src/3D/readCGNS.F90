@@ -43,7 +43,7 @@ subroutine readCGNS(cgnsFile)
             stop
         end if
 
-        call cg_nzones_f(cg, base, nZones, ierr); 
+        call cg_nzones_f(cg, base, nZones, ierr);
         if (ierr /= CG_OK) call cg_error_exit_f
 
         ! Determine if we have all structured zones

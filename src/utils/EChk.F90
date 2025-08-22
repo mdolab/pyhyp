@@ -28,4 +28,3 @@ subroutine EChk(ierr, file, line)
 900 format(A, I2, A, I2)
 901 format(A, I5, A, A)
 end subroutine EChk
-

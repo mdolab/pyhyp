@@ -1,10 +1,10 @@
 .. _pyhyp_installation:
 
-Installation 
+Installation
 =============
 
 Prerequisites
-------------- 
+-------------
 
 The following external packages are required for pyHyp:
 
@@ -13,21 +13,21 @@ The following external packages are required for pyHyp:
 
 See the MDO Lab installation guide `here <https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/installInstructions/install3rdPartyPackages.html#installthirdpartypackages>`__ for the supported versions and installation instructions.
 
-.. NOTE:: A working MPI is not strictly required. 
+.. NOTE:: A working MPI is not strictly required.
    However, in most cases, PETSc should be configured with MPI.
    Note that ``mpi4py`` should be installed also.
 
 In addition, the following MDO Lab packages are required:
 
-- `baseclasses <https://github.com/mdolab/baseclasses>`_ 
-- `cgnsutilities <https://github.com/mdolab/cgnsutilities>`_ 
+- `baseclasses <https://github.com/mdolab/baseclasses>`_
+- `cgnsutilities <https://github.com/mdolab/cgnsutilities>`_
 
 Please refer to the package documentation for installation instructions.
 For a general MDO Lab installation guide, see `here <https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/installInstructions/installFromScratch.html#mdo-lab-packages>`__.
 
 
-Compilation 
------------- 
+Compilation
+------------
 pyHyp follows the standard MDO Lab build procedure.
 To start, first clone the repo.
 For stability we recommend checking out a tagged release.

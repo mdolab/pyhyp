@@ -385,7 +385,7 @@ class pyHyp(BaseSolver):
 
         # Use supplied options
         if options is None:
-            raise Error("The options = keyword argument is *NOT* optional. " "It must always be provided")
+            raise Error("The options = keyword argument is *NOT* optional. It must always be provided")
 
         # Deprecated options
         deprecatedOptions = self._getDeprecatedOptions()
@@ -435,7 +435,7 @@ class pyHyp(BaseSolver):
 
         self.hyp.allocatefamilies(nBlocks)
         if self.getOption("noPointReduce") and nBlocks > 1:
-            raise Error("The noPointReduce option may only be true when " "a single surface grid is provided.")
+            raise Error("The noPointReduce option may only be true when a single surface grid is provided.")
 
         # The fortran BC information
         fBCs = numpy.zeros((4, nBlocks), order="f")
@@ -474,8 +474,7 @@ class pyHyp(BaseSolver):
                 lKey = edgeKey.lower()
                 if lKey not in edgeMap.keys():
                     raise Error(
-                        "Boundary edge specification must be one of: "
-                        "'iLow', 'iHigh', 'jLow', or 'jHigh'. %s" % helpStr
+                        "Boundary edge specification must be one of: 'iLow', 'iHigh', 'jLow', or 'jHigh'. %s" % helpStr
                     )
                 BCToSet = BCs[blkBC][edgeKey].lower()
                 if BCToSet.lower() not in BCMap.keys():
@@ -644,19 +643,21 @@ class pyHyp(BaseSolver):
 
     def writePlot3D(self, fileName):
         """After we have generated a grid, write it out to a plot3d
-        file for the user to look at"""
+        file for the user to look at
+        """
 
         if self.gridGenerated:
             self.hyp.writeplot3d(fileName)
         else:
-            raise Error("No grid has been generated! Run the run() " "command before trying to write the grid!")
+            raise Error("No grid has been generated! Run the run() command before trying to write the grid!")
 
     def writeCGNS(self, fileName):
         """After we have generated a grid, write it out in a properly
-        formatted 1-Cell wide CGNS file suitable for running in SUmb."""
+        formatted 1-Cell wide CGNS file suitable for running in SUmb.
+        """
 
         if not self.gridGenerated:
-            raise Error("No grid has been generated! Run the run() " "command before trying to write the grid!")
+            raise Error("No grid has been generated! Run the run() command before trying to write the grid!")
 
         self.hyp.writecgns(fileName)
 
@@ -1011,7 +1012,8 @@ class pyHyp(BaseSolver):
 
     def _expandString(self, s):
         """Expand a supplied string 's' to be of the constants.maxstring
-        length so we can set them in fortran"""
+        length so we can set them in fortran
+        """
         return s + " " * (512 - len(s))
 
     def __del__(self):
@@ -1108,7 +1110,7 @@ class pyHyp(BaseSolver):
             try:
                 from pygeo import pyGeo
             except ImportError:
-                raise Error(
+                raise Error from (
                     "pyGeo must be available to use the surface "
                     "reprojection object. Try again without specifying "
                     "the surfFile option."
