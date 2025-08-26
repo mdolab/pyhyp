@@ -1109,12 +1109,12 @@ class pyHyp(BaseSolver):
         if surfFile is not None:
             try:
                 from pygeo import pyGeo
-            except ImportError:
-                raise Error from (
+            except ImportError as e:
+                raise Error(
                     "pyGeo must be available to use the surface "
                     "reprojection object. Try again without specifying "
                     "the surfFile option."
-                )
+                ) from e
 
             geoSurf = pyGeo("iges", fileName=surfFile)
             self.hyp.allocatesurfaces(geoSurf.nSurf)

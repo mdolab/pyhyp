@@ -73,7 +73,7 @@ def simpleOCart(inputGrid, dh, hExtra, nExtra, sym, mgcycle, outFile, userOption
         if xBounds is None:
             raise Error("If the inputGrid is None, xBounds must be provided")
     # if the input grid is not provided as a filename, it must be a Grid instance
-    elif isinstance(inputGrid, Grid):
+    elif not isinstance(inputGrid, Grid):
         # if not, raise an error
         raise Error(
             "The inputGrid to simpleOCart must either be the filename of the nearfield grid or a Grid type object from cgnsutilities."
