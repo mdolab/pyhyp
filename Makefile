@@ -51,5 +51,3 @@ hyp:
 		done
 	(cd lib && make)
 	(cd src/python/f2py && make)
-
-

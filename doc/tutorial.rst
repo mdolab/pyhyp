@@ -31,12 +31,12 @@ generates the pyHyp object.
 
 .. NOTE:: When exporting a surface mesh from ICEMCFD in plot3d format
           use the following options:
-	  
+
 	  * Formatted
 	  * Whole
 	  * Double
 	  * No IBLANK Array
-	    
+
 .. WARNING:: It is essential that the normals of each of the surface
    patches point in the *OUTWARD* direction, i.e. the marching
    direction.

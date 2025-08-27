@@ -12,7 +12,7 @@ fileType:
     Type of the input file.
   CGNS: CGNS format
   PLOT3D: PLOT3D format
-    
+
 skip:
   desc: >
     Flag to entirely skip the grid generation of this geometry.
@@ -89,12 +89,12 @@ marchDist:
 nodeTol:
   desc: >
     Tolerance for nodes to be treated as identical.
-    
+
 splay:
   desc: >
     Splay BC spreading factor.
     This controls how far the floating edges splay outwards and can be useful for increasing the volume overlap in overset meshes.
-    This variable may come in different formats: 
+    This variable may come in different formats:
     (1) If it is a ``scalar``, the same value is used throughout all of the grid.
     (2) If it is a ``1D list``, it must have a length of :py:data:`N` - 1. Each entry is used for the corresponding extrusion layer. E.g. ``splay: [0.2, 0.3, 0.4]`` would result in a grid with 3 extrusions where the first layer uses ``0.2``, the second layer uses ``0.3`` and the last one uses ``0.4``.
     (3) If it is a ``2D list``, the values are interpolated linearly. E.g. ``splay: [[0.0, 0.2], [0.5, 0.4], [1.0, 0.0]]`` would result in a linear increase from ``0.2`` to ``0.4`` at half of the total :py:data:`N`. Then it would linearly decrease until it reaches ``0.0`` in the last extrusion.
@@ -129,7 +129,7 @@ panelEps:
     Only used in elliptic mode.
     Distance source panels are "below" nodes.
     This parameter usually does not need to be changed.
-    
+
 farfieldTolerance:
   desc: >
     Only used in elliptic mode.
@@ -138,7 +138,7 @@ farfieldTolerance:
 useMatrixFree:
   desc: >
     Only used in elliptic mode.
-    Use matrix-free solution technique. 
+    Use matrix-free solution technique.
     This is always True when :py:data:`evalMode` is ``fast``.
 
 evalMode:

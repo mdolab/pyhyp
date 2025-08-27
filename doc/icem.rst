@@ -2,7 +2,7 @@
 
 .. pyHyp boundary conditions example.
    Written by: Ney Secco (February 2016)
-   Edited by: 
+   Edited by:
 
 Specifying BCs using ICEM
 =========================
@@ -41,7 +41,7 @@ is the one used as an example of boundary conditions setup.
 
    A new menu will show up on the lower-left corner of the screen. Select *Standard Shapes*, then
    *Box*.
-   
+
    Finally, type '1 1 0' in the *X Y Z size* field and click on 'Apply', just as shown below:
 
       .. image:: images/Figure_CreateBox.png
@@ -130,7 +130,7 @@ is the one used as an example of boundary conditions setup.
 Preparing to export the mesh
 ----------------------------
 
-Just to recap, we have done the following procedures: 
+Just to recap, we have done the following procedures:
 
 * Created our geometry in ICEM;
 * Created Parts grouping edges that will share same boundary conditions;
@@ -311,7 +311,7 @@ the same folder::
       # ---------------------------
       #        Grid Parameters
       # ---------------------------
-      'N': 65, 
+      'N': 65,
       's0': 1e-6,
       'marchDist': 2.5,
 

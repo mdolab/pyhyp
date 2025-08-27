@@ -42,4 +42,3 @@ module panel
     ! Generic pointer for a panel
     type(panelType), pointer :: pp
 end module panel
-

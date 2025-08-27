@@ -19,5 +19,5 @@ This assumption does not always hold, such as for a highly swept wing.
 If the vectors deviate enough from the normal direction, the symmetry direction will be incorrectly assigned, and the mesh extrusion will fail.
 
 .. warning::
-    
+
     If you encounter negative volumes near the symmetry plane, set the symmetry boundary conditions manually using :ref:`the BC option<pyhyp_BC>`.

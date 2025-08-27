@@ -158,4 +158,3 @@ contains
 
     end subroutine basis
 end module bspline
-

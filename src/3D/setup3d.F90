@@ -1191,7 +1191,7 @@ subroutine getNBlocks(fileName, fileType, nBlocks)
 
         base = 1_intType
 
-        call cg_nzones_f(cg, base, nBlocks, ierr); 
+        call cg_nzones_f(cg, base, nBlocks, ierr);
         if (ierr .eq. CG_ERROR) call cg_error_exit_f
 
         call cg_close_f(cg, ierr)
