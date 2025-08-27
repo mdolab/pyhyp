@@ -7,3 +7,5 @@ a9c79d78988cee19420a099ac92973dfa4c8d5b7
 9bcac9df2f42716ff78f0bded93990df10ceedfe
 # fprettify
 14acdd0c1d5116b5b5b8543a8276001d463b6875
+# Switch to ruff/pre-commit formatting
+5937972e0780fcdd3e8ea585a18137e491f3ae35
