@@ -227,6 +227,7 @@ subroutine computeQualityLayer
     use communication
     use hypInput
     use hypData
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Working
@@ -245,10 +246,10 @@ subroutine computeQualityLayer
     call VecGhostGetLocalForm(X(marchIter - 1), XLm1_local, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XL_local, xx, ierr)
+    call VecGetArrayCompat(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XLm1_local, xxm1, ierr)
+    call VecGetArrayCompat(XLm1_local, xxm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     do i = 1, nLocalFace
@@ -272,10 +273,10 @@ subroutine computeQualityLayer
         minVolume_local = min(minVolume_local, V)
     end do
 
-    call VecRestoreArrayF90(XL_local, xx, ierr)
+    call VecRestoreArrayCompat(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArrayF90(XLm1_local, xx, ierr)
+    call VecRestoreArrayCompat(XLm1_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGhostRestoreLocalForm(X(marchIter), XL_local, ierr)
@@ -593,18 +594,19 @@ subroutine getSurfaceCoordinates(coords, n)
     ! Return the surface coordiantes
 
     use hypData
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     integer(kind=intType), intent(in) :: n
     real(kind=realType), intent(inout), dimension(n) :: coords
     integer(kind=intType) :: ierr
 
-    call VecGetArrayF90(X(1), xx, ierr)
+    call VecGetArrayCompat(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Just copy
     coords = xx
-    call VecRestoreArrayF90(X(1), xx, ierr)
+    call VecRestoreArrayCompat(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine getSurfaceCoordinates
@@ -614,19 +616,20 @@ subroutine setSurfaceCoordinates(coords, n)
     ! Return the surface coordiantes
 
     use hypData
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     integer(kind=intType), intent(in) :: n
     real(kind=realType), intent(in), dimension(n) :: coords
     integer(kind=intType) :: ierr
 
-    call VecGetArrayF90(X(1), xx, ierr)
+    call VecGetArrayCompat(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Just copy
     xx = coords
 
-    call VecRestoreArrayF90(X(1), xx, ierr)
+    call VecRestoreArrayCompat(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine setSurfaceCoordinates
@@ -735,6 +738,7 @@ subroutine findKStretch(XL, XLm1, XLm2)
     use hypData, only: maxKStretch, nx
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input parameters
@@ -749,13 +753,13 @@ subroutine findKStretch(XL, XLm1, XLm2)
     ! BEGIN EXECUTION
 
     ! Assign pointers
-    call VecGetArrayF90(XL, xxl, ierr)
+    call VecGetArrayCompat(XL, xxl, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XLm1, xxlm1, ierr)
+    call VecGetArrayCompat(XLm1, xxlm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XLm2, xxlm2, ierr)
+    call VecGetArrayCompat(XLm2, xxlm2, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Initialize maximum stretch variable
@@ -778,13 +782,13 @@ subroutine findKStretch(XL, XLm1, XLm2)
     end do
 
     ! Restore arrays to make petsc happy
-    call VecRestoreArrayF90(XL, xxl, ierr)
+    call VecRestoreArrayCompat(XL, xxl, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArrayF90(XLm1, xxlm1, ierr)
+    call VecRestoreArrayCompat(XLm1, xxlm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArrayF90(XLm2, xxlm2, ierr)
+    call VecRestoreArrayCompat(XLm2, xxlm2, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine findKStretch

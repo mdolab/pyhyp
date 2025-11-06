@@ -7,6 +7,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
 #include "petsc/finclude/petsc.h"
 #include "petscversion.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! PETSc Variables
@@ -19,7 +20,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
 
     ! Now we can pull out a local vector for resVec since we will only
     ! be setting local variables.
-    call VecGetArrayF90(resVec, xx, ierr)
+    call VecGetArrayCompat(resVec, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGetOwnershipRange(stateVec, iStart, iEnd, ierr)
@@ -30,7 +31,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
         call evalAtPoint(MGP(1)%panels(j + iStart)%center, xx(j), V)
     end do
 
-    call VecRestoreArrayF90(resVec, xx, ierr)
+    call VecRestoreArrayCompat(resVec, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! We don't check an error here, so just pass back zero
@@ -404,6 +405,7 @@ subroutine generateSolution
     use hypData
     use hypInput
     use panel
+    use petscCompat, only: MatCreateDenseCompat
     implicit none
     ! Working parameters
     integer(kind=intType) :: i, j, k, info, ierr, iStart, iEnd, nPLocal
@@ -414,8 +416,8 @@ subroutine generateSolution
 
     if ((evalMode == EVAL_SLOW .or. evalMode == EVAL_EXACT) .and. .not. useMatrixFree) then
         ! We have a dense matrix:
-        call MatCreateDense(hyp_comm_world, PETSC_DETERMINE, PETSC_DETERMINE, &
-                            nPGlobal, nPGlobal, PETSC_NULL_SCALAR, ellipMat, ierr)
+        call MatCreateDenseCompat(hyp_comm_world, PETSC_DETERMINE, PETSC_DETERMINE, &
+                            nPGlobal, nPGlobal, A=ellipMat, ierr=ierr)
         call EChk(ierr, __FILE__, __LINE__)
 #if PETSC_VERSION_MINOR > 5
         call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
@@ -517,7 +519,7 @@ subroutine generateSolution
             ! Only evalaute if assembling matrix
             if (assembleMat) then
                 call panelInfluence2(i, MGP(1)%panels(j + iStart)%center, phi, V)
-                call MatSetValues(ellipMat, 1, j + iStart - 1, 1, i - 1, phi, INSERT_VALUES, ierr)
+                call MatSetValues(ellipMat, 1, [j + iStart - 1], 1, [i - 1], [phi], INSERT_VALUES, ierr)
                 call EChk(ierr, __FILE__, __LINE__)
             end if
 
@@ -529,7 +531,7 @@ subroutine generateSolution
                     call panelInfluence2(i, MGP(1)%panels(j + iStart)%center, phi, V)
                 end if
 
-                call MatSetValues(ellipPCMat, 1, j + iStart - 1, 1, i - 1, phi, INSERT_VALUES, ierr)
+                call MatSetValues(ellipPCMat, 1, [j + iStart - 1], 1, [i - 1], [phi], INSERT_VALUES, ierr)
                 call EChk(ierr, __FILE__, __LINE__)
             end if
         end do
@@ -621,6 +623,7 @@ subroutine setStrengths(sigma)
     use hypData, only: ellipScatter, localSol, xx
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input Parameters
@@ -642,14 +645,14 @@ subroutine setStrengths(sigma)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Extract a pointer and set the strengths
-    call VecGetArrayF90(localSol, xx, ierr)
+    call VecGetArrayCompat(localSol, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Now set the strengths
     call setMGData(xx)
 
     ! Always remember to restore the array
-    call VecRestoreArrayF90(localSol, xx, ierr)
+    call VecRestoreArrayCompat(localSol, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine setStrengths
@@ -673,6 +676,7 @@ subroutine saveSolution(sigma)
     use communication
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
     ! Input Parameters
     Vec :: sigma
@@ -691,7 +695,7 @@ subroutine saveSolution(sigma)
     ! Only need to write on root proc...it now has all the required information
     if (myid == 0) then
         ! Extract a pointer and set the strengths
-        call VecGetArrayF90(localSol, xx, ierr)
+        call VecGetArrayCompat(localSol, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         open (unit=9, file=trim(sourceStrengthFile), status='replace')
@@ -706,7 +710,7 @@ subroutine saveSolution(sigma)
         end do
         close (9)
         ! Always remember to restore the array
-        call VecRestoreArrayF90(localSol, xx, ierr)
+        call VecRestoreArrayCompat(localSol, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 end subroutine saveSolution
@@ -1028,6 +1032,7 @@ subroutine setupPanels
     use hypInput
     use hypData
     use panel
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Working
@@ -1089,7 +1094,7 @@ subroutine setupPanels
     call VecScatterDestroy(allScatter, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(allGlobalNodes, xx, ierr)
+    call VecGetArrayCompat(allGlobalNodes, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Now we can allocate MGP
@@ -1171,7 +1176,7 @@ subroutine setupPanels
         pp%pts(:, pp%N + 1) = pp%pts(:, 1)
     end do
 
-    call VecRestoreArrayF90(allGlobalNodes, xx, ierr)
+    call VecRestoreArrayCompat(allGlobalNodes, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecDestroy(allGlobalNodes, ierr)
@@ -1694,6 +1699,7 @@ subroutine generateEllipLayer(X, layer)
     use hypData, only: fullConn, rootScatter, xLocal, xx, npGlobal
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input/Output
@@ -1713,7 +1719,7 @@ subroutine generateEllipLayer(X, layer)
                        SCATTER_FORWARD, ierr)
     call EChk(ierr, __FILE__, __LINE__)
     if (myid == 0) then
-        call VecGetArrayF90(XLocal, xx, ierr)
+        call VecGetArrayCompat(XLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         do i = 1, npGlobal
@@ -1727,7 +1733,7 @@ subroutine generateEllipLayer(X, layer)
             call VecSetValuesBlocked(layer, 1, (/i - 1/), xCen, INSERT_VALUES, ierr)
             call EChk(ierr, __FILE__, __LINE__)
         end do
-        call VecRestoreArrayF90(XLocal, xx, ierr)
+        call VecRestoreArrayCompat(XLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 
@@ -1746,6 +1752,7 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
     use hypData, only: fullcPtr, rootScatter, xLocal, xxm1, npGlobal, nxGlobal
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input/Output
@@ -1772,16 +1779,16 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
 
     if (myid == 0) then
         ! Get pointers to arrays
-        call VecGetArrayF90(delta, deltaPtr, ierr)
+        call VecGetArrayCompat(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(norm, normPtr, ierr)
+        call VecGetArrayCompat(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(layer, yy, ierr)
+        call VecGetArrayCompat(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(XLocal, xxm1, ierr)
+        call VecGetArrayCompat(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         print *, 'about to do reconstruct'
 
@@ -1854,16 +1861,16 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
         end do
 
         ! Restore all pointers
-        call VecRestoreArrayF90(delta, deltaPtr, ierr)
+        call VecRestoreArrayCompat(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(norm, normPtr, ierr)
+        call VecRestoreArrayCompat(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(layer, yy, ierr)
+        call VecRestoreArrayCompat(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(XLocal, xxm1, ierr)
+        call VecRestoreArrayCompat(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 
@@ -1883,6 +1890,7 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
     use hypData, only: fullcPtr, rootScatter, xLocal, xxm1, npGlobal, nxGlobal
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input/Output
@@ -1909,16 +1917,16 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
 
     if (myid == 0) then
         ! Get pointers to arrays
-        call VecGetArrayF90(delta, deltaPtr, ierr)
+        call VecGetArrayCompat(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(norm, normPtr, ierr)
+        call VecGetArrayCompat(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(layer, yy, ierr)
+        call VecGetArrayCompat(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(XLocal, xxm1, ierr)
+        call VecGetArrayCompat(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         print *, 'about to do reconstruct'
 
@@ -1945,16 +1953,16 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
         end do
 
         ! Restore all pointers
-        call VecRestoreArrayF90(delta, deltaPtr, ierr)
+        call VecRestoreArrayCompat(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(norm, normPtr, ierr)
+        call VecRestoreArrayCompat(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(layer, yy, ierr)
+        call VecRestoreArrayCompat(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(XLocal, xxm1, ierr)
+        call VecRestoreArrayCompat(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 

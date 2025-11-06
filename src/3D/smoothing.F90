@@ -5,6 +5,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
     use communication
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input Parameters
@@ -107,7 +108,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
 
         ! Now we can just search our own locally owned nodes and compute
         ! the required factor.
-        call VecGetArrayF90(XVec, xx, ierr)
+        call VecGetArrayCompat(XVec, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         do i = 1, nx
             call n_nearest_to(mytree, xx(3 * i - 2:3 * i), 1, indexes, distances)
@@ -115,7 +116,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
             distFact(i) = min((sqrt(distances(1)) / dstar)**1.5, one)
         end do
 
-        call VecRestoreArrayF90(XVec, xx, ierr)
+        call VecRestoreArrayCompat(XVec, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         call destroy_tree(mytree)
@@ -137,7 +138,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
         call VecGhostGetLocalForm(XVec, XL_local, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(XL_local, xx, ierr)
+        call VecGetArrayCompat(XL_local, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         cellCen(:, :) = zero
@@ -198,7 +199,7 @@ subroutine surfaceSmooth(xVec, nSteps, stepSize)
         end do
 
         ! Restore everything to prepare for the next iteration
-        call VecRestoreArrayF90(XL_local, xx, ierr)
+        call VecRestoreArrayCompat(XL_local, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         call VecGhostRestoreLocalForm(XVec, XL_local, ierr)
@@ -301,6 +302,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
     use communication
 #include "petsc/finclude/petsc.h"
     use petsc
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input Parameters
@@ -415,7 +417,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
 
         ! Now we can just search our own locally owned nodes and compute
         ! the required factor.
-        call VecGetArrayF90(XVec, xx, ierr)
+        call VecGetArrayCompat(XVec, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         do i = 1, nx
             call n_nearest_to(mytree, xx(3 * i - 2:3 * i), 1, indexes, distances)
@@ -423,7 +425,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
             distFact(i) = min((sqrt(distances(1)) / dstar)**1.5, one)
         end do
 
-        call VecRestoreArrayF90(XVec, xx, ierr)
+        call VecRestoreArrayCompat(XVec, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         call destroy_tree(mytree)
@@ -445,7 +447,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
         call VecGhostGetLocalForm(XVec, XL_local, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(XL_local, xx, ierr)
+        call VecGetArrayCompat(XL_local, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         cellCen(:, :) = zero
@@ -506,7 +508,7 @@ subroutine surfaceSmooth2(xVec, nSteps, stepSize)
         end do
 
         ! Restore everything to prepare for the next iteration
-        call VecRestoreArrayF90(XL_local, xx, ierr)
+        call VecRestoreArrayCompat(XL_local, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         call VecGhostRestoreLocalForm(XVec, XL_local, ierr)

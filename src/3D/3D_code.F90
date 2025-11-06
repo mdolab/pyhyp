@@ -97,6 +97,7 @@ subroutine computeVolumes
     use communication
     use precision
     use hypData
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Working Variables
@@ -115,8 +116,8 @@ subroutine computeVolumes
 
     call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
     call VecGhostGetLocalForm(XL, XL_local, ierr)
-    call VecGetArrayF90(VolumeLocal, Vptr, ierr)
-    call VecGetArrayF90(XL_local, xx, ierr)
+    call VecGetArrayCompat(VolumeLocal, Vptr, ierr)
+    call VecGetArrayCompat(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
     cRatio_local = zero
     vBar_local = zero
@@ -175,8 +176,8 @@ subroutine computeVolumes
     end do
 
     ! Restore everything
-    call VecRestoreArrayF90(VolumeLocal, Vptr, ierr)
-    call VecRestoreArrayF90(XL_local, xx, ierr)
+    call VecRestoreArrayCompat(VolumeLocal, Vptr, ierr)
+    call VecRestoreArrayCompat(XL_local, xx, ierr)
     call VecGhostRestoreLocalForm(Volume, VolumeLocal, ierr)
     call VecGhostRestoreLocalForm(XL, XL_local, ierr)
     call EChk(ierr, __FILE__, __LINE__)
@@ -218,6 +219,7 @@ subroutine volumeSmooth
     use communication
     use hypInput
     use hypData
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Working Parameters
@@ -233,7 +235,7 @@ subroutine volumeSmooth
     call VecGetSize(VolumeLocal, iSize, ierr)
     allocate (vTmp(iSize))
 
-    call VecGetArrayF90(VolumeLocal, Vptr, ierr)
+    call VecGetArrayCompat(VolumeLocal, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
     do iter = 1, volSmoothIter(marchIter)
 
@@ -263,7 +265,7 @@ subroutine volumeSmooth
     end do
 
     deallocate (vtmp)
-    call VecRestoreArrayF90(VolumeLocal, Vptr, ierr)
+    call VecRestoreArrayCompat(VolumeLocal, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGhostRestoreLocalForm(Volume, VolumeLocal, ierr)
@@ -272,12 +274,12 @@ subroutine volumeSmooth
     ! Now we do a global volume smooth
     factor = half * (one + (one - volBlend(marchIter))**(marchIter - 2))
 
-    call VecGetArrayF90(Volume, Vptr, ierr)
+    call VecGetArrayCompat(Volume, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     Vptr = factor * VPtr + (one - factor) * Vbar
 
-    call VecRestoreArrayF90(Volume, Vptr, ierr)
+    call VecRestoreArrayCompat(Volume, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine volumeSmooth
@@ -423,6 +425,7 @@ subroutine calcResidual
     use communication
     use hypData
     use hypInput
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Working variables
@@ -476,9 +479,9 @@ subroutine calcResidual
     call VecGhostGetLocalForm(XL, XL_local, ierr)
     call VecGhostGetLocalForm(XLm1, XLm1_local, ierr)
 
-    call VecGetArrayF90(XL_local, xx, ierr)
-    call VecGetArrayF90(XLm1_local, xxm1, ierr)
-    call VecGetArrayF90(Volume, Vptr, ierr)
+    call VecGetArrayCompat(XL_local, xx, ierr)
+    call VecGetArrayCompat(XLm1_local, xxm1, ierr)
+    call VecGetArrayCompat(Volume, Vptr, ierr)
 
     ! Nodal loop
     masterNodeLoop: do i = 1, nx
@@ -948,9 +951,9 @@ subroutine calcResidual
     end if
 
     ! Finally restore everything
-    call VecRestoreArrayF90(XL_local, xx, ierr)
-    call VecRestoreArrayF90(XLm1_local, xxm1, ierr)
-    call VecRestoreArrayF90(Volume, vPtr, ierr)
+    call VecRestoreArrayCompat(XL_local, xx, ierr)
+    call VecRestoreArrayCompat(XLm1_local, xxm1, ierr)
+    call VecRestoreArrayCompat(Volume, vPtr, ierr)
 
     call VecGhostRestoreLocalForm(XL, XL_local, ierr)
     call VecGhostRestoreLocalForm(XLm1, XLm1_local, ierr)
@@ -963,7 +966,8 @@ contains
         ! Helper routine for adding values to hypMat. Given indices are
         ! assumed to be 1-based and the zero-based conversion is done
         ! here.
-        call MatSetValuesBlocked(hypMat, 1, i - 1, 1, j - 1, blk, ADD_VALUES, ierr)
+        ! Note that PETSc expects 1D array so we reshaped the 2D block into 1D
+        call MatSetValuesBlocked(hypMat, 1, [i - 1], 1, [j - 1], [blk], ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end subroutine addBlock
 end subroutine calcResidual
@@ -975,6 +979,7 @@ subroutine updateBCs
     use communication
     use hypData
     use hypInput
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Working variables
@@ -988,7 +993,7 @@ subroutine updateBCs
     call VecGhostGetLocalForm(XL, XL_local, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XL_local, xx, ierr)
+    call VecGetArrayCompat(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     masterNodeLoop: do i = 1, nx
@@ -1048,7 +1053,7 @@ subroutine updateBCs
     end do masterNodeLoop
 
     ! Finally restore everything
-    call VecRestoreArrayF90(XL_local, xx, ierr)
+    call VecRestoreArrayCompat(XL_local, xx, ierr)
     call VecGhostRestoreLocalForm(XL, XL_local, ierr)
 end subroutine updateBCs
 
@@ -1181,15 +1186,16 @@ subroutine create3DPetscVars
 end subroutine create3DPetscVars
 
 subroutine setupPETScKSP
-
+    use petscCompat, only: PCASMGetSubKSPCompat, PCASMRestoreSubKSPCompat
     use hypData
     implicit none
 
     ! Special routine for setting up PETSc hypKSP object. It is getting
     ! progressively more difficult to manually setup KSP objects with
     ! PETSc, hence this routine is now needed for PETSc 3.7.
-    integer(kind=intType) :: nlocal, first, ierr
+    integer(kind=intType) :: nlocal, first, ierr, i
 
+    ! TODO: Add constants instead of string literals
     ! Setup the KSP object.
     call KSPGetPC(hypKSP, globalPC, ierr)
     call EChk(ierr, __FILE__, __LINE__)
@@ -1201,26 +1207,33 @@ subroutine setupPETScKSP
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Extract the ksp objects for each subdomain
-    call PCASMGetSubKSP(globalPC, nlocal, first, subksp, ierr)
+    call PCASMGetSubKSPCompat(globalPC, nlocal, first, subKSP, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call KSPSetType(subksp, 'preonly', ierr)
-    call EChk(ierr, __FILE__, __LINE__)
+    ! Loop over each subKSP object and set it up
+    do i = 1, nlocal
+        call KSPSetType(subKSP(i), 'preonly', ierr)
+        call EChk(ierr, __FILE__, __LINE__)
 
-    ! Extract the preconditioner for subksp object.
-    call KSPGetPC(subksp, subpc, ierr)
-    call EChk(ierr, __FILE__, __LINE__)
+        ! Extract the preconditioner for subKSP object.
+        call KSPGetPC(subKSP(i), subPC, ierr)
+        call EChk(ierr, __FILE__, __LINE__)
 
-    ! The subpc type will almost always be ILU
-    call PCSetType(subpc, "ilu", ierr)
-    call EChk(ierr, __FILE__, __LINE__)
+        ! The subPC type will almost always be ILU
+        call PCSetType(subPC, "ilu", ierr)
+        call EChk(ierr, __FILE__, __LINE__)
 
-    ! Setup the matrix ordering for the subpc object:
-    call PCFactorSetMatOrderingtype(subpc, "nd", ierr)
-    call EChk(ierr, __FILE__, __LINE__)
+        ! Setup the matrix ordering for the subPC object:
+        call PCFactorSetMatOrderingtype(subPC, "nd", ierr)
+        call EChk(ierr, __FILE__, __LINE__)
 
-    ! Set the ILU parameters
-    call PCFactorSetLevels(subpc, 1, ierr)
+        ! Set the ILU parameters
+        call PCFactorSetLevels(subPC, 1, ierr)
+        call EChk(ierr, __FILE__, __LINE__)
+    end do
+
+    ! Release the subKSP objects
+    call PCASMRestoreSubKSPCompat(globalPC, nlocal, first, subKSP, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine setupPETScKSP

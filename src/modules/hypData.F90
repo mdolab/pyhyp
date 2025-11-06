@@ -109,7 +109,7 @@ module hypData
 
     ! Temp Petsc variables for setting up KSP
     PC globalPC, subPC
-    KSP subKSP
+    KSP, pointer :: subKSP(:)
 
     ! Elliptic variables
     Mat ellipMat, ellipPCMat

@@ -18,6 +18,7 @@ subroutine setup(fileName, fileType)
     use communication
     use hypData
     use hypInput
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
 
     implicit none
 
@@ -1120,7 +1121,7 @@ subroutine setup(fileName, fileType)
     call create3DPetscVars
 
     ! Copy X-surf into the first grid slot
-    call VecGetArrayF90(X(1), xx, ierr)
+    call VecGetArrayCompat(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     do i = 1, nx
@@ -1129,7 +1130,7 @@ subroutine setup(fileName, fileType)
         end do
     end do
 
-    call VecRestoreArrayF90(X(1), xx, ierr)
+    call VecRestoreArrayCompat(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Update ghost values for the quality calc (this will be the -1 level)

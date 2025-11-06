@@ -8,6 +8,7 @@ subroutine writeLayerPlot3d(fileName, layer)
     use communication
     use hypData
     use hypInput
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input Arguments
@@ -35,7 +36,7 @@ subroutine writeLayerPlot3d(fileName, layer)
         !    nPatchToWrite = nPatch/2
         ! end if
 
-        call VecGetArrayF90(xLocal, xx, ierr)
+        call VecGetArrayCompat(xLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Open the output file
@@ -71,7 +72,7 @@ subroutine writeLayerPlot3d(fileName, layer)
             end do
         end do
         close (7)
-        call VecRestoreArrayF90(XLocal, xx, ierr)
+        call VecRestoreArrayCompat(XLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 end subroutine writeLayerPlot3d
@@ -86,6 +87,7 @@ subroutine writeLayerFE(fileName, layer, partitions)
     use communication
     use hypData
     use hypInput
+    use petscCompat, only: VecGetArrayCompat, VecRestoreArrayCompat
     implicit none
 
     ! Input Arguments
@@ -107,7 +109,7 @@ subroutine writeLayerFE(fileName, layer, partitions)
 6       format(I5, I5, I5)
 7       format(g21.14)
 
-        call VecGetArrayF90(xLocal, xx, ierr)
+        call VecGetArrayCompat(xLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         ! Open the output file
         open (unit=7, file=fileName)
@@ -125,7 +127,7 @@ subroutine writeLayerFE(fileName, layer, partitions)
         end do
         close (7)
 
-        call VecRestoreArrayF90(XLocal, xx, ierr)
+        call VecRestoreArrayCompat(XLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 end subroutine writeLayerFE
