@@ -30,8 +30,9 @@ setup(
         include=["pyhyp"],
     ),
     package_data={"pyhyp": ["*.so"]},
+    python_requires=">=3.11",
     install_requires=[
-        "numpy>=1.21,!=1.24,!=1.24.1,!=1.24.2",
+        "numpy>=1.25",
         "mpi4py>=3.1.5",
         "mdolab-baseclasses>=1.3",
         "cgnsutilities>=2.5",
