@@ -11,3 +11,7 @@ pyHyp API
    :members:
 
 .. autofunction:: pyhyp.utils.simpleOCart
+
+.. autofunction:: pyhyp.utils.computeFirstCellHeight
+
+.. autofunction:: pyhyp.utils.computeNumLayers

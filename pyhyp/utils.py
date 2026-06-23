@@ -158,3 +158,65 @@ def simpleOCart(inputGrid, dh, hExtra, nExtra, sym, mgcycle, outFile, userOption
 
         # Delete the temp file
         os.remove(fName)
+
+
+def computeFirstCellHeight(rho: float, u: float, L: float, mu: float, yPlus=1.0) -> float:
+    """Compute first cell height to achieve a desired y+ value
+
+    Equations from https://www.cadence.com/en_US/home/tools/system-analysis/computational-fluid-dynamics/y-plus.html
+
+    Parameters
+    ----------
+    rho : float
+        Density
+    u : float
+        Velocity
+    L : float
+        Characteristic length
+    mu : float
+        Dynamic viscosity
+    yPlus : float, optional
+        Desired y+ value, by default 1.0
+
+    Returns
+    -------
+    float
+        First cell height
+    """
+    re = rho * u * L / mu
+    cf = 0.026 / re ** (1 / 7)
+    tau = 0.5 * rho * u**2 * cf
+    uFric = np.sqrt(tau / rho)
+    return yPlus * mu / (rho * uFric)
+
+
+def computeNumLayers(totalDist: float, s0: float, growthRatio: float) -> int:
+    r"""Compute the number of layers needed to extrude a given distance with a given first cell height and growth ratio.
+
+    This calculation is based on the formula for the sum of a geometric series:
+
+    .. math::
+
+        s_\text{total} = \sum_{i=1}^{n} s_0 r^i = s_0\frac{1-r^n}{1-r}
+
+    Which can be rearranged to solve for n:
+
+    .. math::
+
+        n = \frac{\log(1 - \frac{s_\text{total}(1-r)}{s_0})}{\log(r)}
+
+    Parameters
+    ----------
+    totalDist : float
+        Total distance to extrude
+    s0 : float
+        First cell height
+    growthRatio : float
+        Ratio between successive layer heights
+
+    Returns
+    -------
+    int
+        Total number of layers needed for the extrusion, rounded up to the nearest integer.
+    """
+    return int(np.ceil(np.log(1 - (totalDist * (1 - growthRatio)) / (s0)) / np.log(growthRatio)))
