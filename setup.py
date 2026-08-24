@@ -33,7 +33,7 @@ setup(
     python_requires=">=3.11",
     install_requires=[
         "numpy>=1.25",
-        "mpi4py>=3.1.5",
+        "mpi4py>=4.0.0",
         "mdolab-baseclasses>=1.3",
         "cgnsutilities>=2.5",
         "tabulate",
