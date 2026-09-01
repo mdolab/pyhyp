@@ -18,7 +18,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
 
     ! Now we can pull out a local vector for resVec since we will only
     ! be setting local variables.
-    call VecGetArrayF90(resVec, xx, ierr)
+    call VecGetArray(resVec, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGetOwnershipRange(stateVec, iStart, iEnd, ierr)
@@ -29,7 +29,7 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
         call evalAtPoint(MGP(1)%panels(j + iStart)%center, xx(j), V)
     end do
 
-    call VecRestoreArrayF90(resVec, xx, ierr)
+    call VecRestoreArray(resVec, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! We don't check an error here, so just pass back zero
@@ -411,10 +411,15 @@ subroutine generateSolution
     logical :: assembleMat, successful
     external formFunction_mf
 
+    ! PETSc requires the row index, column index and value arguments of
+    ! MatSetValues to be arrays, so the single entry is passed through these.
+    integer(kind=intType), dimension(1) :: rowIdx, colIdx
+    real(kind=realType), dimension(1) :: matVal
+
     if ((evalMode == EVAL_SLOW .or. evalMode == EVAL_EXACT) .and. .not. useMatrixFree) then
         ! We have a dense matrix:
         call MatCreateDense(hyp_comm_world, PETSC_DETERMINE, PETSC_DETERMINE, &
-                            nPGlobal, nPGlobal, PETSC_NULL_SCALAR, ellipMat, ierr)
+                            nPGlobal, nPGlobal, PETSC_NULL_SCALAR_ARRAY, ellipMat, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
 
@@ -503,7 +508,10 @@ subroutine generateSolution
             ! Only evalaute if assembling matrix
             if (assembleMat) then
                 call panelInfluence2(i, MGP(1)%panels(j + iStart)%center, phi, V)
-                call MatSetValues(ellipMat, 1, j + iStart - 1, 1, i - 1, phi, INSERT_VALUES, ierr)
+                rowIdx(1) = j + iStart - 1
+                colIdx(1) = i - 1
+                matVal(1) = phi
+                call MatSetValues(ellipMat, 1, rowIdx, 1, colIdx, matVal, INSERT_VALUES, ierr)
                 call EChk(ierr, __FILE__, __LINE__)
             end if
 
@@ -515,7 +523,10 @@ subroutine generateSolution
                     call panelInfluence2(i, MGP(1)%panels(j + iStart)%center, phi, V)
                 end if
 
-                call MatSetValues(ellipPCMat, 1, j + iStart - 1, 1, i - 1, phi, INSERT_VALUES, ierr)
+                rowIdx(1) = j + iStart - 1
+                colIdx(1) = i - 1
+                matVal(1) = phi
+                call MatSetValues(ellipPCMat, 1, rowIdx, 1, colIdx, matVal, INSERT_VALUES, ierr)
                 call EChk(ierr, __FILE__, __LINE__)
             end if
         end do
@@ -628,14 +639,14 @@ subroutine setStrengths(sigma)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Extract a pointer and set the strengths
-    call VecGetArrayF90(localSol, xx, ierr)
+    call VecGetArray(localSol, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Now set the strengths
     call setMGData(xx)
 
     ! Always remember to restore the array
-    call VecRestoreArrayF90(localSol, xx, ierr)
+    call VecRestoreArray(localSol, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine setStrengths
@@ -677,7 +688,7 @@ subroutine saveSolution(sigma)
     ! Only need to write on root proc...it now has all the required information
     if (myid == 0) then
         ! Extract a pointer and set the strengths
-        call VecGetArrayF90(localSol, xx, ierr)
+        call VecGetArray(localSol, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         open (unit=9, file=trim(sourceStrengthFile), status='replace')
@@ -692,7 +703,7 @@ subroutine saveSolution(sigma)
         end do
         close (9)
         ! Always remember to restore the array
-        call VecRestoreArrayF90(localSol, xx, ierr)
+        call VecRestoreArray(localSol, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 end subroutine saveSolution
@@ -1075,7 +1086,7 @@ subroutine setupPanels
     call VecScatterDestroy(allScatter, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(allGlobalNodes, xx, ierr)
+    call VecGetArray(allGlobalNodes, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Now we can allocate MGP
@@ -1157,7 +1168,7 @@ subroutine setupPanels
         pp%pts(:, pp%N + 1) = pp%pts(:, 1)
     end do
 
-    call VecRestoreArrayF90(allGlobalNodes, xx, ierr)
+    call VecRestoreArray(allGlobalNodes, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecDestroy(allGlobalNodes, ierr)
@@ -1699,7 +1710,7 @@ subroutine generateEllipLayer(X, layer)
                        SCATTER_FORWARD, ierr)
     call EChk(ierr, __FILE__, __LINE__)
     if (myid == 0) then
-        call VecGetArrayF90(XLocal, xx, ierr)
+        call VecGetArray(XLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
         do i = 1, npGlobal
@@ -1713,7 +1724,7 @@ subroutine generateEllipLayer(X, layer)
             call VecSetValuesBlocked(layer, 1, (/i - 1/), xCen, INSERT_VALUES, ierr)
             call EChk(ierr, __FILE__, __LINE__)
         end do
-        call VecRestoreArrayF90(XLocal, xx, ierr)
+        call VecRestoreArray(XLocal, xx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 
@@ -1758,16 +1769,16 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
 
     if (myid == 0) then
         ! Get pointers to arrays
-        call VecGetArrayF90(delta, deltaPtr, ierr)
+        call VecGetArray(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(norm, normPtr, ierr)
+        call VecGetArray(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(layer, yy, ierr)
+        call VecGetArray(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(XLocal, xxm1, ierr)
+        call VecGetArray(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         print *, 'about to do reconstruct'
 
@@ -1840,16 +1851,16 @@ subroutine reconstruct(X, Xm1, layer, delta, norm)
         end do
 
         ! Restore all pointers
-        call VecRestoreArrayF90(delta, deltaPtr, ierr)
+        call VecRestoreArray(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(norm, normPtr, ierr)
+        call VecRestoreArray(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(layer, yy, ierr)
+        call VecRestoreArray(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(XLocal, xxm1, ierr)
+        call VecRestoreArray(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 
@@ -1895,16 +1906,16 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
 
     if (myid == 0) then
         ! Get pointers to arrays
-        call VecGetArrayF90(delta, deltaPtr, ierr)
+        call VecGetArray(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(norm, normPtr, ierr)
+        call VecGetArray(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(layer, yy, ierr)
+        call VecGetArray(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecGetArrayF90(XLocal, xxm1, ierr)
+        call VecGetArray(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
         print *, 'about to do reconstruct'
 
@@ -1931,16 +1942,16 @@ subroutine reconstruct2(X, Xm1, layer, delta, norm)
         end do
 
         ! Restore all pointers
-        call VecRestoreArrayF90(delta, deltaPtr, ierr)
+        call VecRestoreArray(delta, deltaPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(norm, normPtr, ierr)
+        call VecRestoreArray(norm, normPtr, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(layer, yy, ierr)
+        call VecRestoreArray(layer, yy, ierr)
         call EChk(ierr, __FILE__, __LINE__)
 
-        call VecRestoreArrayF90(XLocal, xxm1, ierr)
+        call VecRestoreArray(XLocal, xxm1, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end if
 

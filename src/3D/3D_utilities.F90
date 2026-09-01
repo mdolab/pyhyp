@@ -245,10 +245,10 @@ subroutine computeQualityLayer
     call VecGhostGetLocalForm(X(marchIter - 1), XLm1_local, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XL_local, xx, ierr)
+    call VecGetArray(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XLm1_local, xxm1, ierr)
+    call VecGetArray(XLm1_local, xxm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     do i = 1, nLocalFace
@@ -272,10 +272,10 @@ subroutine computeQualityLayer
         minVolume_local = min(minVolume_local, V)
     end do
 
-    call VecRestoreArrayF90(XL_local, xx, ierr)
+    call VecRestoreArray(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArrayF90(XLm1_local, xx, ierr)
+    call VecRestoreArray(XLm1_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGhostRestoreLocalForm(X(marchIter), XL_local, ierr)
@@ -599,12 +599,12 @@ subroutine getSurfaceCoordinates(coords, n)
     real(kind=realType), intent(inout), dimension(n) :: coords
     integer(kind=intType) :: ierr
 
-    call VecGetArrayF90(X(1), xx, ierr)
+    call VecGetArray(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Just copy
     coords = xx
-    call VecRestoreArrayF90(X(1), xx, ierr)
+    call VecRestoreArray(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine getSurfaceCoordinates
@@ -620,13 +620,13 @@ subroutine setSurfaceCoordinates(coords, n)
     real(kind=realType), intent(in), dimension(n) :: coords
     integer(kind=intType) :: ierr
 
-    call VecGetArrayF90(X(1), xx, ierr)
+    call VecGetArray(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Just copy
     xx = coords
 
-    call VecRestoreArrayF90(X(1), xx, ierr)
+    call VecRestoreArray(X(1), xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine setSurfaceCoordinates
@@ -749,13 +749,13 @@ subroutine findKStretch(XL, XLm1, XLm2)
     ! BEGIN EXECUTION
 
     ! Assign pointers
-    call VecGetArrayF90(XL, xxl, ierr)
+    call VecGetArray(XL, xxl, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XLm1, xxlm1, ierr)
+    call VecGetArray(XLm1, xxlm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XLm2, xxlm2, ierr)
+    call VecGetArray(XLm2, xxlm2, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     ! Initialize maximum stretch variable
@@ -778,13 +778,13 @@ subroutine findKStretch(XL, XLm1, XLm2)
     end do
 
     ! Restore arrays to make petsc happy
-    call VecRestoreArrayF90(XL, xxl, ierr)
+    call VecRestoreArray(XL, xxl, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArrayF90(XLm1, xxlm1, ierr)
+    call VecRestoreArray(XLm1, xxlm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArrayF90(XLm2, xxlm2, ierr)
+    call VecRestoreArray(XLm2, xxlm2, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine findKStretch
