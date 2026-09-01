@@ -5,7 +5,6 @@ subroutine FormFunction_mf(ctx, stateVec, resVec, ierr)
     use hypData, only: ellipScatter, localSol, xx
     use panel
 #include "petsc/finclude/petsc.h"
-#include "petscversion.h"
     use petsc
     implicit none
 
@@ -417,11 +416,7 @@ subroutine generateSolution
         call MatCreateDense(hyp_comm_world, PETSC_DETERMINE, PETSC_DETERMINE, &
                             nPGlobal, nPGlobal, PETSC_NULL_SCALAR, ellipMat, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-#if PETSC_VERSION_MINOR > 5
         call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
-#else
-        call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
-#endif
 
         call EChk(ierr, __FILE__, __LINE__)
         assembleMat = .True.
@@ -433,11 +428,7 @@ subroutine generateSolution
 
         call MatMFFDSetFunction(ellipMat, formFunction_mf, ctx, ierr)
         call EChk(ierr, __FILE__, __LINE__)
-#if PETSC_VERSION_MINOR > 5
         call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
-#else
-        call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
-#endif
         call EChk(ierr, __FILE__, __LINE__)
 
         call MatMFFDSetBase(ellipMat, ellipSol, PETSC_NULL_VEC, ierr)
@@ -500,13 +491,8 @@ subroutine generateSolution
     call KSPSetTolerances(ellipKSP, kspRelTol, 1e-16, 1e20, kspMaxIts, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-#if PETSC_VERSION_GE(3, 15, 0)
     call KSPMonitorSet(ellipKSP, kspmonitorresidual, PETSC_NULL_SCALAR, &
                        PETSC_NULL_FUNCTION, ierr)
-#else
-    call KSPMonitorSet(ellipKSP, kspmonitordefault, PETSC_NULL_SCALAR, &
-                       PETSC_NULL_FUNCTION, ierr)
-#endif
     call EChk(ierr, __FILE__, __LINE__)
 
     if (myid == 0) then

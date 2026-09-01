@@ -1093,11 +1093,7 @@ subroutine create3DPetscVars
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Then use getVecs to get the vectors we want
-#if PETSC_VERSION_MINOR > 5
         call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
-#else
-        call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
-#endif
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Create the extra state-sized vectors
