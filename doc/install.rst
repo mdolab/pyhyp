@@ -9,7 +9,7 @@ Prerequisites
 The following external packages are required for pyHyp:
 
 - CGNS Libarary
-- PETSc
+- PETSc >= 3.23
 
 See the MDO Lab installation guide `here <https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/installInstructions/install3rdPartyPackages.html#installthirdpartypackages>`__ for the supported versions and installation instructions.
 
