@@ -166,7 +166,7 @@ subroutine computeVolumes
         c3 = deltaS / dist(ll, ul)
         c4 = deltaS / dist(lr, ur)
 
-        cRatio_local = max(cRatio_local, c1, c2, c2, c4)
+        cRatio_local = max(cRatio_local, c1, c2, c3, c4)
     end do
 
     ! Finally we have to divide by the count
