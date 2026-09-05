@@ -1,6 +1,16 @@
 module hypData
     use precision
 #include "petsc/finclude/petsc.h"
+
+! pyHyp requires the PETSc Fortran bindings as they exist from 3.23 onwards.
+! That release made the index and value arguments of MatSetValues and
+! MatSetValuesBlocked arrays, changed PCASMGetSubKSP to return a pointer to
+! the array of sub-KSPs, and removed the VecGetArrayF90/VecRestoreArrayF90
+! names in favour of VecGetArray/VecRestoreArray.
+#if !PETSC_VERSION_GE(3, 23, 0)
+#error "pyHyp requires PETSc 3.23 or newer. Please update PETSc and rebuild."
+#endif
+
     use petsc
     implicit none
 

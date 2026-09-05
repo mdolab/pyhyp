@@ -115,8 +115,8 @@ subroutine computeVolumes
 
     call VecGhostGetLocalForm(Volume, VolumeLocal, ierr)
     call VecGhostGetLocalForm(XL, XL_local, ierr)
-    call VecGetArrayF90(VolumeLocal, Vptr, ierr)
-    call VecGetArrayF90(XL_local, xx, ierr)
+    call VecGetArray(VolumeLocal, Vptr, ierr)
+    call VecGetArray(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
     cRatio_local = zero
     vBar_local = zero
@@ -166,7 +166,7 @@ subroutine computeVolumes
         c3 = deltaS / dist(ll, ul)
         c4 = deltaS / dist(lr, ur)
 
-        cRatio_local = max(cRatio_local, c1, c2, c2, c4)
+        cRatio_local = max(cRatio_local, c1, c2, c3, c4)
     end do
 
     ! Finally we have to divide by the count
@@ -175,8 +175,8 @@ subroutine computeVolumes
     end do
 
     ! Restore everything
-    call VecRestoreArrayF90(VolumeLocal, Vptr, ierr)
-    call VecRestoreArrayF90(XL_local, xx, ierr)
+    call VecRestoreArray(VolumeLocal, Vptr, ierr)
+    call VecRestoreArray(XL_local, xx, ierr)
     call VecGhostRestoreLocalForm(Volume, VolumeLocal, ierr)
     call VecGhostRestoreLocalForm(XL, XL_local, ierr)
     call EChk(ierr, __FILE__, __LINE__)
@@ -233,7 +233,7 @@ subroutine volumeSmooth
     call VecGetSize(VolumeLocal, iSize, ierr)
     allocate (vTmp(iSize))
 
-    call VecGetArrayF90(VolumeLocal, Vptr, ierr)
+    call VecGetArray(VolumeLocal, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
     do iter = 1, volSmoothIter(marchIter)
 
@@ -263,7 +263,7 @@ subroutine volumeSmooth
     end do
 
     deallocate (vtmp)
-    call VecRestoreArrayF90(VolumeLocal, Vptr, ierr)
+    call VecRestoreArray(VolumeLocal, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGhostRestoreLocalForm(Volume, VolumeLocal, ierr)
@@ -272,12 +272,12 @@ subroutine volumeSmooth
     ! Now we do a global volume smooth
     factor = half * (one + (one - volBlend(marchIter))**(marchIter - 2))
 
-    call VecGetArrayF90(Volume, Vptr, ierr)
+    call VecGetArray(Volume, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     Vptr = factor * VPtr + (one - factor) * Vbar
 
-    call VecRestoreArrayF90(Volume, Vptr, ierr)
+    call VecRestoreArray(Volume, Vptr, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine volumeSmooth
@@ -476,9 +476,9 @@ subroutine calcResidual
     call VecGhostGetLocalForm(XL, XL_local, ierr)
     call VecGhostGetLocalForm(XLm1, XLm1_local, ierr)
 
-    call VecGetArrayF90(XL_local, xx, ierr)
-    call VecGetArrayF90(XLm1_local, xxm1, ierr)
-    call VecGetArrayF90(Volume, Vptr, ierr)
+    call VecGetArray(XL_local, xx, ierr)
+    call VecGetArray(XLm1_local, xxm1, ierr)
+    call VecGetArray(Volume, Vptr, ierr)
 
     ! Nodal loop
     masterNodeLoop: do i = 1, nx
@@ -948,9 +948,9 @@ subroutine calcResidual
     end if
 
     ! Finally restore everything
-    call VecRestoreArrayF90(XL_local, xx, ierr)
-    call VecRestoreArrayF90(XLm1_local, xxm1, ierr)
-    call VecRestoreArrayF90(Volume, vPtr, ierr)
+    call VecRestoreArray(XL_local, xx, ierr)
+    call VecRestoreArray(XLm1_local, xxm1, ierr)
+    call VecRestoreArray(Volume, vPtr, ierr)
 
     call VecGhostRestoreLocalForm(XL, XL_local, ierr)
     call VecGhostRestoreLocalForm(XLm1, XLm1_local, ierr)
@@ -959,11 +959,16 @@ contains
     subroutine addBlock(i, j, blk)
         implicit none
         integer(kind=intType), intent(in) :: i, j
-        real(kind=realType), dimension(3, 3), intent(in) :: blk
+        real(kind=realType), dimension(3, 3), intent(in), target :: blk
+        ! PETSc requires the row index, column index and value arguments to
+        ! be rank-1 arrays, so the block is passed through these.
+        integer(kind=intType), dimension(1) :: rowIdx, colIdx
         ! Helper routine for adding values to hypMat. Given indices are
         ! assumed to be 1-based and the zero-based conversion is done
         ! here.
-        call MatSetValuesBlocked(hypMat, 1, i - 1, 1, j - 1, blk, ADD_VALUES, ierr)
+        rowIdx(1) = i - 1
+        colIdx(1) = j - 1
+        call MatSetValuesBlocked(hypMat, 1, rowIdx, 1, colIdx, blk, ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end subroutine addBlock
 end subroutine calcResidual
@@ -988,7 +993,7 @@ subroutine updateBCs
     call VecGhostGetLocalForm(XL, XL_local, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecGetArrayF90(XL_local, xx, ierr)
+    call VecGetArray(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     masterNodeLoop: do i = 1, nx
@@ -1048,7 +1053,7 @@ subroutine updateBCs
     end do masterNodeLoop
 
     ! Finally restore everything
-    call VecRestoreArrayF90(XL_local, xx, ierr)
+    call VecRestoreArray(XL_local, xx, ierr)
     call VecGhostRestoreLocalForm(XL, XL_local, ierr)
 end subroutine updateBCs
 
@@ -1093,11 +1098,7 @@ subroutine create3DPetscVars
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Then use getVecs to get the vectors we want
-#if PETSC_VERSION_MINOR > 5
         call MatCreateVecs(hypMat, hypDelta, hypRHS, ierr)
-#else
-        call MatGetVecs(hypMat, hypDelta, hypRHS, ierr)
-#endif
         call EChk(ierr, __FILE__, __LINE__)
 
         ! Create the extra state-sized vectors
@@ -1190,6 +1191,10 @@ subroutine setupPETScKSP
     ! PETSc, hence this routine is now needed for PETSc 3.7.
     integer(kind=intType) :: nlocal, first, ierr
 
+    ! As of PETSc 3.23, PCASMGetSubKSP returns a Fortran pointer to the
+    ! array of sub-KSP objects rather than filling a caller-supplied one.
+    KSP, pointer :: subKSPs(:)
+
     ! Setup the KSP object.
     call KSPGetPC(hypKSP, globalPC, ierr)
     call EChk(ierr, __FILE__, __LINE__)
@@ -1200,9 +1205,12 @@ subroutine setupPETScKSP
     call KSPSetup(hypKSP, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    ! Extract the ksp objects for each subdomain
-    call PCASMGetSubKSP(globalPC, nlocal, first, subksp, ierr)
+    ! Extract the ksp objects for each subdomain. There is a single
+    ! subdomain per processor, so we only ever use the first one.
+    call PCASMGetSubKSP(globalPC, nlocal, first, subKSPs, ierr)
     call EChk(ierr, __FILE__, __LINE__)
+
+    subKSP = subKSPs(1)
 
     call KSPSetType(subksp, 'preonly', ierr)
     call EChk(ierr, __FILE__, __LINE__)

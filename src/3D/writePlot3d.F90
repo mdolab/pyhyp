@@ -47,7 +47,7 @@ subroutine writePlot3d(fileName)
                 call EChk(ierr, __FILE__, __LINE__)
 
                 if (myid == 0) then
-                    call VecGetArrayF90(xLocal, xx, ierr)
+                    call VecGetArray(xLocal, xx, ierr)
                     call EChk(ierr, __FILE__, __LINE__)
 
                     do j = 1, patches(iPatch)%jl
@@ -57,7 +57,7 @@ subroutine writePlot3d(fileName)
                             write (7, 7) xx(3 * (idGlobal - 1) + iDim)
                         end do
                     end do
-                    call VecRestoreArrayF90(XLocal, xx, ierr)
+                    call VecRestoreArray(XLocal, xx, ierr)
                     call EChk(ierr, __FILE__, __LINE__)
                 end if
             end do
