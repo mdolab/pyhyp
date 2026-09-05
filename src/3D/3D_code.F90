@@ -963,14 +963,12 @@ contains
         ! PETSc requires the row index, column index and value arguments to
         ! be rank-1 arrays, so the block is passed through these.
         integer(kind=intType), dimension(1) :: rowIdx, colIdx
-        real(kind=realType), pointer :: blkFlat(:)
         ! Helper routine for adding values to hypMat. Given indices are
         ! assumed to be 1-based and the zero-based conversion is done
         ! here.
         rowIdx(1) = i - 1
         colIdx(1) = j - 1
-        blkFlat(1:size(blk)) => blk  ! blkFlat is a flat view of the 2D array blk
-        call MatSetValuesBlocked(hypMat, 1, rowIdx, 1, colIdx, blkFlat, ADD_VALUES, ierr)
+        call MatSetValuesBlocked(hypMat, 1, rowIdx, 1, colIdx, blk, ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end subroutine addBlock
 end subroutine calcResidual
