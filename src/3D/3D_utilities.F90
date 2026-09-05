@@ -275,7 +275,7 @@ subroutine computeQualityLayer
     call VecRestoreArray(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArray(XLm1_local, xx, ierr)
+    call VecRestoreArray(XLm1_local, xxm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGhostRestoreLocalForm(X(marchIter), XL_local, ierr)
