@@ -275,7 +275,7 @@ subroutine computeQualityLayer
     call VecRestoreArrayF90(XL_local, xx, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
-    call VecRestoreArrayF90(XLm1_local, xx, ierr)
+    call VecRestoreArrayF90(XLm1_local, xxm1, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
     call VecGhostRestoreLocalForm(X(marchIter), XL_local, ierr)
@@ -627,6 +627,12 @@ subroutine setSurfaceCoordinates(coords, n)
     xx = coords
 
     call VecRestoreArrayF90(X(1), xx, ierr)
+    call EChk(ierr, __FILE__, __LINE__)
+
+    ! The ghost values are used by the quality calc for the first layer, so they must match the new coordinates
+    call VecGhostUpdateBegin(X(1), INSERT_VALUES, SCATTER_FORWARD, ierr)
+    call EChk(ierr, __FILE__, __LINE__)
+    call VecGhostUpdateEnd(X(1), INSERT_VALUES, SCATTER_FORWARD, ierr)
     call EChk(ierr, __FILE__, __LINE__)
 
 end subroutine setSurfaceCoordinates
