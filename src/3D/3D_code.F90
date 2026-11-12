@@ -158,7 +158,12 @@ subroutine computeVolumes
         nodeCount(n3) = nodeCount(n3) + 1
         nodeCount(n4) = nodeCount(n4) + 1
 
-        vBar_local = vBar_local + areadS
+        ! Faces on a partition boundary are in the local face list of every proc that owns one of their nodes, so
+        ! only the proc that owns the face's first node adds it to vBar, otherwise it would be counted more than once
+        ! in the sum across procs. Local indices <= nx are owned nodes, ghost nodes come after them.
+        if (n1 <= nx) then
+            vBar_local = vBar_local + areadS
+        end if
 
         ! Also compute edge lengths.
         c1 = deltaS / dist(ll, lr)
