@@ -100,7 +100,7 @@ subroutine writeCGNS(fileName)
                 call EChk(ierr, __FILE__, __LINE__)
 
                 if (myid == 0) then
-                    call VecGetArrayF90(XLocal, xx, ierr)
+                    call VecGetArray(XLocal, xx, ierr)
                     call EChk(ierr, __FILE__, __LINE__)
 
                     do j = 1, jl
@@ -109,7 +109,7 @@ subroutine writeCGNS(fileName)
                             coordArray(i, j, k) = xx(3 * (idGlobal - 1) + iDim)
                         end do
                     end do
-                    call VecRestoreArrayF90(XLocal, xx, ierr)
+                    call VecRestoreArray(XLocal, xx, ierr)
                     call EChk(ierr, __FILE__, __LINE__)
                 end if
             end do
@@ -136,7 +136,7 @@ subroutine writeCGNS(fileName)
 
             ! Volume is special since there is only 1
             do k = 1, N
-                call VecGetArrayF90(metrics(k, iVHist), xxtmp, ierr)
+                call VecGetArray(metrics(k, iVHist), xxtmp, ierr)
                 call EChk(ierr, __FILE__, __LINE__)
 
                 do j = 1, jl
@@ -145,7 +145,7 @@ subroutine writeCGNS(fileName)
                         solArray(i, j, k) = xxtmp(3 * idGlobal)
                     end do
                 end do
-                call VecRestoreArrayF90(metrics(k, iVHist), xxtmp, ierr)
+                call VecRestoreArray(metrics(k, iVHist), xxtmp, ierr)
                 call EChk(ierr, __FILE__, __LINE__)
             end do
             if (myid == 0) then
@@ -220,7 +220,7 @@ contains
                 call EChk(ierr, __FILE__, __LINE__)
 
                 if (myid == 0) then
-                    call VecGetArrayF90(XLocal, xx, ierr)
+                    call VecGetArray(XLocal, xx, ierr)
                     call EChk(ierr, __FILE__, __LINE__)
 
                     do j = 1, patches(iPatch)%jl
@@ -230,7 +230,7 @@ contains
                         end do
                     end do
 
-                    call VecRestoreArrayF90(XLocal, xx, ierr)
+                    call VecRestoreArray(XLocal, xx, ierr)
                     call EChk(ierr, __FILE__, __LINE__)
                 end if
             end do

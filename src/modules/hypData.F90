@@ -1,6 +1,12 @@
 module hypData
     use precision
 #include "petsc/finclude/petsc.h"
+
+! pyHyp requires the PETSc Fortran bindings as they exist from v3.23 onwards.
+#if !PETSC_VERSION_GE(3, 23, 0)
+#error "pyHyp requires PETSc 3.23 or newer. Please update PETSc and rebuild."
+#endif
+
     use petsc
     implicit none
 
