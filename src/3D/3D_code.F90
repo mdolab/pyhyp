@@ -963,12 +963,21 @@ contains
         ! PETSc requires the row index, column index and value arguments to
         ! be rank-1 arrays, so the block is passed through these.
         integer(kind=intType), dimension(1) :: rowIdx, colIdx
+        ! PETSc 3.23.x changed the Fortran interfaces to be generic while
+        ! PETSc 3.25.x changed them back to plain. For plain interfaces
+        ! we can pass the 3x3 blk to a the assumed size v(*) dummy and 
+        ! Fortran will automatically flatten in. However, for generic interfaces
+        ! the rank of the v(*) input must be 1. Therefore to support PETSc 3.23.x
+        ! we will use a rank 1 pointer to point to blk. Change this back if PETSc 3.23.x
+        ! is dropped
+        real(kind=realType), dimension(:), pointer :: blkFlatPointer
         ! Helper routine for adding values to hypMat. Given indices are
         ! assumed to be 1-based and the zero-based conversion is done
         ! here.
+        blkFlatPointer(1:size(blk)) => blk
         rowIdx(1) = i - 1
         colIdx(1) = j - 1
-        call MatSetValuesBlocked(hypMat, 1, rowIdx, 1, colIdx, blk, ADD_VALUES, ierr)
+        call MatSetValuesBlocked(hypMat, 1, rowIdx, 1, colIdx, blkFlatPointer, ADD_VALUES, ierr)
         call EChk(ierr, __FILE__, __LINE__)
     end subroutine addBlock
 end subroutine calcResidual
